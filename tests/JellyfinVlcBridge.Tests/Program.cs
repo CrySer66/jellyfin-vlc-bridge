@@ -28,6 +28,8 @@ var tests = new (string Name, Func<Task> Run)[]
     })),
     ("Dépôt GitHub officiel stable", () => Completed(() =>
         Equal("cryser66/jellyfin-vlc-bridge", BridgeLinks.GitHubRepository))),
+    ("Assistance GitHub officielle stable", () => Completed(() =>
+        Equal("https://github.com/cryser66/jellyfin-vlc-bridge/issues/new/choose", BridgeLinks.GitHubIssuesUrl))),
     ("Une nouvelle Release GitHub est détectée", async () =>
     {
         using var http = new HttpClient(new ReleaseHandler(false));

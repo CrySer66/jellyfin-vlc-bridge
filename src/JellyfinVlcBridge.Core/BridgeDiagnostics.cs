@@ -14,6 +14,7 @@ public sealed record BridgeHealthStatus(
     string JellyfinMessage,
     bool VlcReady,
     string? VlcPath,
+    string? VlcVersion,
     bool ProtocolReady,
     bool NativeMessagingReady,
     bool ExtensionActive,
@@ -37,6 +38,7 @@ public static class BridgeDiagnostics
         var secretReady = !string.IsNullOrWhiteSpace(token);
         var vlcPath = VlcLauncher.Resolve(config.VlcPath);
         var vlcReady = File.Exists(vlcPath) || !OperatingSystem.IsWindows();
+        var vlcVersion = GetVlcVersion(vlcPath);
         var jellyfinConnected = false;
         string? jellyfinUser = null;
         var jellyfinMessage = secretReady ? "Serveur non joignable." : "Connexion Jellyfin absente.";
@@ -79,7 +81,7 @@ public static class BridgeDiagnostics
 
         return new BridgeHealthStatus(
             BridgeVersion.Current, BridgeConfig.DefaultPath, true, config.ServerUrl, secretReady,
-            jellyfinConnected, jellyfinUser, jellyfinMessage, vlcReady, vlcPath,
+            jellyfinConnected, jellyfinUser, jellyfinMessage, vlcReady, vlcPath, vlcVersion,
             protocolReady, nativeMessagingReady, extensionActive, heartbeat?.Version,
             heartbeat?.LastSeenUtc, config.PlaybackMode, BridgeLog.FilePath);
     }
@@ -100,7 +102,18 @@ public static class BridgeDiagnostics
         catch { return false; }
     }
 
+    private static string? GetVlcVersion(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            return string.IsNullOrWhiteSpace(info.ProductVersion) ? info.FileVersion : info.ProductVersion;
+        }
+        catch { return null; }
+    }
+
     private static BridgeHealthStatus Empty(string message) => new(
         BridgeVersion.Current, BridgeConfig.DefaultPath, false, null, false, false, null,
-        message, false, null, false, false, false, null, null, "http", BridgeLog.FilePath);
+        message, false, null, null, false, false, false, null, null, "http", BridgeLog.FilePath);
 }

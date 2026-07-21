@@ -1,5 +1,15 @@
 # Historique des versions
 
+## 1.7.0 — 2026-07-21
+
+- ajout des vérifications automatiques GitHub sous Windows pour chaque modification et Pull Request ;
+- génération automatique du Setup et du ZIP lorsqu'un tag de version est publié ;
+- ajout de formulaires GitHub guidés pour signaler un bug ou proposer une amélioration ;
+- ajout du bouton **Aide et signaler un bug** dans le centre de contrôle ;
+- ajout de la version détectée de VLC dans le diagnostic sans secret ;
+- contrôle automatique de la cohérence des numéros de version avant publication ;
+- maintien volontaire d'une prise en charge exclusivement Windows, seule plateforme actuellement testée.
+
 ## 1.6.1 — 2026-07-21
 
 - détection fondée sur un contact réel avec l'extension, et non plus uniquement sur le registre Windows ;

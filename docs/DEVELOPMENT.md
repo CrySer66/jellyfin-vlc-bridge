@@ -16,15 +16,17 @@ Depuis la racine du dépôt :
 ```powershell
 dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
 dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
-dotnet run --project tests\JellyfinVlcBridge.Tests --configuration Release --no-restore
+dotnet run --project tests\JellyfinVlcBridge.Tests --configuration Release --no-build
 ```
 
 Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 
+À chaque envoi sur `main` et pour chaque Pull Request, GitHub Actions vérifie automatiquement les versions, la syntaxe PowerShell et JavaScript, la compilation et les tests Windows.
+
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.6.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.7.0
 ```
 
 Le script :
@@ -38,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.6.1-Setup.exe
-outputs\JellyfinVlcBridge-1.6.1-win-x64.zip
+outputs\JellyfinVlcBridge-1.7.0-Setup.exe
+outputs\JellyfinVlcBridge-1.7.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome
@@ -77,18 +79,17 @@ Consultez [STORE-PUBLISHING.md](../STORE-PUBLISHING.md) avant d'envoyer une mise
 
 Le `.gitignore` exclut les compilations, paquets, journaux et configurations locales.
 
-## Checklist d'une Release GitHub
+## Publier une Release GitHub
 
-1. mettre à jour `Directory.Build.props`, `BridgeVersion.cs`, les installateurs et le changelog ;
-2. lancer la compilation et tous les tests ;
-3. construire les paquets ;
-4. vérifier la version et l'icône de l'installateur ;
-5. tester une mise à jour par-dessus une installation existante ;
-6. tester une installation propre et Quick Connect ;
-7. tester l'ouverture de la fiche Chrome Web Store ;
-8. créer le tag correspondant, par exemple `v1.6.1` ;
-9. joindre uniquement le Setup et le ZIP Windows à la Release ;
-10. publier des notes de version compréhensibles.
+1. mettre à jour les numéros de version et le changelog ;
+2. lancer `tools/Test-VersionConsistency.ps1` et les tests ;
+3. tester localement une mise à jour et une installation propre ;
+4. envoyer les changements sur `main` et attendre la réussite des vérifications ;
+5. créer puis envoyer le tag correspondant, par exemple `v1.7.0`.
+
+Le workflow **Construire une Release Windows** compile alors le projet sur Windows, relance les tests, fabrique le Setup et le ZIP, puis les joint automatiquement à la Release GitHub. Il peut aussi être lancé manuellement depuis l'onglet **Actions** en indiquant la version.
+
+L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google.
 
 ## Publication du code
 

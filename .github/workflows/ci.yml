@@ -1,0 +1,61 @@
+name: Vérifications
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Compiler et tester sous Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer les sources
+        uses: actions/checkout@v4
+
+      - name: Installer .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Vérifier les versions
+        shell: pwsh
+        run: ./tools/Test-VersionConsistency.ps1
+
+      - name: Vérifier les scripts PowerShell
+        shell: pwsh
+        run: ./tools/Test-PowerShellSyntax.ps1
+
+      - name: Restaurer les dépendances
+        shell: pwsh
+        run: dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
+
+      - name: Compiler
+        shell: pwsh
+        run: dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
+
+      - name: Exécuter les tests
+        shell: pwsh
+        run: dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
+
+      - name: Vérifier les scripts de l’extension
+        shell: pwsh
+        run: |
+          node --check browser-extension/background.js
+          node --check browser-extension/content.js
+

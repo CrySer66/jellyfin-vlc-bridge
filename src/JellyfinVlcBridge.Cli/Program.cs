@@ -22,6 +22,7 @@ static async Task<int> MainAsync(string[] args)
             "version" or "--version" => ShowVersion(),
             "install-native-host" => InstallNativeHost(),
             "open-extension" => OpenExtensionPage(),
+            "open-help" => OpenHelpPage(),
             "check-update" => await CheckUpdateAsync(args[1..]),
             "download-update" => await DownloadUpdateAsync(args[1..]),
             "uninstall-cleanup" => UninstallCleanup(args[1..]),
@@ -566,13 +567,18 @@ static int InstallNativeHost()
 
 static int OpenExtensionPage()
 {
-    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-    {
-        FileName = BridgeLinks.ChromeWebStoreUrl,
-        UseShellExecute = true
-    });
+    OpenWebPage(BridgeLinks.ChromeWebStoreUrl);
     return 0;
 }
+
+static int OpenHelpPage()
+{
+    OpenWebPage(BridgeLinks.GitHubIssuesUrl);
+    return 0;
+}
+
+static void OpenWebPage(string url) => System.Diagnostics.Process.Start(
+    new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
 
 static async Task<int> CheckUpdateAsync(string[] args)
 {
@@ -702,6 +708,7 @@ static async Task<int> DoctorAsync()
     Console.WriteLine($"Configuration : {(status.Configured ? "OK" : "ABSENTE")} ({status.ConfigPath})");
     Console.WriteLine($"Jellyfin : {(status.JellyfinConnected ? "OK" : "ERREUR")} - {status.JellyfinMessage}");
     Console.WriteLine($"VLC : {(status.VlcReady ? "OK" : "ABSENT")} - {status.VlcPath ?? "non détecté"}");
+    Console.WriteLine($"Version VLC : {status.VlcVersion ?? "inconnue"}");
     Console.WriteLine($"Secret : {(status.SecretReady ? "OK" : "ABSENT")}");
     Console.WriteLine($"Chrome : {(status.NativeMessagingReady ? "OK" : "A REPARER")}");
     Console.WriteLine($"Extension : {(status.ExtensionActive ? $"ACTIVE ({status.ExtensionVersion})" : "INACTIVE OU SANS CONTACT")}");
@@ -744,6 +751,7 @@ Jellyfin VLC Bridge
   install-protocol
   install-native-host            Supprime la confirmation répétée du navigateur
   open-extension                Ouvre la fiche officielle Chrome Web Store
+  open-help                     Ouvre l'assistance GitHub officielle
   check-update --json           Vérifie la dernière Release GitHub officielle
   download-update --json        Télécharge le nouvel installateur officiel
   status --json                 État complet lisible par le centre de contrôle

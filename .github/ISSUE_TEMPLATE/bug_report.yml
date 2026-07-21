@@ -1,0 +1,66 @@
+name: Signaler un problème
+description: Signaler un dysfonctionnement reproductible du Bridge, de VLC ou de l’extension.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de ne jamais publier de mot de passe, jeton Jellyfin, clé API ou contenu du Gestionnaire d’identifiants Windows.
+
+  - type: input
+    id: bridge-version
+    attributes:
+      label: Version de Jellyfin VLC Bridge
+      placeholder: Exemple : 1.7.0
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Version de l’extension
+      placeholder: Exemple : 1.3.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Versions de Windows, Jellyfin, Chrome et VLC
+      placeholder: Windows 11, Jellyfin 10.x, Chrome 1xx, VLC 3.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire le problème
+      description: Indiquez précisément ce que vous ouvrez et ce sur quoi vous cliquez.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Résultat attendu et résultat obtenu
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Diagnostic sans secret
+      description: Collez ici le résultat du bouton « Copier un diagnostic sans secret ».
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications
+      options:
+        - label: J’ai vérifié que le problème existe encore avec la dernière version publiée.
+          required: true
+        - label: Le contenu ci-dessus ne contient aucun secret ni jeton.
+          required: true
+

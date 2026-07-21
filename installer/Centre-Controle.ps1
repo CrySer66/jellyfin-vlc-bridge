@@ -193,7 +193,7 @@ $subtitle.Location = New-Object System.Drawing.Point(116, 64)
 $header.Controls.Add($subtitle)
 
 $versionLabel = New-Object System.Windows.Forms.Label
-$versionLabel.Text = 'Version 1.6.1'
+$versionLabel.Text = 'Version 1.7.0'
 $versionLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $versionLabel.ForeColor = [System.Drawing.Color]::White
 $versionLabel.AutoSize = $true
@@ -400,10 +400,16 @@ $copyButton.Location = New-Object System.Drawing.Point(24, 586)
 $copyButton.Size = New-Object System.Drawing.Size(246, 36)
 $form.Controls.Add($copyButton)
 
+$helpButton = New-Object System.Windows.Forms.Button
+$helpButton.Text = 'Aide et signaler un bug'
+$helpButton.Location = New-Object System.Drawing.Point(574, 586)
+$helpButton.Size = New-Object System.Drawing.Size(182, 36)
+$form.Controls.Add($helpButton)
+
 $privacy = New-Object System.Windows.Forms.Label
 $privacy.Text = 'Le jeton Jellyfin reste protege dans Windows et ne figure jamais dans le diagnostic.'
 $privacy.Location = New-Object System.Drawing.Point(287, 593)
-$privacy.Size = New-Object System.Drawing.Size(465, 40)
+$privacy.Size = New-Object System.Drawing.Size(270, 40)
 $privacy.ForeColor = $script:muted
 $form.Controls.Add($privacy)
 
@@ -447,6 +453,9 @@ $repairButton.Add_Click({
 $extensionButton.Add_Click({
     try { [void](Invoke-Bridge @('open-extension')) } catch { Show-BridgeError $_.Exception.Message }
 })
+$helpButton.Add_Click({
+    try { [void](Invoke-Bridge @('open-help')) } catch { Show-BridgeError $_.Exception.Message }
+})
 $logsButton.Add_Click({
     try {
         $directory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\Logs'
@@ -489,6 +498,7 @@ $copyButton.Add_Click({
             'Jellyfin connecte : ' + $script:health.jellyfinConnected,
             'VLC detecte : ' + $script:health.vlcReady,
             'VLC : ' + $script:health.vlcPath,
+            'Version VLC : ' + $script:health.vlcVersion,
             'Integration navigateur : ' + ($script:health.protocolReady -and $script:health.nativeMessagingReady),
             'Extension active : ' + $script:health.extensionActive,
             'Version extension : ' + $script:health.extensionVersion,

@@ -1,0 +1,33 @@
+name: Proposer une amélioration
+description: Suggérer une amélioration pour la version Windows du Bridge.
+title: "[Amélioration] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Besoin rencontré
+      description: Expliquez le problème ou la difficulté avant de proposer une solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Amélioration souhaitée
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Solution utilisée actuellement
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Périmètre
+      options:
+        - label: Cette demande concerne Windows, Jellyfin Web, VLC ou l’extension Chrome du projet.
+          required: true
+

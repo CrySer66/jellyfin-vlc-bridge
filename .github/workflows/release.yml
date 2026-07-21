@@ -1,0 +1,83 @@
+name: Construire une Release Windows
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version à publier, sans le préfixe v
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    name: Construire et publier la version Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Récupérer les sources
+        uses: actions/checkout@v4
+
+      - name: Installer .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Déterminer la version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            '${{ inputs.version }}'
+          } else {
+            '${{ github.ref_name }}'.TrimStart('v')
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version invalide : $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Vérifier les versions
+        shell: pwsh
+        run: ./tools/Test-VersionConsistency.ps1 -ExpectedVersion '${{ steps.version.outputs.version }}'
+
+      - name: Vérifier les scripts PowerShell
+        shell: pwsh
+        run: ./tools/Test-PowerShellSyntax.ps1
+
+      - name: Compiler et tester
+        shell: pwsh
+        run: |
+          dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
+          dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
+          dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
+
+      - name: Construire l’installateur et le ZIP
+        shell: pwsh
+        run: ./tools/Build-WindowsRelease.ps1 -Version '${{ steps.version.outputs.version }}'
+
+      - name: Publier les téléchargements
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $tag = '${{ steps.version.outputs.tag }}'
+          $setup = "outputs/JellyfinVlcBridge-$version-Setup.exe"
+          $portable = "outputs/JellyfinVlcBridge-$version-win-x64.zip"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $setup $portable --clobber
+          } else {
+            gh release create $tag $setup $portable --target '${{ github.sha }}' --title "Jellyfin VLC Bridge $version" --generate-notes
+          }
+

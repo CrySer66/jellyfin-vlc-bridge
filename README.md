@@ -1,15 +1,17 @@
 # Jellyfin VLC Bridge
 
+[![Vérifications Windows](https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml)
+
 Jellyfin VLC Bridge ajoute un bouton **Lire avec VLC** dans Jellyfin Web. Le média original est ouvert dans VLC sur le PC client, sans modifier Jellyfin et sans transmettre de données au développeur.
 
-Version actuelle : **1.6.1**  
+Version actuelle : **1.7.0**  
 Plateforme disponible : **Windows 10/11 x64**  
 Extension Chrome Web Store : **disponible publiquement**
 
 ## Installation rapide
 
 1. Installez [VLC Media Player](https://www.videolan.org/vlc/).
-2. Téléchargez `JellyfinVlcBridge-1.6.1-Setup.exe` depuis la page **Releases** de ce dépôt.
+2. Téléchargez `JellyfinVlcBridge-1.7.0-Setup.exe` depuis la page **Releases** de ce dépôt.
 3. Lancez l'installateur et saisissez l'adresse de votre serveur Jellyfin.
 4. Dans Jellyfin, autorisez le code affiché depuis **Paramètres → Quick Connect**.
 5. La fiche Chrome Web Store s'ouvre automatiquement. Cliquez sur **Ajouter à Chrome**.
@@ -32,6 +34,7 @@ Le guide détaillé se trouve dans [INSTALLATION.md](INSTALLATION.md).
 - jeton conservé dans le Gestionnaire d'identifiants Windows ;
 - installation et désinstallation graphiques ;
 - centre de contrôle graphique avec diagnostic et réparation en un clic ;
+- aide intégrée pour ouvrir le guide ou signaler un problème ;
 - vérification et installation guidée des nouvelles Releases GitHub ;
 - aucune modification des fichiers du serveur Jellyfin.
 
@@ -39,8 +42,8 @@ Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. 
 
 ## Deux téléchargements
 
-- `JellyfinVlcBridge-1.6.1-Setup.exe` : installation recommandée et guidée ;
-- `JellyfinVlcBridge-1.6.1-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
+- `JellyfinVlcBridge-1.7.0-Setup.exe` : installation recommandée et guidée ;
+- `JellyfinVlcBridge-1.7.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
 
 Les sources de l'application et de l'extension restent toutes disponibles dans ce dépôt. Elles ne sont pas dupliquées dans le ZIP Windows afin de garder le téléchargement lisible.
 
@@ -71,7 +74,7 @@ Les fichiers compilés ne sont pas placés dans le code source Git. Ils sont att
 
 ## Développement
 
-Les instructions de compilation, la création des paquets et la checklist de publication sont dans [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Les instructions de compilation, les vérifications automatiques et la publication d'une nouvelle version sont dans [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Limites actuelles
 
@@ -83,7 +86,7 @@ Les instructions de compilation, la création des paquets et la checklist de pub
 
 ## Signaler un problème
 
-Ouvrez une **Issue GitHub** en indiquant les versions de Windows, Jellyfin, Chrome, VLC et Jellyfin VLC Bridge, ainsi que les étapes permettant de reproduire le problème.
+Utilisez **Aide et signaler un bug** dans le centre de contrôle, ou ouvrez directement le [formulaire d'assistance GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose). Le diagnostic copié par l'application indique les versions utiles sans inclure le jeton Jellyfin.
 
 Ne publiez jamais un mot de passe, un jeton Jellyfin, une clé API ou le contenu du Gestionnaire d'identifiants Windows.
 

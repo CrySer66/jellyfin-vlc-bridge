@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guide d’installation
+    url: https://github.com/CrySer66/jellyfin-vlc-bridge/blob/main/INSTALLATION.md
+    about: Vérifier l’installation, les mises à jour et le dépannage rapide.
+  - name: Extension Chrome Web Store
+    url: https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp
+    about: Installer ou vérifier l’extension officielle.
+

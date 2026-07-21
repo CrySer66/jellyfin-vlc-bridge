@@ -8,6 +8,7 @@ public static class BridgeLinks
         "https://chromewebstore.google.com/detail/" + ChromeWebStoreExtensionId;
     public const string GitHubRepository = "cryser66/jellyfin-vlc-bridge";
     public const string GitHubRepositoryUrl = "https://github.com/" + GitHubRepository;
+    public const string GitHubIssuesUrl = GitHubRepositoryUrl + "/issues/new/choose";
     public const string GitHubLatestReleaseApiUrl =
         "https://api.github.com/repos/" + GitHubRepository + "/releases/latest";
 

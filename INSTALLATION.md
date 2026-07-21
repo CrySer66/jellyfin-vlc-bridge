@@ -11,7 +11,7 @@
 
 ## Installer le Bridge
 
-1. Téléchargez `JellyfinVlcBridge-1.6.1-Setup.exe` depuis la dernière **Release GitHub**.
+1. Téléchargez `JellyfinVlcBridge-1.7.0-Setup.exe` depuis la dernière **Release GitHub**.
 2. Lancez le fichier.
 3. Saisissez l'adresse de Jellyfin, par exemple `http://192.168.1.25:8096`.
 4. L'assistant affiche un code Quick Connect temporaire.
@@ -26,7 +26,8 @@ Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. La fenêtre indique imm
 
 - **Réparer** réenregistre la communication locale avec l'extension ;
 - **Réglages de lecture** permet de choisir HTTP Direct Play ou SMB et le chemin de VLC ;
-- **Copier un diagnostic sans secret** prépare les informations utiles pour demander de l'aide, sans jeton ni identifiant utilisateur.
+- **Copier un diagnostic sans secret** prépare les versions de l'application et de VLC ainsi que les informations utiles, sans jeton ni identifiant utilisateur ;
+- **Aide et signaler un bug** ouvre les guides et formulaires officiels du projet.
 
 ## Installer l'extension Chrome
 
