@@ -30,7 +30,7 @@ New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
 
 try {
     & (Join-Path $projectDirectory 'tools\Build-AppIcon.ps1') -OutputPath $appIcon
-    if (-not (Test-Path -LiteralPath $appIcon)) { throw 'La création de l’icône a échoué.' }
+    if (-not (Test-Path -LiteralPath $appIcon)) { throw "La création de l’icône a échoué." }
 
     $appData = Join-Path $buildDirectory 'appdata'
     $packages = Join-Path $buildDirectory 'nuget-packages'
@@ -79,7 +79,7 @@ try {
         /reference:System.IO.Compression.FileSystem.dll `
         "/resource:$payload,payload.zip" `
         (Join-Path $projectDirectory 'installer\SetupBootstrap.cs')
-    if ($LASTEXITCODE -ne 0) { throw 'La création de l’installateur EXE a échoué.' }
+    if ($LASTEXITCODE -ne 0) { throw "La création de l’installateur EXE a échoué." }
 
     Write-Output $setupExe
     Write-Output $releaseZip
