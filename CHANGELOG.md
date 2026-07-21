@@ -1,5 +1,13 @@
 # Historique des versions
 
+## 1.8.1 — 2026-07-22
+
+- correction du diagnostic graphique après le passage de l'application principale en mode sans console ;
+- capture explicite et fiable du résultat JSON de Jellyfin, VLC et de l'extension ;
+- sérialisation des écritures simultanées du signal de présence de l'extension Chrome ;
+- nettoyage automatique des fichiers temporaires abandonnés par un ancien signal interrompu ;
+- ajout de tests de concurrence et du parcours de diagnostic sans fenêtre CMD.
+
 ## 1.8.0 — 2026-07-22
 
 - suppression de la fenêtre CMD pendant la lecture des films, saisons et séries ;
