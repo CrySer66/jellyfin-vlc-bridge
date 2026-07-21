@@ -6,19 +6,22 @@
 - VLC Media Player ;
 - Google Chrome ;
 - un serveur Jellyfin accessible depuis le PC ;
-- Quick Connect activé dans Jellyfin ;
-- .NET Runtime 8 x64.
+- Quick Connect activé dans Jellyfin.
+
+L'environnement .NET nécessaire est déjà inclus dans l'application. Il n'y a rien d'autre à installer que VLC et l'extension Chrome.
 
 ## Installer le Bridge
 
-1. Téléchargez `JellyfinVlcBridge-1.7.0-Setup.exe` depuis la dernière **Release GitHub**.
+1. Téléchargez `JellyfinVlcBridge-1.8.0-Setup.exe` depuis la dernière **Release GitHub**.
 2. Lancez le fichier.
 3. Saisissez l'adresse de Jellyfin, par exemple `http://192.168.1.25:8096`.
 4. L'assistant affiche un code Quick Connect temporaire.
 5. Dans Jellyfin, ouvrez **Paramètres → Quick Connect**, saisissez le code et confirmez.
 6. Attendez le message **Installation terminée avec succès**.
 
-Une réinstallation par-dessus une version existante met le programme à jour sans supprimer la connexion Jellyfin.
+Une réinstallation par-dessus une version existante affiche l'adresse Jellyfin actuelle et conserve automatiquement la connexion. Le champ est verrouillé pour éviter de saisir accidentellement une autre adresse.
+
+Pour utiliser un autre serveur, cliquez sur **Changer de serveur Jellyfin**. Après confirmation, l'ancienne connexion est supprimée et l'assistant demande un nouveau code Quick Connect.
 
 ## Centre de contrôle
 
@@ -47,6 +50,8 @@ L'extension est disponible publiquement sur le Chrome Web Store et recevra autom
 4. Acceptez éventuellement le premier avertissement de Windows ou du pare-feu concernant VLC.
 
 Pour une série ou une saison, le Bridge commence au prochain épisode Jellyfin et prépare les épisodes suivants dans la même liste de lecture VLC.
+
+Le Bridge reste actif silencieusement pendant la lecture : aucune fenêtre CMD n'est nécessaire. Les informations de diagnostic restent accessibles depuis le Centre de contrôle.
 
 ## Mise à jour
 

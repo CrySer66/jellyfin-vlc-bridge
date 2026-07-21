@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.7.0'
+    [string]$Version = '1.8.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +11,8 @@ $setupExe = Join-Path $outputsDirectory "JellyfinVlcBridge-$Version-Setup.exe"
 $workRoot = Join-Path $projectDirectory 'work'
 $buildDirectory = Join-Path $workRoot "release-$Version"
 $appIcon = Join-Path $projectDirectory 'assets\JellyfinVlcBridge.ico'
+$runtimeFrameworkVersion = '8.0.22'
+$globalPackagesDirectory = Join-Path $env:USERPROFILE '.nuget\packages'
 
 function Remove-GeneratedDirectory([string]$path, [string]$expectedParent) {
     $resolved = [IO.Path]::GetFullPath($path)
@@ -33,16 +35,26 @@ try {
     if (-not (Test-Path -LiteralPath $appIcon)) { throw "La création de l’icône a échoué." }
 
     $appData = Join-Path $buildDirectory 'appdata'
-    $packages = Join-Path $buildDirectory 'nuget-packages'
     New-Item -ItemType Directory -Path $appData -Force | Out-Null
     $env:APPDATA = $appData
-    $env:NUGET_PACKAGES = $packages
 
-    & dotnet restore (Join-Path $projectDirectory 'JellyfinVlcBridge.slnx') `
+    & dotnet restore (Join-Path $projectDirectory 'src\JellyfinVlcBridge.Cli\JellyfinVlcBridge.Cli.csproj') `
+        --runtime win-x64 `
+        --packages $globalPackagesDirectory `
+        --ignore-failed-sources `
+        -p:RuntimeFrameworkVersion=$runtimeFrameworkVersion `
         --configfile (Join-Path $projectDirectory 'NuGet.Config')
     if ($LASTEXITCODE -ne 0) { throw 'La restauration .NET a échoué.' }
     & dotnet publish (Join-Path $projectDirectory 'src\JellyfinVlcBridge.Cli\JellyfinVlcBridge.Cli.csproj') `
-        --configuration Release --self-contained false --no-restore --output $releaseDirectory
+        --configuration Release `
+        --runtime win-x64 `
+        --self-contained true `
+        --no-restore `
+        --output $releaseDirectory `
+        -p:RuntimeFrameworkVersion=$runtimeFrameworkVersion `
+        -p:PublishSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:DebugType=None
     if ($LASTEXITCODE -ne 0) { throw 'La publication Windows a échoué.' }
 
     Get-ChildItem -LiteralPath $releaseDirectory -Filter '*.pdb' -File | Remove-Item -Force

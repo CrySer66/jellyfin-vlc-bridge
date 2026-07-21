@@ -20,6 +20,7 @@ $versions = [ordered]@{
     'Directory.Build.props' = $projectVersion
     'BridgeVersion.cs' = Read-MatchedVersion 'src\JellyfinVlcBridge.Core\BridgeVersion.cs' 'Current\s*=\s*"([^"]+)"'
     'Build-WindowsRelease.ps1' = Read-MatchedVersion 'tools\Build-WindowsRelease.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
+    'Test-WindowsPackage.ps1' = Read-MatchedVersion 'tools\Test-WindowsPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
     'Installer-GUI.ps1' = Read-MatchedVersion 'installer\Installer-GUI.ps1' '\$script:bridgeVersion\s*=\s*''([^'']+)'''
     'Centre-Controle.ps1' = Read-MatchedVersion 'installer\Centre-Controle.ps1' '\$versionLabel\.Text\s*=\s*''Version\s+([^'']+)'''
     'ControlCenterBootstrap.cs' = Read-MatchedVersion 'installer\ControlCenterBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
@@ -35,4 +36,3 @@ if ($invalid) {
 }
 
 Write-Host "Versions coherentes : $ExpectedVersion"
-

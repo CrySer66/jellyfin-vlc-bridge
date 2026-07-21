@@ -4,14 +4,14 @@
 
 Jellyfin VLC Bridge ajoute un bouton **Lire avec VLC** dans Jellyfin Web. Le média original est ouvert dans VLC sur le PC client, sans modifier Jellyfin et sans transmettre de données au développeur.
 
-Version actuelle : **1.7.0**  
+Version actuelle : **1.8.0**  
 Plateforme disponible : **Windows 10/11 x64**  
 Extension Chrome Web Store : **disponible publiquement**
 
 ## Installation rapide
 
 1. Installez [VLC Media Player](https://www.videolan.org/vlc/).
-2. Téléchargez `JellyfinVlcBridge-1.7.0-Setup.exe` depuis la page **Releases** de ce dépôt.
+2. Téléchargez `JellyfinVlcBridge-1.8.0-Setup.exe` depuis la page **Releases** de ce dépôt.
 3. Lancez l'installateur et saisissez l'adresse de votre serveur Jellyfin.
 4. Dans Jellyfin, autorisez le code affiché depuis **Paramètres → Quick Connect**.
 5. La fiche Chrome Web Store s'ouvre automatiquement. Cliquez sur **Ajouter à Chrome**.
@@ -36,14 +36,16 @@ Le guide détaillé se trouve dans [INSTALLATION.md](INSTALLATION.md).
 - centre de contrôle graphique avec diagnostic et réparation en un clic ;
 - aide intégrée pour ouvrir le guide ou signaler un problème ;
 - vérification et installation guidée des nouvelles Releases GitHub ;
+- lecture lancée silencieusement en arrière-plan, sans fenêtre CMD ;
+- environnement .NET intégré à l'application, sans prérequis à installer séparément ;
 - aucune modification des fichiers du serveur Jellyfin.
 
 Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. Cette fenêtre permet de vérifier Jellyfin, VLC et Chrome/Edge, de choisir le mode HTTP ou SMB et de copier un diagnostic sans secret.
 
 ## Deux téléchargements
 
-- `JellyfinVlcBridge-1.7.0-Setup.exe` : installation recommandée et guidée ;
-- `JellyfinVlcBridge-1.7.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
+- `JellyfinVlcBridge-1.8.0-Setup.exe` : installation recommandée et guidée ;
+- `JellyfinVlcBridge-1.8.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
 
 Les sources de l'application et de l'extension restent toutes disponibles dans ce dépôt. Elles ne sont pas dupliquées dans le ZIP Windows afin de garder le téléchargement lisible.
 

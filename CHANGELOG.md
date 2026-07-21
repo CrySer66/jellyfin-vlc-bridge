@@ -1,5 +1,17 @@
 # Historique des versions
 
+## 1.8.0 — 2026-07-22
+
+- suppression de la fenêtre CMD pendant la lecture des films, saisons et séries ;
+- maintien de la communication native avec Chrome en arrière-plan ;
+- publication de l'application Windows en fichier autonome incluant .NET 8 ;
+- suppression du prérequis d'installation séparée de .NET Runtime ;
+- réduction du paquet installé aux fichiers réellement nécessaires ;
+- affichage de l'adresse Jellyfin réellement conservée pendant une mise à jour ;
+- ajout d'une action confirmée pour changer de serveur et relancer Quick Connect ;
+- maintien de la lecture si le fichier de diagnostic de l'extension est momentanément verrouillé ;
+- ajout d'une vérification du sous-système Windows et du dialogue natif avec l'extension.
+
 ## 1.7.0 — 2026-07-21
 
 - ajout des vérifications automatiques GitHub sous Windows pour chaque modification et Pull Request ;
