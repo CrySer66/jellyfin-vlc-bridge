@@ -1,6 +1,6 @@
 param(
     [string]$Repository = 'CrySer66/jellyfin-vlc-bridge',
-    [string]$Version = '1.7.0'
+    [string]$Version = '1.8.0'
 )
 
 $ErrorActionPreference = 'Stop'
