@@ -73,9 +73,32 @@ function Update-MappingControls {
 
 function Invoke-Bridge([string[]]$arguments) {
     if (-not (Test-Path $script:executable)) { throw 'Le programme principal est introuvable.' }
-    $output = & $script:executable @arguments 2>&1
-    if ($LASTEXITCODE -ne 0) { throw ($output -join "`r`n") }
-    return ($output -join "`n")
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $script:executable
+    $processInfo.Arguments = ($arguments | ForEach-Object { '"' + $_.Replace('"', '\"') + '"' }) -join ' '
+    $processInfo.WorkingDirectory = $script:installDirectory
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+
+    $process = [System.Diagnostics.Process]::Start($processInfo)
+    if (-not $process) { throw 'Le programme principal n a pas pu demarrer.' }
+    try {
+        $output = $process.StandardOutput.ReadToEnd()
+        $errorOutput = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            $message = if ($errorOutput) { $errorOutput.Trim() } elseif ($output) { $output.Trim() } else { 'Erreur inconnue.' }
+            throw $message
+        }
+        if (($arguments -contains '--json') -and [string]::IsNullOrWhiteSpace($output)) {
+            throw 'Le programme principal n a renvoye aucun resultat.'
+        }
+        return $output.TrimEnd()
+    } finally {
+        $process.Dispose()
+    }
 }
 
 function Start-UpdateOperation([string]$operation) {
@@ -193,7 +216,7 @@ $subtitle.Location = New-Object System.Drawing.Point(116, 64)
 $header.Controls.Add($subtitle)
 
 $versionLabel = New-Object System.Windows.Forms.Label
-$versionLabel.Text = 'Version 1.8.0'
+$versionLabel.Text = 'Version 1.8.1'
 $versionLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $versionLabel.ForeColor = [System.Drawing.Color]::White
 $versionLabel.AutoSize = $true
