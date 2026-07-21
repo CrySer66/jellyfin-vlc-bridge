@@ -26,13 +26,13 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.7.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.8.0
 ```
 
 Le script :
 
 1. génère l'icône Windows depuis les icônes de l'extension ;
-2. restaure et publie l'application .NET ;
+2. restaure et publie l'application Windows autonome en un seul fichier, avec .NET 8 intégré ;
 3. retire les symboles de débogage du paquet public ;
 4. construit le ZIP Windows ;
 5. intègre le même contenu dans l'installateur graphique `.exe`.
@@ -40,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.7.0-Setup.exe
-outputs\JellyfinVlcBridge-1.7.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.8.0-Setup.exe
+outputs\JellyfinVlcBridge-1.8.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome
@@ -85,9 +85,10 @@ Le `.gitignore` exclut les compilations, paquets, journaux et configurations loc
 2. lancer `tools/Test-VersionConsistency.ps1` et les tests ;
 3. tester localement une mise à jour et une installation propre ;
 4. envoyer les changements sur `main` et attendre la réussite des vérifications ;
-5. créer puis envoyer le tag correspondant, par exemple `v1.7.0`.
+5. construire le Setup et le ZIP localement, puis les tester ;
+6. créer la Release et joindre ces deux fichiers, avec le tag correspondant, par exemple `v1.8.0`.
 
-Le workflow **Construire une Release Windows** compile alors le projet sur Windows, relance les tests, fabrique le Setup et le ZIP, puis les joint automatiquement à la Release GitHub. Il peut aussi être lancé manuellement depuis l'onglet **Actions** en indiquant la version.
+La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
 
 L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google.
 
