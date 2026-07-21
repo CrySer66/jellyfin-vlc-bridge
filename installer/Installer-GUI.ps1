@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.7.0'
+$script:bridgeVersion = '1.8.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -12,6 +12,16 @@ $script:installDirectory = Join-Path $script:rootDirectory 'App'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $script:rootDirectory 'config.json'
 $script:hadExistingConfig = Test-Path $script:configFile
+$script:existingServerUrl = $null
+$script:replaceExistingConfig = $false
+if ($script:hadExistingConfig) {
+    try {
+        $existingConfig = Get-Content -LiteralPath $script:configFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not [string]::IsNullOrWhiteSpace([string]$existingConfig.serverUrl)) {
+            $script:existingServerUrl = [string]$existingConfig.serverUrl
+        }
+    } catch { }
+}
 $script:codeFile = Join-Path $env:TEMP ('jellyfin-vlc-code-' + [Guid]::NewGuid().ToString('N') + '.txt')
 $script:setupProcess = $null
 $script:installed = $false
@@ -28,10 +38,6 @@ function Open-ChromeWebStore {
 function Copy-ApplicationFiles {
     $requiredFiles = @(
         'jellyfin-vlc-bridge.exe',
-        'jellyfin-vlc-bridge.dll',
-        'jellyfin-vlc-bridge.deps.json',
-        'jellyfin-vlc-bridge.runtimeconfig.json',
-        'JellyfinVlcBridge.Core.dll',
         'jellyfin-vlc-bridge-control.exe',
         'Centre-Controle.ps1',
         'DESINSTALLER-WINDOWS.cmd',
@@ -44,6 +50,17 @@ function Copy-ApplicationFiles {
     New-Item -ItemType Directory -Path $script:installDirectory -Force | Out-Null
     foreach ($file in $requiredFiles) {
         Copy-Item (Join-Path $script:packageDirectory $file) (Join-Path $script:installDirectory $file) -Force
+    }
+    foreach ($obsoleteFile in @(
+        'jellyfin-vlc-bridge.dll',
+        'jellyfin-vlc-bridge.deps.json',
+        'jellyfin-vlc-bridge.runtimeconfig.json',
+        'JellyfinVlcBridge.Core.dll'
+    )) {
+        $obsoletePath = Join-Path $script:installDirectory $obsoleteFile
+        if (Test-Path -LiteralPath $obsoletePath) {
+            try { Remove-Item -LiteralPath $obsoletePath -Force -ErrorAction Stop } catch { }
+        }
     }
 }
 
@@ -94,7 +111,10 @@ function Complete-Installation {
     $statusLabel.ForeColor = [System.Drawing.Color]::FromArgb(34, 139, 34)
     $codeTitle.Visible = $false
     $codeLabel.Visible = $false
-    if ($script:hadExistingConfig) {
+    if ($script:replaceExistingConfig) {
+        $instructions.Text = 'Nouvelle connexion Jellyfin enregistree. L extension deja installee reste utilisable.'
+        $extensionButton.Visible = $false
+    } elseif ($script:hadExistingConfig) {
         $instructions.Text = 'Mise a jour terminee. Votre connexion Jellyfin et vos reglages ont ete conserves.'
         $extensionButton.Visible = $false
     } else {
@@ -107,16 +127,8 @@ function Complete-Installation {
     if (-not $script:hadExistingConfig) { Open-ChromeWebStore }
 }
 
-$runtime = Get-Command dotnet -ErrorAction SilentlyContinue
-$hasNet8 = $runtime -and ((& dotnet --list-runtimes) -match '^Microsoft\.NETCore\.App 8\.')
-if (-not $hasNet8) {
-    Show-SetupError '.NET Runtime 8 (x64) doit etre installe avant Jellyfin VLC Bridge.'
-    Start-Process 'https://dotnet.microsoft.com/download/dotnet/8.0'
-    exit 1
-}
-
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.7.0'
+$form.Text = 'Jellyfin VLC Bridge 1.8.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(620, 445)
 $form.FormBorderStyle = 'FixedDialog'
@@ -162,8 +174,17 @@ $form.Controls.Add($serverLabel)
 $serverBox = New-Object System.Windows.Forms.TextBox
 $serverBox.Location = New-Object System.Drawing.Point(34, 141)
 $serverBox.Size = New-Object System.Drawing.Size(552, 30)
-$serverBox.Text = 'http://192.168.1.25:8096'
+$serverBox.Text = if ($script:existingServerUrl) { $script:existingServerUrl } else { 'http://192.168.1.25:8096' }
+$serverBox.ReadOnly = $script:hadExistingConfig
 $form.Controls.Add($serverBox)
+
+$changeServerButton = New-Object System.Windows.Forms.Button
+$changeServerButton.Text = 'Changer de serveur Jellyfin'
+$changeServerButton.Location = New-Object System.Drawing.Point(378, 180)
+$changeServerButton.Size = New-Object System.Drawing.Size(208, 34)
+$changeServerButton.FlatStyle = 'Flat'
+$changeServerButton.Visible = $script:hadExistingConfig
+$form.Controls.Add($changeServerButton)
 
 $codeTitle = New-Object System.Windows.Forms.Label
 $codeTitle.Text = 'Code Quick Connect'
@@ -182,7 +203,11 @@ $codeLabel.Visible = $false
 $form.Controls.Add($codeLabel)
 
 $instructions = New-Object System.Windows.Forms.Label
-$instructions.Text = 'Le programme sera installe pour votre compte Windows, sans droits administrateur.'
+$instructions.Text = if ($script:hadExistingConfig) {
+    'Connexion existante detectee. Cette adresse, Quick Connect et vos reglages seront conserves.'
+} else {
+    'Le programme sera installe pour votre compte Windows, sans droits administrateur.'
+}
 $instructions.Location = New-Object System.Drawing.Point(31, 270)
 $instructions.Size = New-Object System.Drawing.Size(555, 48)
 $instructions.ForeColor = [System.Drawing.Color]::DimGray
@@ -219,6 +244,23 @@ $installButton.FlatStyle = 'Flat'
 $form.Controls.Add($installButton)
 
 $extensionButton.Add_Click({ Open-ChromeWebStore })
+
+$changeServerButton.Add_Click({
+    $choice = [System.Windows.Forms.MessageBox]::Show(
+        "La connexion actuelle sera remplacee et Jellyfin demandera un nouveau code Quick Connect.`r`n`r`nContinuer ?",
+        'Changer de serveur Jellyfin',
+        'YesNo',
+        'Question'
+    )
+    if ($choice -ne 'Yes') { return }
+    $script:replaceExistingConfig = $true
+    $serverLabel.Text = 'Adresse du nouveau serveur Jellyfin'
+    $serverBox.ReadOnly = $false
+    $serverBox.SelectAll()
+    $serverBox.Focus()
+    $changeServerButton.Visible = $false
+    $instructions.Text = 'Saisissez la nouvelle adresse. Un nouveau code Quick Connect sera demande.'
+})
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 500
@@ -257,12 +299,19 @@ $installButton.Add_Click({
         [System.Windows.Forms.Application]::DoEvents()
         Copy-ApplicationFiles
 
-        if (Test-Path $script:configFile) {
+        if ((Test-Path $script:configFile) -and -not $script:replaceExistingConfig) {
             $statusLabel.Text = 'Connexion existante conservee.'
             Start-Process -FilePath $script:executable -ArgumentList 'install-protocol' -WindowStyle Hidden -Wait
             Start-Process -FilePath $script:executable -ArgumentList 'install-native-host' -WindowStyle Hidden -Wait
             Complete-Installation
             return
+        }
+
+        if ($script:replaceExistingConfig -and (Test-Path $script:configFile)) {
+            $statusLabel.Text = 'Suppression de l ancienne connexion...'
+            $cleanupProcess = Start-Process -FilePath $script:executable `
+                -ArgumentList 'uninstall-cleanup --purge' -WindowStyle Hidden -Wait -PassThru
+            if ($cleanupProcess.ExitCode -ne 0) { throw 'Impossible de remplacer la connexion Jellyfin existante.' }
         }
 
         $statusLabel.Text = 'Demande du code Quick Connect...'

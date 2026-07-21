@@ -193,7 +193,7 @@ $subtitle.Location = New-Object System.Drawing.Point(116, 64)
 $header.Controls.Add($subtitle)
 
 $versionLabel = New-Object System.Windows.Forms.Label
-$versionLabel.Text = 'Version 1.7.0'
+$versionLabel.Text = 'Version 1.8.0'
 $versionLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $versionLabel.ForeColor = [System.Drawing.Color]::White
 $versionLabel.AutoSize = $true
