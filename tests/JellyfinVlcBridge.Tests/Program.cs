@@ -26,6 +26,24 @@ var tests = new (string Name, Func<Task> Run)[]
             BridgeLinks.DevelopmentExtensionId, "1.3.0", DateTimeOffset.UtcNow.AddMinutes(-2));
         Equal(false, ExtensionHeartbeat.IsActive(state));
     })),
+    ("Signaux simultanes de l'extension enregistres sans fichier abandonne", async () =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "JvbHeartbeatTest-" + Guid.NewGuid().ToString("N"));
+        var filePath = Path.Combine(directory, "extension-heartbeat.json");
+        try
+        {
+            Directory.CreateDirectory(directory);
+            await Task.WhenAll(Enumerable.Range(0, 24).Select(index => Task.Run(() =>
+                ExtensionHeartbeat.Record(filePath, BridgeLinks.ChromeWebStoreExtensionId, "1.3." + index))));
+            var state = System.Text.Json.JsonSerializer.Deserialize<ExtensionHeartbeatState>(File.ReadAllText(filePath));
+            Equal(BridgeLinks.ChromeWebStoreExtensionId, state?.ExtensionId);
+            Equal(0, Directory.GetFiles(directory, "*.tmp-*").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }),
     ("Dépôt GitHub officiel stable", () => Completed(() =>
         Equal("cryser66/jellyfin-vlc-bridge", BridgeLinks.GitHubRepository))),
     ("Assistance GitHub officielle stable", () => Completed(() =>
