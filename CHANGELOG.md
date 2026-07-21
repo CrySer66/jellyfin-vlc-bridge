@@ -1,0 +1,101 @@
+# Historique des versions
+
+## 1.6.1 — 2026-07-21
+
+- détection fondée sur un contact réel avec l'extension, et non plus uniquement sur le registre Windows ;
+- affichage distinct d'une intégration à réparer et d'une extension dont l'activité reste à confirmer ;
+- préparation de l'extension 1.3.0 avec signal d'activité lorsque Jellyfin est ouvert ;
+- conservation de la seule autorisation Chrome indispensable, `nativeMessaging` ;
+- correction du service worker et création d'un dossier local stable pour le chargement développeur ;
+- conservation intacte du paquet 1.2.0 déjà soumis au Chrome Web Store.
+
+## 1.6.0 — 2026-07-21
+
+- vérification automatique de la dernière Release GitHub officielle ;
+- affichage clair de l'état « à jour » ou de la nouvelle version disponible ;
+- téléchargement sécurisé limité au dépôt `cryser66/jellyfin-vlc-bridge` ;
+- lancement guidé du nouvel installateur depuis le centre de contrôle ;
+- conservation automatique de Quick Connect et des réglages pendant la mise à jour ;
+- fonctionnement non bloquant tant que le dépôt principal n'est pas encore public.
+
+## 1.5.1 — 2026-07-21
+
+- suppression de la fenêtre CMD lors de l'ouverture du centre de contrôle ;
+- explications simples pour choisir entre HTTP Direct Play et SMB ;
+- réglages SMB avancés masqués lorsqu'ils ne sont pas utilisés ;
+- libellés SMB reformulés avec un exemple concret ;
+- boutons d'aide contextuelle pour le mode de lecture, VLC et les chemins réseau.
+
+## 1.5.0 — 2026-07-21
+
+- ajout d'un centre de contrôle graphique dans le menu Démarrer ;
+- vérification claire de Jellyfin, VLC et de l'intégration Chrome/Edge ;
+- bouton de réparation de la communication avec l'extension ;
+- réglage du mode HTTP/SMB et du chemin VLC sans ligne de commande ;
+- copie d'un diagnostic partageable qui ne contient ni jeton ni identifiant utilisateur ;
+- remplacement de l'ancien raccourci de diagnostic en console par l'application graphique.
+
+## 1.4.0 — 2026-07-21
+
+- ajout de l'icône Jellyfin VLC Bridge au programme, à l'installateur et aux raccourcis Windows ;
+- nouvelle présentation graphique de l'assistant d'installation ;
+- ajout d'un bouton permettant de rouvrir la fiche Chrome Web Store avant de fermer l'assistant ;
+- possibilité de rouvrir la fiche Chrome Web Store après avoir fermé le navigateur ;
+- suppression des fichiers de débogage, des documents développeur et de la copie locale de l'extension dans le ZIP public ;
+- réécriture de la documentation autour du parcours actuel Quick Connect + Chrome Web Store.
+
+## 1.3.2 — 2026-07-21
+
+- autorisation de l'identifiant officiel Chrome Web Store `hkjbodgdbjhignhlbecchiigcfigpidp` ;
+- conservation de l'identifiant local uniquement pour le développement et les tests ;
+- ouverture automatique de la fiche Chrome Web Store à la fin de l'installation ;
+- ajout d'un guide public détaillant l'installation, la désinstallation, les données locales et le fonctionnement du Bridge.
+
+## 1.3.1 — 2026-07-20
+
+- remplacement du redémarrage de VLC entre les épisodes par une vraie liste de lecture VLC ;
+- préparation de tous les flux via un unique relais HTTP local ;
+- passage automatique au prochain épisode dans la même fenêtre VLC ;
+- suivi du changement d’épisode dans la playlist pour conserver une synchronisation Jellyfin distincte ;
+- journalisation du statut HTTP de chaque flux pour faciliter le diagnostic.
+
+## 1.3.0 — 2026-07-20
+
+- lecture directe depuis une fiche de série ou de saison ;
+- sélection automatique du prochain épisode Jellyfin, avec reprise de la position enregistrée ;
+- enchaînement automatique des épisodes suivants lorsqu’un épisode se termine ;
+- arrêt de la file si VLC est fermé manuellement avant la fin ;
+- synchronisation Jellyfin distincte et correcte pour chaque épisode ;
+- lecture d’un épisode individuel étendue automatiquement aux épisodes suivants.
+
+## 1.2.0 — 2026-07-20
+
+- bouton « Lire avec VLC » intégré dans la barre d'actions des fiches Jellyfin ;
+- apparence adaptée au thème Jellyfin, aux écrans étroits et à la navigation au clavier ;
+- icône VLC vectorielle et états visuels pendant le lancement ;
+- notification de confirmation après l'ouverture du lecteur ;
+- affichage limité aux fiches possédant réellement une action de lecture ;
+- repositionnement automatique lors de la navigation entre films et épisodes.
+
+## 1.1.0 — 2026-07-20
+
+- nouvel assistant d'installation graphique sans fenêtre CMD ;
+- nouvelle désinstallation graphique depuis Windows et le menu Démarrer ;
+- affichage intégré du code Quick Connect et de l'état d'autorisation ;
+- suppression du raccourci Diagnostic sur le Bureau ;
+- maintien du diagnostic dans le menu Démarrer ;
+- mise à jour graphique conservant automatiquement la connexion existante.
+
+## 1.0.0 — 2026-07-19
+
+Première version stable validée sur deux PC Windows et plusieurs films et épisodes.
+
+- lecture VLC par HTTP Direct Play ou partage SMB ;
+- action « Lire avec VLC » dans Jellyfin Web ;
+- Quick Connect avec jeton par appareil ;
+- communication native Chrome/Edge sans confirmation répétée ;
+- reprise et synchronisation de progression Jellyfin ;
+- stockage du secret dans le Gestionnaire d'identifiants Windows ;
+- installation, mise à jour et désinstallation conservant ou purgeant la connexion ;
+- relais HTTP local authentifié sans jeton dans l'URL VLC ;
+- diagnostics et journal local avec rotation.

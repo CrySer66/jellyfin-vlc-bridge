@@ -1,0 +1,34 @@
+# Compilations .NET
+**/bin/
+**/obj/
+
+# Paquets et fichiers générés localement
+outputs/
+work/
+publish/
+*.exe
+*.dll
+*.pdb
+*.zip
+*.crx
+
+# Configuration et secrets locaux
+config.json
+native-messaging-host.json
+*.log
+*.token
+*.secret
+
+# Environnement de développement
+.agents/
+.codex/
+.vs/
+.vscode/
+.idea/
+TestResults/
+*.user
+*.suo
+
+# Fichiers système
+Thumbs.db
+.DS_Store

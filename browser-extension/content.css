@@ -1,0 +1,116 @@
+.jellyfin-vlc-button {
+  --vlc-accent: var(--jf-palette-primary-main, #00a4dc);
+  align-items: center;
+  background: rgb(0 164 220 / 18%) !important;
+  background: color-mix(in srgb, var(--vlc-accent) 18%, transparent) !important;
+  border: 1px solid rgb(0 164 220 / 78%) !important;
+  border: 1px solid color-mix(in srgb, var(--vlc-accent) 72%, white 8%) !important;
+  border-radius: .45em !important;
+  color: inherit !important;
+  display: inline-flex !important;
+  gap: .52em;
+  margin: .25em .35em .25em 0 !important;
+  min-height: 2.55em;
+  padding: .58em 1em !important;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.jellyfin-vlc-button:hover:not(:disabled),
+.jellyfin-vlc-button:focus-visible {
+  background: var(--vlc-accent) !important;
+  border-color: var(--vlc-accent) !important;
+  box-shadow: 0 5px 16px rgb(0 0 0 / 28%);
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+.jellyfin-vlc-button:focus-visible {
+  outline: 2px solid #fff !important;
+  outline-offset: 2px;
+}
+
+.jellyfin-vlc-button:disabled {
+  cursor: wait;
+  opacity: .76;
+}
+
+.jellyfin-vlc-button[data-state='success'] {
+  background: #24864b !important;
+  border-color: #42b970 !important;
+  color: #fff !important;
+}
+
+.jellyfin-vlc-icon {
+  fill: currentColor;
+  flex: 0 0 auto;
+  height: 1.32em;
+  width: 1.32em;
+}
+
+.jellyfin-vlc-label {
+  font-size: .98em;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.jellyfin-vlc-button--floating {
+  bottom: 1.5rem;
+  box-shadow: 0 6px 22px rgb(0 0 0 / 38%);
+  position: fixed !important;
+  right: 1.5rem;
+  z-index: 2147483000;
+}
+
+.jellyfin-vlc-toast {
+  align-items: center;
+  backdrop-filter: blur(12px);
+  background: rgb(28 31 36 / 94%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-left: 4px solid #42b970;
+  border-radius: .5rem;
+  bottom: 1.4rem;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 40%);
+  color: #fff;
+  display: flex;
+  font-size: .95rem;
+  font-weight: 500;
+  left: 50%;
+  max-width: min(90vw, 28rem);
+  min-height: 2.8rem;
+  opacity: 0;
+  padding: .65rem 1rem;
+  pointer-events: none;
+  position: fixed;
+  transform: translate(-50%, 12px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  z-index: 2147483647;
+}
+
+.jellyfin-vlc-toast--info {
+  border-left-color: var(--jf-palette-primary-main, #00a4dc);
+}
+
+.jellyfin-vlc-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (max-width: 600px) {
+  .jellyfin-vlc-button {
+    min-height: 2.75em;
+    padding: .64em .82em !important;
+  }
+
+  .jellyfin-vlc-button--floating {
+    bottom: 1rem;
+    right: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jellyfin-vlc-button,
+  .jellyfin-vlc-toast {
+    transition: none;
+  }
+}

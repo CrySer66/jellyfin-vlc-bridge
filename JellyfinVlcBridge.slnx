@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JellyfinVlcBridge.Core/JellyfinVlcBridge.Core.csproj" />
+    <Project Path="src/JellyfinVlcBridge.Cli/JellyfinVlcBridge.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JellyfinVlcBridge.Tests/JellyfinVlcBridge.Tests.csproj" />
+  </Folder>
+</Solution>
