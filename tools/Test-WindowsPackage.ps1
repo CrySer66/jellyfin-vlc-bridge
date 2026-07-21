@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.8.0'
+    [string]$Version = '1.8.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +52,26 @@ if ($versionProcess.ExitCode -ne 0 -or $versionOutput -ne "Jellyfin VLC Bridge $
     throw "Commande version invalide. Sortie='$versionOutput' Erreur='$versionError'"
 }
 Write-Host "OK  Version redirigee : $versionOutput"
+
+$statusProcess = New-HiddenProcess 'status --json'
+if (-not $statusProcess.Start()) { throw 'Impossible de lancer le diagnostic redirige.' }
+$statusProcess.StandardInput.Close()
+$statusOutput = $statusProcess.StandardOutput.ReadToEnd().Trim()
+$statusError = $statusProcess.StandardError.ReadToEnd().Trim()
+$statusProcess.WaitForExit()
+if ($statusProcess.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($statusOutput)) {
+    throw "Diagnostic redirige invalide. Sortie='$statusOutput' Erreur='$statusError'"
+}
+$status = $statusOutput | ConvertFrom-Json
+if ($status.version -ne $Version) { throw "Version de diagnostic inattendue : $($status.version)" }
+Write-Host 'OK  Diagnostic JSON redirige pour le centre de controle'
+
+$controlScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Centre-Controle.ps1') -Raw
+if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
+    $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)') {
+    throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
+}
+Write-Host 'OK  Centre de controle compatible avec l application sans console'
 
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/'
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
