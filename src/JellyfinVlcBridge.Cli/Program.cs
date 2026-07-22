@@ -203,10 +203,15 @@ static async Task<int> PlayAsync(string[] args)
     var selected = await jellyfin.GetItemAsync(config.UserId, itemId);
     var queue = await PlaybackQueueResolver.ResolveAsync(jellyfin, config.UserId, selected);
     if (queue.Count == 0)
-        throw new InvalidDataException("Cette série ne contient aucun épisode lisible.");
+        throw new InvalidDataException("Cet élément ne contient aucun média lisible.");
 
     if (queue.Count > 1)
-        Console.WriteLine($"Lecture en série : {queue.Count} épisodes à partir de {EpisodeLabel(queue[0])}.");
+    {
+        var groupName = selected.Type?.Equals("BoxSet", StringComparison.OrdinalIgnoreCase) == true
+            ? "collection"
+            : "série";
+        Console.WriteLine($"Lecture de la {groupName} : {queue.Count} médias à partir de {EpisodeLabel(queue[0])}.");
+    }
 
     if (queue.Count == 1)
     {
@@ -247,8 +252,8 @@ static async Task PlayQueueAsync(
             }
             else
             {
-                // Let Jellyfin select the default source for each episode. A source id obtained
-                // from a series listing can be incomplete on some server versions.
+                // Let Jellyfin select the default source for each item. A source id obtained
+                // from a grouped listing can be incomplete on some server versions.
                 var upstream = $"{config.ServerUrl}/Videos/{Uri.EscapeDataString(item.Id)}/stream?static=true";
                 if (proxy is null)
                 {
@@ -260,7 +265,7 @@ static async Task PlayQueueAsync(
             playlist.Add(new PlaybackMedia(item, mediaSourceId, media, resumeAt));
         }
 
-        Console.WriteLine("Liste de lecture VLC préparée ; les épisodes s'enchaîneront dans la même fenêtre.");
+        Console.WriteLine("Liste de lecture VLC préparée ; les médias s'enchaîneront dans la même fenêtre.");
         await RunVlcPlaylistWithSyncAsync(vlc, playlist, jellyfin);
     }
     finally
@@ -408,10 +413,10 @@ static async Task RunVlcPlaylistWithSyncAsync(
             jellyfin, playlist[0].Item.Id, playlist[0].MediaSourceId, playSessionId, lastPositionTicks);
         nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         Console.WriteLine(playlist[0].ResumeAt is { TotalSeconds: > 0 }
-            ? $"Reprise Jellyfin à {playlist[0].ResumeAt.GetValueOrDefault():hh\\:mm\\:ss} ; synchronisation de la série active."
-            : "Synchronisation de la série Jellyfin active.");
+            ? $"Reprise Jellyfin à {playlist[0].ResumeAt.GetValueOrDefault():hh\\:mm\\:ss} ; synchronisation de la liste active."
+            : "Synchronisation de la liste Jellyfin active.");
         if (!reportingStarted)
-            Console.WriteLine("Jellyfin est momentanément indisponible ; la synchronisation réessaiera pendant la série.");
+            Console.WriteLine("Jellyfin est momentanément indisponible ; la synchronisation réessaiera pendant la liste.");
 
         while (!process.HasExited)
         {
@@ -444,7 +449,7 @@ static async Task RunVlcPlaylistWithSyncAsync(
                     playSessionId,
                     lastPositionTicks);
                 Console.WriteLine($"Lecture suivante : {EpisodeLabel(playlist[currentIndex].Item)}");
-                BridgeLog.Info($"Épisode suivant item={playlist[currentIndex].Item.Id} session={playSessionId}");
+                BridgeLog.Info($"Média suivant item={playlist[currentIndex].Item.Id} session={playSessionId}");
                 nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
                 continue;
             }
@@ -472,7 +477,7 @@ static async Task RunVlcPlaylistWithSyncAsync(
     catch (Exception exception)
     {
         failed = process.HasExited && process.ExitCode != 0;
-        Console.Error.WriteLine($"Avertissement : suivi de la série indisponible ({exception.Message}). La liste VLC continue.");
+        Console.Error.WriteLine($"Avertissement : suivi de la liste indisponible ({exception.Message}). La liste VLC continue.");
         BridgeLog.Warning($"Suivi de liste indisponible item={playlist[currentIndex].Item.Id}: {exception.Message}");
         if (!process.HasExited) await process.WaitForExitAsync();
     }
@@ -570,7 +575,7 @@ static async Task<VlcStatus> WaitForActiveMediaAsync(
         }
         await Task.Delay(300);
     }
-    throw new TimeoutException("VLC n'a pas chargé le premier épisode de la liste.", lastError);
+    throw new TimeoutException("VLC n'a pas chargé le premier média de la liste.", lastError);
 }
 
 static string EpisodeLabel(ItemInfo item)
