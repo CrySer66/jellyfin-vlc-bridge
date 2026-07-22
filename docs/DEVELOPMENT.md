@@ -16,7 +16,7 @@ Depuis la racine du dépôt :
 ```powershell
 dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
 dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
-dotnet run --project tests\JellyfinVlcBridge.Tests --configuration Release --no-build
+dotnet run --project tests\JellyfinVlcBridge.Tests --configuration Debug --no-restore
 ```
 
 Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.8.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.9.0
 ```
 
 Le script :
@@ -40,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.8.1-Setup.exe
-outputs\JellyfinVlcBridge-1.8.1-win-x64.zip
+outputs\JellyfinVlcBridge-1.9.0-Setup.exe
+outputs\JellyfinVlcBridge-1.9.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome
@@ -49,7 +49,7 @@ outputs\JellyfinVlcBridge-1.8.1-win-x64.zip
 La version du manifeste de l'extension peut évoluer indépendamment de celle du Bridge.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.3.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.4.0
 ```
 
 Le ZIP Chrome Web Store ne contient pas le champ de développement `key`. L'élément existant dans le tableau de bord conserve l'identifiant officiel :
@@ -86,7 +86,7 @@ Le `.gitignore` exclut les compilations, paquets, journaux et configurations loc
 3. tester localement une mise à jour et une installation propre ;
 4. envoyer les changements sur `main` et attendre la réussite des vérifications ;
 5. construire le Setup et le ZIP localement, puis les tester ;
-6. créer la Release et joindre ces deux fichiers, avec le tag correspondant, par exemple `v1.8.1`.
+6. créer la Release et joindre ces deux fichiers, avec le tag correspondant, par exemple `v1.9.0`.
 
 La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
 

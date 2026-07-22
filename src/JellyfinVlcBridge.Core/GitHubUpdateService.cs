@@ -15,12 +15,22 @@ public sealed record UpdateCheckResult(
 
 public sealed record DownloadedUpdate(string Version, string Path, long Size);
 
-public sealed class GitHubUpdateService(HttpClient http)
+public sealed class GitHubUpdateService
 {
     private const long MaximumInstallerSize = 200L * 1024 * 1024;
     private static readonly Regex SetupName = new(
         @"^JellyfinVlcBridge-(?<version>\d+\.\d+\.\d+)-Setup\.exe$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private readonly HttpClient http;
+    private readonly Func<string, bool> installerValidator;
+
+    public GitHubUpdateService(HttpClient http) : this(http, HasPortableExecutableHeader) { }
+
+    internal GitHubUpdateService(HttpClient http, Func<string, bool> installerValidator)
+    {
+        this.http = http ?? throw new ArgumentNullException(nameof(http));
+        this.installerValidator = installerValidator ?? throw new ArgumentNullException(nameof(installerValidator));
+    }
 
     public async Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
     {
@@ -68,8 +78,8 @@ public sealed class GitHubUpdateService(HttpClient http)
         var available = latest > current;
         if (available && downloadUrl is null)
             throw new InvalidDataException($"La Release {latestText} ne contient pas l'installateur Windows attendu.");
-        if (assetSize is > MaximumInstallerSize)
-            throw new InvalidDataException("L'installateur annoncé est anormalement volumineux.");
+        if (assetSize is <= 0 or > MaximumInstallerSize)
+            throw new InvalidDataException("L'installateur annoncé a une taille invalide.");
         return new UpdateCheckResult(
             BridgeVersion.Current, latestText, available, releaseUrl,
             downloadUrl, assetName, assetSize);
@@ -90,36 +100,55 @@ public sealed class GitHubUpdateService(HttpClient http)
         if (!destination.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Nom d'installateur GitHub non sûr.");
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, update.DownloadUrl);
-        request.Headers.UserAgent.ParseAdd($"Jellyfin-VLC-Bridge/{BridgeVersion.Current}");
-        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        if (response.Content.Headers.ContentLength is > MaximumInstallerSize)
-            throw new InvalidDataException("L'installateur téléchargé est anormalement volumineux.");
-
-        await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
-        await using (var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None))
+        var temporary = destination + ".partial-" + Guid.NewGuid().ToString("N");
+        try
         {
-            var buffer = new byte[81920];
+            using var request = new HttpRequestMessage(HttpMethod.Get, update.DownloadUrl);
+            request.Headers.UserAgent.ParseAdd($"Jellyfin-VLC-Bridge/{BridgeVersion.Current}");
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength is > MaximumInstallerSize)
+                throw new InvalidDataException("L'installateur téléchargé est anormalement volumineux.");
+            if (update.AssetSize is { } expectedHeaderSize && response.Content.Headers.ContentLength is { } receivedHeaderSize &&
+                expectedHeaderSize != receivedHeaderSize)
+                throw new InvalidDataException("La taille annoncée de l'installateur ne correspond pas au téléchargement.");
+
             long total = 0;
-            while (true)
+            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var output = new FileStream(
+                temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                var read = await input.ReadAsync(buffer, cancellationToken);
-                if (read == 0) break;
-                total += read;
-                if (total > MaximumInstallerSize)
-                    throw new InvalidDataException("Le téléchargement dépasse la taille maximale autorisée.");
-                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                var buffer = new byte[81920];
+                while (true)
+                {
+                    var read = await input.ReadAsync(buffer, cancellationToken);
+                    if (read == 0) break;
+                    total += read;
+                    if (total > MaximumInstallerSize)
+                        throw new InvalidDataException("Le téléchargement dépasse la taille maximale autorisée.");
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                }
+                await output.FlushAsync(cancellationToken);
+            }
+
+            if (update.AssetSize is { } expectedSize && total != expectedSize)
+                throw new InvalidDataException("Le téléchargement de l'installateur est incomplet.");
+            if (total < 64 * 1024 || !installerValidator(temporary))
+                throw new InvalidDataException("Le fichier téléchargé n'est pas un installateur Windows valide.");
+
+            File.Move(temporary, destination, true);
+            return new DownloadedUpdate(update.LatestVersion, destination, total);
+        }
+        finally
+        {
+            if (File.Exists(temporary))
+            {
+                try { File.Delete(temporary); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
             }
         }
-
-        var info = new FileInfo(destination);
-        if (info.Length < 64 * 1024 || !HasPortableExecutableHeader(destination))
-        {
-            try { File.Delete(destination); } catch { }
-            throw new InvalidDataException("Le fichier téléchargé n'est pas un installateur Windows valide.");
-        }
-        return new DownloadedUpdate(update.LatestVersion, destination, info.Length);
     }
 
     private static bool HasPortableExecutableHeader(string path)

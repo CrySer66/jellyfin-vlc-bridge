@@ -10,15 +10,15 @@ Le paquet destiné à la boutique ne contient volontairement pas le champ `key`,
 
 ## État de la publication
 
-La version 1.2.0 a été acceptée par Google et l'extension est disponible publiquement sous l'identifiant `hkjbodgdbjhignhlbecchiigcfigpidp`.
+La version 1.3.0 a été acceptée par Google et l'extension est disponible publiquement sous l'identifiant `hkjbodgdbjhignhlbecchiigcfigpidp`.
 
-La prochaine mise à jour est la version 1.3.0. Elle ajoute la confirmation d'activité dans le centre de contrôle sans demander de nouvelle autorisation Chrome.
+La prochaine mise à jour est la version 1.4.0. Elle ajoute une fenêtre d'information, le lien GitHub et l'installation guidée lorsque le Bridge Windows est absent, sans demander de nouvelle autorisation Chrome.
 
 ## Envoyer une mise à jour
 
 1. Ouvrir l'élément existant dans le Chrome Web Store Developer Dashboard.
-2. Importer `JellyfinVlcBridge-Extension-1.3.0-ChromeWebStore.zip` dans **Package**.
-3. Vérifier que la version affichée est `1.3.0` et que seule l'autorisation `nativeMessaging` est demandée.
+2. Importer `JellyfinVlcBridge-Extension-1.4.0-ChromeWebStore.zip` dans **Package**.
+3. Vérifier que la version affichée est `1.4.0` et que seule l'autorisation `nativeMessaging` est demandée.
 4. Enregistrer le brouillon, puis choisir **Envoyer pour examen**.
 5. Après validation, tester une installation depuis la fiche publique. Chrome met ensuite automatiquement les utilisateurs à jour.
 

@@ -4,14 +4,14 @@
 
 Jellyfin VLC Bridge ajoute un bouton **Lire avec VLC** dans Jellyfin Web. Le média original est ouvert dans VLC sur le PC client, sans modifier Jellyfin et sans transmettre de données au développeur.
 
-Version actuelle : **1.8.1**  
+Version actuelle : **1.9.0**  
 Plateforme disponible : **Windows 10/11 x64**  
 Extension Chrome Web Store : **disponible publiquement**
 
 ## Installation rapide
 
 1. Installez [VLC Media Player](https://www.videolan.org/vlc/).
-2. Téléchargez `JellyfinVlcBridge-1.8.1-Setup.exe` depuis la page **Releases** de ce dépôt.
+2. Téléchargez `JellyfinVlcBridge-1.9.0-Setup.exe` depuis la page **Releases** de ce dépôt.
 3. Lancez l'installateur et saisissez l'adresse de votre serveur Jellyfin.
 4. Dans Jellyfin, autorisez le code affiché depuis **Paramètres → Quick Connect**.
 5. La fiche Chrome Web Store s'ouvre automatiquement. Cliquez sur **Ajouter à Chrome**.
@@ -44,14 +44,16 @@ Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. 
 
 ## Deux téléchargements
 
-- `JellyfinVlcBridge-1.8.1-Setup.exe` : installation recommandée et guidée ;
-- `JellyfinVlcBridge-1.8.1-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
+- `JellyfinVlcBridge-1.9.0-Setup.exe` : installation recommandée et guidée ;
+- `JellyfinVlcBridge-1.9.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
 
 Les sources de l'application et de l'extension restent toutes disponibles dans ce dépôt. Elles ne sont pas dupliquées dans le ZIP Windows afin de garder le téléchargement lisible.
 
 ## Vie privée et sécurité
 
 L'extension transmet uniquement l'identifiant technique du média au programme installé sur le même PC. Le programme communique ensuite directement avec le serveur Jellyfin choisi par l'utilisateur.
+
+Depuis la version 1.4.0 de l'extension, un clic sur son icône affiche l'état du Bridge local ainsi que des accès directs au téléchargement Windows, au dépôt GitHub et à l'assistance. Dans Jellyfin, l'action devient **Application non installée** lorsque le Bridge ne répond pas et ouvre alors la dernière version officielle à télécharger.
 
 - aucun compte auprès du développeur ;
 - aucune publicité, télémétrie ou analyse d'utilisation ;

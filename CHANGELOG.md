@@ -1,5 +1,26 @@
 # Historique des versions
 
+## 1.9.0 — 2026-07-23
+
+- validation et normalisation centralisées des adresses Jellyfin avant leur enregistrement ;
+- écriture atomique de la configuration pour éviter un fichier incomplet après une interruption ;
+- ajout d'un délai maximal aux appels Jellyfin afin qu'une coupure réseau ne bloque jamais VLC indéfiniment ;
+- synchronisation de progression rendue tolérante aux erreurs temporaires, avec nouvelles tentatives pendant la lecture ;
+- fermeture fiable du relais HTTP local et attente des requêtes encore actives ;
+- téléchargement des mises à jour dans un fichier temporaire, avec contrôle de taille avant activation ;
+- correction des correspondances SMB pour empêcher qu'un dossier voisin au nom similaire soit choisi ;
+- rejet des anciennes configurations invalides par l'installateur au lieu de les conserver silencieusement ;
+- durcissement du chargement des API Windows du Gestionnaire d'identifiants ;
+- ajout de tests de non-régression pour les adresses, les délais réseau, les mises à jour incomplètes et les mappings SMB.
+
+## Extension Chrome 1.4.0 — 2026-07-22
+
+- ajout d'une fenêtre claire accessible depuis l'icône Chrome avec l'état du Bridge local ;
+- ajout d'un accès direct au dépôt GitHub, aux téléchargements et à l'assistance ;
+- détection réelle de l'absence de l'application Windows dans les pages Jellyfin ;
+- remplacement de « Lire avec VLC » par « Application non installée » lorsque le Bridge ne répond pas ;
+- redirection vers la dernière version GitHub au clic, sans nouvelle autorisation Chrome.
+
 ## 1.8.1 — 2026-07-22
 
 - correction du diagnostic graphique après le passage de l'application principale en mode sans console ;

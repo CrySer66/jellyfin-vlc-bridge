@@ -12,7 +12,7 @@ L'environnement .NET nécessaire est déjà inclus dans l'application. Il n'y a 
 
 ## Installer le Bridge
 
-1. Téléchargez `JellyfinVlcBridge-1.8.1-Setup.exe` depuis la dernière **Release GitHub**.
+1. Téléchargez `JellyfinVlcBridge-1.9.0-Setup.exe` depuis la dernière **Release GitHub**.
 2. Lancez le fichier.
 3. Saisissez l'adresse de Jellyfin, par exemple `http://192.168.1.25:8096`.
 4. L'assistant affiche un code Quick Connect temporaire.
@@ -41,6 +41,8 @@ Si la page a été fermée, utilisez le bouton vert **Ouvrir Chrome Web Store** 
 https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp
 
 L'extension est disponible publiquement sur le Chrome Web Store et recevra automatiquement les mises à jour validées par Google.
+
+Cliquez sur son icône dans la barre d'outils Chrome pour vérifier si l'application Windows est prête, télécharger le Bridge ou ouvrir le projet GitHub. Si l'application n'est pas installée, Jellyfin affiche **Application non installée** à la place de **Lire avec VLC** ; cliquez sur cette action pour ouvrir le téléchargement officiel.
 
 ## Première lecture
 
