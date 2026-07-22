@@ -153,6 +153,18 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("episode-2", queue[0].Id);
         Equal("episode-3", queue[1].Id);
     }),
+    ("Une collection devient une liste de films", async () =>
+    {
+        var handler = new CollectionQueueHandler();
+        using var http = new HttpClient(handler);
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var collection = new ItemInfo("pirates", "Pirates des Caraïbes", null, null, null, Type: "BoxSet");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", collection);
+        Equal(2, queue.Count);
+        Equal("movie-2", queue[0].Id);
+        Equal("movie-3", queue[1].Id);
+        Equal(true, handler.ValidQuery);
+    }),
     ("Rapports Jellyfin", async () =>
     {
         var handler = new CaptureHandler();
@@ -225,6 +237,35 @@ sealed class SeriesQueueHandler : HttpMessageHandler
         var json = request.RequestUri!.AbsolutePath.EndsWith("/Shows/NextUp", StringComparison.Ordinal)
             ? """{"Items":[{"Id":"episode-2","Name":"Deux","Type":"Episode","Path":"D:\\Series\\S01E02.mkv"}],"TotalRecordCount":1}"""
             : """{"Items":[{"Id":"episode-1","Name":"Un","Type":"Episode","Path":"D:\\Series\\S01E01.mkv","UserData":{"PlaybackPositionTicks":0,"Played":true}},{"Id":"episode-2","Name":"Deux","Type":"Episode","Path":"D:\\Series\\S01E02.mkv","UserData":{"PlaybackPositionTicks":1200000000,"Played":false}},{"Id":"episode-3","Name":"Trois","Type":"Episode","Path":"D:\\Series\\S01E03.mkv","UserData":{"PlaybackPositionTicks":0,"Played":false}}],"TotalRecordCount":3}""";
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        });
+    }
+}
+
+sealed class CollectionQueueHandler : HttpMessageHandler
+{
+    public bool ValidQuery { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var query = request.RequestUri!.Query;
+        ValidQuery = query.Contains("ParentId=pirates", StringComparison.Ordinal) &&
+            query.Contains("Recursive=true", StringComparison.Ordinal) &&
+            query.Contains("IncludeItemTypes=Movie,Video", StringComparison.Ordinal) &&
+            query.Contains("SortBy=SortName", StringComparison.Ordinal) &&
+            query.Contains("EnableUserData=true", StringComparison.Ordinal);
+        var json = """
+        {
+          "Items": [
+            {"Id":"movie-1","Name":"La Malédiction du Black Pearl","Type":"Movie","Path":"D:\\Films\\Pirates1.mkv","UserData":{"PlaybackPositionTicks":0,"Played":true}},
+            {"Id":"movie-2","Name":"Le Secret du coffre maudit","Type":"Movie","Path":"D:\\Films\\Pirates2.mkv","UserData":{"PlaybackPositionTicks":1200000000,"Played":false}},
+            {"Id":"movie-3","Name":"Jusqu'au bout du monde","Type":"Movie","Path":"D:\\Films\\Pirates3.mkv","UserData":{"PlaybackPositionTicks":0,"Played":false}}
+          ],
+          "TotalRecordCount": 3
+        }
+        """;
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
             Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")

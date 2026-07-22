@@ -109,6 +109,20 @@ public sealed class JellyfinClient(
         return result.Items?.FirstOrDefault();
     }
 
+    public async Task<IReadOnlyList<ItemInfo>> GetCollectionItemsAsync(
+        string userId,
+        string collectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var path = $"Users/{Uri.EscapeDataString(userId)}/Items" +
+            $"?ParentId={Uri.EscapeDataString(collectionId)}" +
+            "&Recursive=true&IncludeItemTypes=Movie,Video" +
+            "&SortBy=SortName&SortOrder=Ascending" +
+            "&Fields=Path,MediaSources&EnableUserData=true";
+        var result = await GetAuthenticatedAsync<ItemQueryResult>(path, cancellationToken);
+        return result.Items ?? [];
+    }
+
     public Task ReportPlaybackStartedAsync(string itemId, string? mediaSourceId, string playSessionId, long positionTicks, CancellationToken cancellationToken = default) =>
         ReportAsync("Sessions/Playing", new
         {
