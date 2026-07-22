@@ -30,6 +30,12 @@ public static class PlaybackQueueResolver
             return queue.Count > 0 ? queue : [selected];
         }
 
+        if (selected.Type?.Equals("BoxSet", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var items = Playable(await jellyfin.GetCollectionItemsAsync(userId, selected.Id, cancellationToken));
+            return FromPreferredStart(items, PreferredLocalStart(items)?.Id);
+        }
+
         return [selected];
     }
 
