@@ -1,5 +1,12 @@
 # Historique des versions
 
+## 1.9.1 — 2026-07-23
+
+- prise en charge des collections Jellyfin (`BoxSet`) comme listes de lecture VLC ;
+- démarrage au premier film en cours ou non vu, puis enchaînement des films suivants ;
+- messages de lecture groupée rendus génériques pour les séries et les collections ;
+- ajout d'un test de non-régression dédié aux collections.
+
 ## 1.9.0 — 2026-07-23
 
 - validation et normalisation centralisées des adresses Jellyfin avant leur enregistrement ;
