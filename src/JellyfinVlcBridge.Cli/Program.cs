@@ -48,10 +48,17 @@ static async Task<int> QuickSetupAsync(string[] args)
         Console.Write("Adresse du serveur Jellyfin (ex. http://192.168.1.25:8096) : ");
         server = (Console.ReadLine() ?? "").Trim().TrimEnd('/');
     }
-    if (!Uri.TryCreate(server, UriKind.Absolute, out var serverUri) || serverUri.Scheme is not ("http" or "https"))
-        throw new ArgumentException("L'adresse Jellyfin est invalide.");
+    server = ServerAddress.Normalize(server);
 
-    var existing = File.Exists(BridgeConfig.DefaultPath) ? BridgeConfig.Load() : null;
+    BridgeConfig? existing = null;
+    if (File.Exists(BridgeConfig.DefaultPath))
+    {
+        try { existing = BridgeConfig.Load(); }
+        catch (Exception exception)
+        {
+            BridgeLog.Warning("Configuration existante ignorée pendant Quick Connect : " + exception.Message);
+        }
+    }
     var deviceId = !string.IsNullOrWhiteSpace(existing?.DeviceId) ? existing.DeviceId : Guid.NewGuid().ToString("N");
     using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
     var client = new JellyfinClient(http, server, "");
@@ -106,8 +113,7 @@ static async Task<int> SetupApiAsync()
     Console.WriteLine("Configuration guidée de Jellyfin VLC Bridge");
     Console.Write("Adresse du serveur Jellyfin (ex. http://192.168.1.25:8096) : ");
     var server = (Console.ReadLine() ?? "").Trim().TrimEnd('/');
-    if (!Uri.TryCreate(server, UriKind.Absolute, out var serverUri) || serverUri.Scheme is not ("http" or "https"))
-        throw new ArgumentException("L'adresse Jellyfin est invalide.");
+    server = ServerAddress.Normalize(server);
 
     Console.Write("Nom de l'utilisateur Jellyfin (ex. Admin) : ");
     var userName = (Console.ReadLine() ?? "").Trim();
@@ -146,8 +152,7 @@ static async Task<int> SetupApiAsync()
 
 static int Configure(string[] args)
 {
-    var server = Required(args, "--server").TrimEnd('/');
-    _ = new Uri(server, UriKind.Absolute);
+    var server = ServerAddress.Normalize(Required(args, "--server"));
     var userId = Required(args, "--user-id");
     var mode = Optional(args, "--mode") ?? "http";
     if (mode is not ("http" or "smb")) throw new ArgumentException("--mode doit valoir http ou smb.");
@@ -185,7 +190,7 @@ static async Task<int> HandleUriAsync(string[] args)
 
 static async Task<int> PlayAsync(string[] args)
 {
-    var itemId = Required(args, "--item");
+    var itemId = ValidateItemId(Required(args, "--item"));
     var dryRun = args.Contains("--dry-run");
     var config = BridgeConfig.Load();
     var token = new EnvironmentOrWindowsCredentialStore().Read(SecretKeys.ForServer(config.ServerUrl));
@@ -320,12 +325,13 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
         var initial = await controller.WaitUntilReadyAsync(TimeSpan.FromSeconds(20));
         lastPositionTicks = Math.Max(lastPositionTicks, initial.PositionTicks);
         durationTicks = Math.Max(durationTicks, initial.DurationTicks);
-        await jellyfin.ReportPlaybackStartedAsync(itemId, mediaSourceId, playSessionId, lastPositionTicks);
-        reportingStarted = true;
+        reportingStarted = await TryReportPlaybackStartedAsync(
+            jellyfin, itemId, mediaSourceId, playSessionId, lastPositionTicks);
         Console.WriteLine(resumeAt is { TotalSeconds: > 0 }
             ? $"Reprise Jellyfin à {resumeAt.Value:hh\\:mm\\:ss} ; synchronisation active."
             : "Synchronisation de progression Jellyfin active.");
-        BridgeLog.Info($"Synchronisation active item={itemId} session={playSessionId}");
+        if (!reportingStarted)
+            Console.WriteLine("Jellyfin est momentanément indisponible ; la synchronisation réessaiera pendant la lecture.");
 
         while (!process.HasExited)
         {
@@ -337,8 +343,13 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
                 lastPositionTicks = status.PositionTicks;
                 durationTicks = Math.Max(durationTicks, status.DurationTicks);
                 var volume = Math.Clamp((int)Math.Round(status.Volume / 2.56), 0, 100);
-                await jellyfin.ReportPlaybackProgressAsync(itemId, mediaSourceId, playSessionId,
-                    lastPositionTicks, status.IsPaused, volume);
+                if (!reportingStarted)
+                    reportingStarted = await TryReportPlaybackStartedAsync(
+                        jellyfin, itemId, mediaSourceId, playSessionId, lastPositionTicks);
+                if (reportingStarted)
+                    await TryReportPlaybackProgressAsync(
+                        jellyfin, itemId, mediaSourceId, playSessionId,
+                        lastPositionTicks, status.IsPaused, volume);
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
             {
@@ -358,14 +369,8 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
     finally
     {
         if (reportingStarted)
-        {
-            try { await jellyfin.ReportPlaybackStoppedAsync(itemId, mediaSourceId, playSessionId, lastPositionTicks, failed); }
-            catch (Exception exception)
-            {
-                Console.Error.WriteLine($"Avertissement : position finale non envoyée ({exception.Message}).");
-                BridgeLog.Warning($"Position finale non envoyée item={itemId}: {exception.Message}");
-            }
-        }
+            await TryReportPlaybackStoppedAsync(
+                jellyfin, itemId, mediaSourceId, playSessionId, lastPositionTicks, failed);
         BridgeLog.Info($"Lecture terminée item={itemId} positionTicks={lastPositionTicks} failed={failed}");
     }
     return new PlaybackRunResult(
@@ -399,13 +404,14 @@ static async Task RunVlcPlaylistWithSyncAsync(
         var initial = await WaitForActiveMediaAsync(controller, process, TimeSpan.FromSeconds(20));
         lastPlaylistId = initial.CurrentPlaylistId;
         lastPositionTicks = Math.Max(lastPositionTicks, initial.PositionTicks);
-        await jellyfin.ReportPlaybackStartedAsync(
-            playlist[0].Item.Id, playlist[0].MediaSourceId, playSessionId, lastPositionTicks);
-        reportingStarted = true;
+        reportingStarted = await TryReportPlaybackStartedAsync(
+            jellyfin, playlist[0].Item.Id, playlist[0].MediaSourceId, playSessionId, lastPositionTicks);
         nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         Console.WriteLine(playlist[0].ResumeAt is { TotalSeconds: > 0 }
             ? $"Reprise Jellyfin à {playlist[0].ResumeAt.GetValueOrDefault():hh\\:mm\\:ss} ; synchronisation de la série active."
             : "Synchronisation de la série Jellyfin active.");
+        if (!reportingStarted)
+            Console.WriteLine("Jellyfin est momentanément indisponible ; la synchronisation réessaiera pendant la série.");
 
         while (!process.HasExited)
         {
@@ -417,7 +423,8 @@ static async Task RunVlcPlaylistWithSyncAsync(
 
             if (status.CurrentPlaylistId >= 0 && lastPlaylistId >= 0 && status.CurrentPlaylistId != lastPlaylistId)
             {
-                await jellyfin.ReportPlaybackStoppedAsync(
+                await TryReportPlaybackStoppedAsync(
+                    jellyfin,
                     playlist[currentIndex].Item.Id,
                     playlist[currentIndex].MediaSourceId,
                     playSessionId,
@@ -430,7 +437,8 @@ static async Task RunVlcPlaylistWithSyncAsync(
                 lastPlaylistId = status.CurrentPlaylistId;
                 playSessionId = Guid.NewGuid().ToString("N");
                 lastPositionTicks = status.PositionTicks;
-                await jellyfin.ReportPlaybackStartedAsync(
+                reportingStarted = await TryReportPlaybackStartedAsync(
+                    jellyfin,
                     playlist[currentIndex].Item.Id,
                     playlist[currentIndex].MediaSourceId,
                     playSessionId,
@@ -447,13 +455,14 @@ static async Task RunVlcPlaylistWithSyncAsync(
             if (DateTime.UtcNow >= nextProgressReport)
             {
                 var volume = Math.Clamp((int)Math.Round(status.Volume / 2.56), 0, 100);
-                await jellyfin.ReportPlaybackProgressAsync(
-                    playlist[currentIndex].Item.Id,
-                    playlist[currentIndex].MediaSourceId,
-                    playSessionId,
-                    lastPositionTicks,
-                    status.IsPaused,
-                    volume);
+                if (!reportingStarted)
+                    reportingStarted = await TryReportPlaybackStartedAsync(
+                        jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
+                        playSessionId, lastPositionTicks);
+                if (reportingStarted)
+                    await TryReportPlaybackProgressAsync(
+                        jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
+                        playSessionId, lastPositionTicks, status.IsPaused, volume);
                 nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
             }
         }
@@ -470,22 +479,73 @@ static async Task RunVlcPlaylistWithSyncAsync(
     finally
     {
         if (reportingStarted && currentIndex < playlist.Count)
-        {
-            try
-            {
-                await jellyfin.ReportPlaybackStoppedAsync(
-                    playlist[currentIndex].Item.Id,
-                    playlist[currentIndex].MediaSourceId,
-                    playSessionId,
-                    lastPositionTicks,
-                    failed);
-            }
-            catch (Exception exception)
-            {
-                BridgeLog.Warning($"Position finale de liste non envoyée item={playlist[currentIndex].Item.Id}: {exception.Message}");
-            }
-        }
+            await TryReportPlaybackStoppedAsync(
+                jellyfin,
+                playlist[currentIndex].Item.Id,
+                playlist[currentIndex].MediaSourceId,
+                playSessionId,
+                lastPositionTicks,
+                failed);
         BridgeLog.Info($"Liste VLC terminée index={currentIndex} positionTicks={lastPositionTicks} failed={failed}");
+    }
+}
+
+static async Task<bool> TryReportPlaybackStartedAsync(
+    JellyfinClient jellyfin,
+    string itemId,
+    string? mediaSourceId,
+    string playSessionId,
+    long positionTicks)
+{
+    try
+    {
+        await jellyfin.ReportPlaybackStartedAsync(itemId, mediaSourceId, playSessionId, positionTicks);
+        BridgeLog.Info($"Synchronisation active item={itemId} session={playSessionId}");
+        return true;
+    }
+    catch (Exception exception)
+    {
+        BridgeLog.Warning($"Démarrage de synchronisation différé item={itemId}: {exception.Message}");
+        return false;
+    }
+}
+
+static async Task TryReportPlaybackProgressAsync(
+    JellyfinClient jellyfin,
+    string itemId,
+    string? mediaSourceId,
+    string playSessionId,
+    long positionTicks,
+    bool paused,
+    int? volume)
+{
+    try
+    {
+        await jellyfin.ReportPlaybackProgressAsync(
+            itemId, mediaSourceId, playSessionId, positionTicks, paused, volume);
+    }
+    catch (Exception exception)
+    {
+        BridgeLog.Warning($"Progression non envoyée item={itemId}: {exception.Message}");
+    }
+}
+
+static async Task TryReportPlaybackStoppedAsync(
+    JellyfinClient jellyfin,
+    string itemId,
+    string? mediaSourceId,
+    string playSessionId,
+    long positionTicks,
+    bool failed)
+{
+    try
+    {
+        await jellyfin.ReportPlaybackStoppedAsync(
+            itemId, mediaSourceId, playSessionId, positionTicks, failed);
+    }
+    catch (Exception exception)
+    {
+        BridgeLog.Warning($"Position finale non envoyée item={itemId}: {exception.Message}");
     }
 }
 
@@ -673,8 +733,7 @@ static async Task<int> NativeMessageAsync(string[] args)
     if (messageType != "play") throw new InvalidDataException("Type de message navigateur inconnu.");
     if (!document.RootElement.TryGetProperty("itemId", out var itemProperty))
         throw new InvalidDataException("itemId absent du message navigateur.");
-    var itemId = itemProperty.GetString();
-    if (string.IsNullOrWhiteSpace(itemId)) throw new InvalidDataException("itemId vide.");
+    var itemId = ValidateItemId(itemProperty.GetString());
 
     await WriteNativeResponseAsync(new { accepted = true });
     Console.SetOut(Console.Error);
@@ -779,6 +838,13 @@ static PathMapping ParseMapping(string value)
     var index = value.IndexOf('=');
     if (index < 1) throw new ArgumentException("Mapping attendu : CHEMIN_SERVEUR=CHEMIN_CLIENT");
     return new PathMapping(value[..index], value[(index + 1)..]);
+}
+static string ValidateItemId(string? value)
+{
+    var itemId = value?.Trim();
+    if (string.IsNullOrWhiteSpace(itemId) || itemId.Length > 256 || itemId.Any(char.IsControl))
+        throw new InvalidDataException("Identifiant de média Jellyfin invalide.");
+    return itemId;
 }
 static Dictionary<string, string> ParseQuery(string query) => query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Split('=', 2)).ToDictionary(x => Uri.UnescapeDataString(x[0]), x => x.Length > 1 ? Uri.UnescapeDataString(x[1]) : "");

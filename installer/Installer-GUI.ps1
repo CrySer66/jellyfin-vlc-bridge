@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.8.1'
+$script:bridgeVersion = '1.9.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -17,10 +17,20 @@ $script:replaceExistingConfig = $false
 if ($script:hadExistingConfig) {
     try {
         $existingConfig = Get-Content -LiteralPath $script:configFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        if (-not [string]::IsNullOrWhiteSpace([string]$existingConfig.serverUrl)) {
-            $script:existingServerUrl = [string]$existingConfig.serverUrl
+        $existingUri = $null
+        if ([string]::IsNullOrWhiteSpace([string]$existingConfig.userId) -or
+            -not [Uri]::TryCreate([string]$existingConfig.serverUrl, [UriKind]::Absolute, [ref]$existingUri) -or
+            $existingUri.Scheme -notin @('http', 'https') -or
+            -not [string]::IsNullOrEmpty($existingUri.UserInfo) -or
+            -not [string]::IsNullOrEmpty($existingUri.Query) -or
+            -not [string]::IsNullOrEmpty($existingUri.Fragment)) {
+            throw 'Configuration existante invalide.'
         }
-    } catch { }
+        $script:existingServerUrl = ([string]$existingConfig.serverUrl).TrimEnd('/')
+    } catch {
+        $script:hadExistingConfig = $false
+        $script:existingServerUrl = $null
+    }
 }
 $script:codeFile = Join-Path $env:TEMP ('jellyfin-vlc-code-' + [Guid]::NewGuid().ToString('N') + '.txt')
 $script:setupProcess = $null
@@ -128,7 +138,7 @@ function Complete-Installation {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.8.1'
+$form.Text = 'Jellyfin VLC Bridge 1.9.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(620, 445)
 $form.FormBorderStyle = 'FixedDialog'
@@ -289,7 +299,11 @@ $installButton.Add_Click({
     if ($script:installed) { $form.Close(); return }
     try {
         $uri = $null
-        if (-not [Uri]::TryCreate($serverBox.Text.Trim(), [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -notin @('http', 'https')) {
+        if (-not [Uri]::TryCreate($serverBox.Text.Trim(), [UriKind]::Absolute, [ref]$uri) -or
+            $uri.Scheme -notin @('http', 'https') -or
+            -not [string]::IsNullOrEmpty($uri.UserInfo) -or
+            -not [string]::IsNullOrEmpty($uri.Query) -or
+            -not [string]::IsNullOrEmpty($uri.Fragment)) {
             throw 'Adresse Jellyfin invalide.'
         }
         $installButton.Enabled = $false

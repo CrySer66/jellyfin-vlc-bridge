@@ -1,6 +1,6 @@
 param(
     [string]$Repository = 'CrySer66/jellyfin-vlc-bridge',
-    [string]$Version = '1.8.1'
+    [string]$Version = '1.9.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,7 +39,9 @@ try {
     & (Join-Path $PSScriptRoot 'Test-PowerShellSyntax.ps1')
     Invoke-Checked { dotnet restore (Join-Path $projectDirectory 'JellyfinVlcBridge.slnx') --configfile (Join-Path $projectDirectory 'NuGet.Config') } 'La restauration .NET a echoue.'
     Invoke-Checked { dotnet build (Join-Path $projectDirectory 'JellyfinVlcBridge.slnx') --configuration Release --no-restore } 'La compilation a echoue.'
-    Invoke-Checked { dotnet run --project (Join-Path $projectDirectory 'tests\JellyfinVlcBridge.Tests') --configuration Release --no-build } 'Les tests ont echoue.'
+    # Les tests n'ont pas besoin d'optimisation. Le mode Debug évite aussi certains
+    # faux positifs antivirus rencontrés avec l'exécutable de simulation réseau optimisé.
+    Invoke-Checked { dotnet run --project (Join-Path $projectDirectory 'tests\JellyfinVlcBridge.Tests') --configuration Debug --no-restore } 'Les tests ont echoue.'
     & (Join-Path $PSScriptRoot 'Build-WindowsRelease.ps1') -Version $Version
 
     Write-Host '[2/4] Preparation de la connexion Git...' -ForegroundColor Yellow

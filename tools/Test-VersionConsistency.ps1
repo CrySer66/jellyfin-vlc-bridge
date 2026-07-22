@@ -35,4 +35,11 @@ if ($invalid) {
     throw "Versions incoherentes. Attendu $ExpectedVersion : $details"
 }
 
+$extensionVersion = Read-MatchedVersion 'browser-extension\manifest.json' '"version"\s*:\s*"([^"]+)"'
+$extensionBuildVersion = Read-MatchedVersion 'tools\Build-ExtensionPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
+if ($extensionVersion -ne $extensionBuildVersion) {
+    throw "Versions de l'extension incoherentes : manifest=$extensionVersion, build=$extensionBuildVersion"
+}
+
 Write-Host "Versions coherentes : $ExpectedVersion"
+Write-Host "Version extension coherente : $extensionVersion"

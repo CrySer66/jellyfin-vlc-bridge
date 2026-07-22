@@ -138,7 +138,7 @@ function Refresh-BridgeStatus {
         $vlcDetail = if ($script:health.vlcPath) { $script:health.vlcPath } else { 'Aucun chemin detecte' }
         Set-Card $vlcCard $script:health.vlcReady `
             'VLC detecte' 'VLC introuvable' $vlcDetail
-        $browserRegistered = $script:health.protocolReady -and $script:health.nativeMessagingReady
+        $browserRegistered = $script:health.nativeMessagingReady
         $browserReady = $browserRegistered -and $script:health.extensionActive
         if (-not $browserRegistered) {
             $browserDetail = 'Connexion Windows absente. Utilisez Reparer.'
@@ -216,7 +216,7 @@ $subtitle.Location = New-Object System.Drawing.Point(116, 64)
 $header.Controls.Add($subtitle)
 
 $versionLabel = New-Object System.Windows.Forms.Label
-$versionLabel.Text = 'Version 1.8.1'
+$versionLabel.Text = 'Version 1.9.0'
 $versionLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $versionLabel.ForeColor = [System.Drawing.Color]::White
 $versionLabel.AutoSize = $true
@@ -507,7 +507,17 @@ $saveButton.Add_Click({
                 clientPrefix = $clientPathBox.Text.Trim()
             })
         }
-        $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:configFile -Encoding UTF8
+        $json = $config | ConvertTo-Json -Depth 8
+        $temporaryConfig = $script:configFile + '.tmp-' + [Guid]::NewGuid().ToString('N')
+        $backupConfig = $script:configFile + '.bak'
+        try {
+            $utf8 = New-Object System.Text.UTF8Encoding($false)
+            [IO.File]::WriteAllText($temporaryConfig, $json, $utf8)
+            [IO.File]::Replace($temporaryConfig, $script:configFile, $backupConfig, $true)
+            if (Test-Path -LiteralPath $backupConfig) { Remove-Item -LiteralPath $backupConfig -Force }
+        } finally {
+            if (Test-Path -LiteralPath $temporaryConfig) { Remove-Item -LiteralPath $temporaryConfig -Force -ErrorAction SilentlyContinue }
+        }
         $footer.Text = 'Reglages enregistres.'
         Refresh-BridgeStatus
     } catch { Show-BridgeError $_.Exception.Message }

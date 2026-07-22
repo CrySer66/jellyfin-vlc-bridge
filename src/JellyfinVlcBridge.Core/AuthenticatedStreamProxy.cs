@@ -1,4 +1,5 @@
 using System.Net;
+using System.Collections.Concurrent;
 
 namespace JellyfinVlcBridge.Core;
 
@@ -8,9 +9,11 @@ public sealed class AuthenticatedStreamProxy(HttpClient http, string upstreamUrl
     private readonly string _nonce = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(18));
     private readonly Dictionary<string, string> _routes = [];
     private readonly HashSet<string> _loggedRoutes = [];
+    private readonly ConcurrentDictionary<int, Task> _activeRequests = new();
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private string? _baseUrl;
+    private int _requestSequence;
 
     public string Start()
     {
@@ -39,7 +42,17 @@ public sealed class AuthenticatedStreamProxy(HttpClient http, string upstreamUrl
             HttpListenerContext context;
             try { context = await _listener.GetContextAsync().WaitAsync(cancellationToken); }
             catch (OperationCanceledException) { break; }
-            _ = ForwardAsync(context, cancellationToken);
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested) { break; }
+            catch (HttpListenerException) when (cancellationToken.IsCancellationRequested) { break; }
+
+            var requestId = Interlocked.Increment(ref _requestSequence);
+            var task = ForwardAsync(context, cancellationToken);
+            _activeRequests[requestId] = task;
+            _ = task.ContinueWith(
+                _completed => _activeRequests.TryRemove(requestId, out _),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
     }
 
@@ -78,7 +91,12 @@ public sealed class AuthenticatedStreamProxy(HttpClient http, string upstreamUrl
                 await response.Content.CopyToAsync(context.Response.OutputStream, cancellationToken);
             context.Response.Close();
         }
-        catch when (cancellationToken.IsCancellationRequested) { }
+        catch when (cancellationToken.IsCancellationRequested)
+        {
+            try { context.Response.Abort(); }
+            catch (ObjectDisposedException) { }
+            catch (HttpListenerException) { }
+        }
         catch (Exception exception)
         {
             BridgeLog.Warning($"Erreur du relais {new Uri(selectedUpstream).AbsolutePath}: {exception.Message}");
@@ -90,16 +108,30 @@ public sealed class AuthenticatedStreamProxy(HttpClient http, string upstreamUrl
     {
         _cts?.Cancel();
         _listener.Close();
-        if (_loop is not null) try { await _loop; } catch (OperationCanceledException) { }
+        if (_loop is not null)
+        {
+            try { await _loop; }
+            catch (OperationCanceledException) { }
+            catch (ObjectDisposedException) { }
+            catch (HttpListenerException) { }
+        }
+        var activeRequests = _activeRequests.Values.ToArray();
+        if (activeRequests.Length > 0)
+        {
+            try { await Task.WhenAll(activeRequests); }
+            catch (OperationCanceledException) { }
+        }
         _cts?.Dispose();
     }
 
     private static int FindFreePort()
     {
         var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        try
+        {
+            listener.Start();
+            return ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        finally { listener.Stop(); }
     }
 }

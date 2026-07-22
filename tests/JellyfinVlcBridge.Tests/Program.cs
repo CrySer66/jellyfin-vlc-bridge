@@ -6,9 +6,49 @@ var tests = new (string Name, Func<Task> Run)[]
         PathMapper.Map(@"D:\Films\Alien\Alien.mkv", [new(@"D:\Films", @"\\serveur\Films")])))),
     ("Mapping le plus spécifique", () => Completed(() => Equal(@"\\nas\4K\Film.mkv",
         PathMapper.Map(@"D:\Films\4K\Film.mkv", [new(@"D:\Films", @"\\nas\Films"), new(@"D:\Films\4K", @"\\nas\4K")])))),
+    ("Un dossier voisin ne correspond pas au mapping SMB", () => Completed(() =>
+        Throws<InvalidOperationException>(() => PathMapper.Map(
+            @"D:\Films-Archives\Film.mkv", [new(@"D:\Films", @"\\nas\Films")])))),
     ("Échec sans mapping", () => Completed(() => Throws<InvalidOperationException>(() => PathMapper.Map(@"E:\Autre\x.mkv", [])))),
+    ("Adresse Jellyfin normalisée", () => Completed(() =>
+        Equal("http://192.168.1.25:8096/jellyfin", ServerAddress.Normalize(" http://192.168.1.25:8096/jellyfin/ ")))),
+    ("Adresse Jellyfin dangereuse refusée", () => Completed(() =>
+        Throws<ArgumentException>(() => ServerAddress.Normalize("file:///C:/films")))),
+    ("Configuration enregistrée atomiquement", () => Completed(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "JvbConfigTest-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "config.json");
+        try
+        {
+            new BridgeConfig
+            {
+                ServerUrl = "http://jellyfin:8096/",
+                UserId = " user ",
+                PlaybackMode = "HTTP"
+            }.Save(path);
+            var loaded = BridgeConfig.Load(path);
+            Equal("http://jellyfin:8096", loaded.ServerUrl);
+            Equal("user", loaded.UserId);
+            Equal("http", loaded.PlaybackMode);
+            Equal(0, Directory.GetFiles(directory, "*.tmp-*").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    })),
     ("Clé de secret stable", () => Completed(() => Equal("JellyfinVlcBridge:192.168.1.25:8096", SecretKeys.ForServer("http://192.168.1.25:8096")))),
     ("Conversion temps VLC", () => Completed(() => Equal(42L * TimeSpan.TicksPerSecond, new VlcStatus("playing", 42, 100, 256).PositionTicks))),
+    ("Le relais HTTP local se ferme proprement", async () =>
+    {
+        var handler = new ProxyHandler();
+        using var upstreamHttp = new HttpClient(handler);
+        await using var proxy = new AuthenticatedStreamProxy(upstreamHttp, "http://jellyfin/video", "secret");
+        var localUrl = proxy.Start();
+        using var localHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        Equal("media", await localHttp.GetStringAsync(localUrl));
+        Equal("secret", handler.Token);
+    }),
     ("Identifiant Chrome Web Store officiel", () => Completed(() =>
         Equal("hkjbodgdbjhignhlbecchiigcfigpidp", BridgeLinks.ChromeWebStoreExtensionId))),
     ("Origines Chrome limitées aux deux extensions attendues", () => Completed(() =>
@@ -67,15 +107,37 @@ var tests = new (string Name, Func<Task> Run)[]
         try
         {
             using var http = new HttpClient(new DownloadReleaseHandler());
-            var result = await new GitHubUpdateService(http).DownloadLatestAsync(directory);
+            var result = await new GitHubUpdateService(http, _ => true).DownloadLatestAsync(directory);
             Equal("9.9.9", result.Version);
             Equal(true, File.Exists(result.Path));
-            Equal((byte)'M', File.ReadAllBytes(result.Path)[0]);
+            Equal(70000L, new FileInfo(result.Path).Length);
         }
         finally
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
+    }),
+    ("Un téléchargement incomplet est supprimé", async () =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "JvbUpdateMismatchTest-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var http = new HttpClient(new DownloadReleaseHandler(70001));
+            await ThrowsAsync<InvalidDataException>(() =>
+                new GitHubUpdateService(http, _ => true).DownloadLatestAsync(directory));
+            Equal(0, Directory.GetFiles(directory, "*.partial-*").Length);
+            Equal(0, Directory.GetFiles(directory, "*.exe").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }),
+    ("Les appels Jellyfin ont un délai maximal", async () =>
+    {
+        using var http = new HttpClient(new HangingHandler()) { Timeout = Timeout.InfiniteTimeSpan };
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device", TimeSpan.FromMilliseconds(75));
+        await ThrowsAsync<OperationCanceledException>(() => client.GetCurrentUserAsync());
     }),
     ("Fin naturelle déclenche l'épisode suivant", () => Completed(() =>
         Equal(true, PlaybackQueueResolver.ShouldContinue(TimeSpan.FromMinutes(42).Ticks, TimeSpan.FromMinutes(43).Ticks, false)))),
@@ -142,6 +204,20 @@ sealed class CaptureHandler : HttpMessageHandler
     }
 }
 
+sealed class ProxyHandler : HttpMessageHandler
+{
+    public string? Token { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Token = request.Headers.TryGetValues("X-Emby-Token", out var values) ? values.Single() : null;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("media", System.Text.Encoding.UTF8, "application/octet-stream")
+        });
+    }
+}
+
 sealed class SeriesQueueHandler : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -181,7 +257,7 @@ sealed class ReleaseHandler(bool evil) : HttpMessageHandler
     }
 }
 
-sealed class DownloadReleaseHandler : HttpMessageHandler
+sealed class DownloadReleaseHandler(long declaredSize = 70000) : HttpMessageHandler
 {
     private int requestNumber;
 
@@ -190,14 +266,14 @@ sealed class DownloadReleaseHandler : HttpMessageHandler
         requestNumber++;
         if (requestNumber == 1)
         {
-            const string json = """
+            var json = $$"""
             {
               "tag_name": "v9.9.9",
               "html_url": "https://github.com/cryser66/jellyfin-vlc-bridge/releases/tag/v9.9.9",
               "assets": [{
                 "name": "JellyfinVlcBridge-9.9.9-Setup.exe",
                 "browser_download_url": "https://github.com/cryser66/jellyfin-vlc-bridge/releases/download/v9.9.9/JellyfinVlcBridge-9.9.9-Setup.exe",
-                "size": 70000
+                "size": {{declaredSize}}
               }]
             }
             """;
@@ -208,11 +284,20 @@ sealed class DownloadReleaseHandler : HttpMessageHandler
         }
 
         var installer = new byte[70000];
-        installer[0] = (byte)'M';
-        installer[1] = (byte)'Z';
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(installer)
         });
+    }
+}
+
+sealed class HangingHandler : HttpMessageHandler
+{
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("Ce code ne doit jamais être atteint.");
     }
 }

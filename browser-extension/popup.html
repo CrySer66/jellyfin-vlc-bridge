@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jellyfin VLC Bridge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" width="48" height="48" alt="">
+    <div>
+      <h1>Jellyfin VLC Bridge</h1>
+      <p id="version"></p>
+    </div>
+  </header>
+
+  <main>
+    <section class="status status--checking" id="status" aria-live="polite">
+      <span class="status__dot" aria-hidden="true"></span>
+      <div>
+        <strong id="status-title">Vérification de l’application…</strong>
+        <p id="status-detail">Communication avec le Bridge installé sur ce PC.</p>
+      </div>
+    </section>
+
+    <a class="button button--primary" id="download" href="#">Télécharger l’application Windows</a>
+    <a class="button" id="github" href="#">Voir le projet sur GitHub</a>
+    <a class="support" id="support" href="#">Aide et signaler un problème</a>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

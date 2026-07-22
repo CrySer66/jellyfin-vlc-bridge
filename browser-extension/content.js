@@ -3,6 +3,7 @@
 
   const BUTTON_ID = 'jellyfin-vlc-bridge-button';
   const TOAST_ID = 'jellyfin-vlc-bridge-toast';
+  const BRIDGE = globalThis.JellyfinVlcBridge;
   const ACTION_CONTAINERS = [
     '.detailPagePrimaryContainer .mainDetailButtons',
     '.detailPageContent .mainDetailButtons',
@@ -18,15 +19,30 @@
 
   let scheduled = false;
   let activeItemId = null;
-  let lastHeartbeat = 0;
+  let lastAvailabilityCheck = 0;
+  let bridgeAvailability = 'checking';
 
-  function notifyBridgeActivity(force = false) {
+  function applyAvailability() {
+    const button = document.getElementById(BUTTON_ID);
+    if (!button || button.dataset.state === 'loading' || button.dataset.state === 'success') return;
+    setButtonState(button, bridgeAvailability);
+  }
+
+  function checkBridgeAvailability(force = false) {
     const now = Date.now();
-    if (!force && now - lastHeartbeat < 12000) return;
-    lastHeartbeat = now;
+    if (!force && now - lastAvailabilityCheck < 12000) return;
+    lastAvailabilityCheck = now;
     try {
-      chrome.runtime.sendMessage({ type: 'heartbeat' }, () => void chrome.runtime.lastError);
-    } catch { /* The page will be reloaded after an extension update. */ }
+      chrome.runtime.sendMessage({ type: 'status' }, result => {
+        let runtimeError;
+        try { runtimeError = chrome.runtime.lastError; } catch { runtimeError = true; }
+        bridgeAvailability = runtimeError ? 'missing' : BRIDGE.availabilityFromResult(result);
+        applyAvailability();
+      });
+    } catch {
+      bridgeAvailability = 'missing';
+      applyAvailability();
+    }
   }
 
   function getItemId() {
@@ -61,11 +77,14 @@
   }
 
   function setButtonState(button, state) {
+    const presentation = BRIDGE.buttonPresentation(state);
     button.dataset.state = state;
-    button.disabled = state === 'loading';
+    button.disabled = presentation.disabled;
+    button.title = presentation.title;
+    button.setAttribute('aria-label', presentation.label);
     const label = button.querySelector('.jellyfin-vlc-label');
     if (!label) return;
-    label.textContent = state === 'loading' ? 'Ouverture…' : state === 'success' ? 'VLC lancé' : 'Lire avec VLC';
+    label.textContent = presentation.label;
   }
 
   function showToast(message, kind = 'success') {
@@ -83,19 +102,28 @@
     }, 3200);
   }
 
-  function protocolFallback(itemId, button) {
-    setButtonState(button, 'idle');
-    showToast('Ouverture de VLC par Windows…', 'info');
-    location.href = `jellyfin-vlc://play?itemId=${encodeURIComponent(itemId)}`;
+  function openApplicationDownload(button) {
+    bridgeAvailability = 'missing';
+    setButtonState(button, 'missing');
+    showToast('Installez Jellyfin VLC Bridge pour utiliser VLC.', 'warning');
+    try {
+      chrome.runtime.sendMessage({ type: 'open-download' }, () => void chrome.runtime.lastError);
+    } catch {
+      window.open(BRIDGE.links.latestRelease, '_blank', 'noopener,noreferrer');
+    }
   }
 
   function playItem(itemId, button) {
     if (button.dataset.state === 'loading') return;
+    if (bridgeAvailability !== 'ready') {
+      openApplicationDownload(button);
+      return;
+    }
     setButtonState(button, 'loading');
 
     try {
       if (!globalThis.chrome?.runtime?.id) {
-        protocolFallback(itemId, button);
+        openApplicationDownload(button);
         return;
       }
 
@@ -104,23 +132,23 @@
         try {
           runtimeError = chrome.runtime.lastError;
         } catch {
-          protocolFallback(itemId, button);
+          openApplicationDownload(button);
           return;
         }
 
         if (runtimeError || !response?.ok) {
           console.warn('Jellyfin VLC Bridge : communication directe indisponible.', runtimeError?.message || response?.error);
-          protocolFallback(itemId, button);
+          openApplicationDownload(button);
           return;
         }
 
         setButtonState(button, 'success');
         showToast('Lecture lancée dans VLC.');
-        window.setTimeout(() => setButtonState(button, 'idle'), 1800);
+        window.setTimeout(() => setButtonState(button, 'ready'), 1800);
       });
     } catch (error) {
       console.warn('Jellyfin VLC Bridge : rechargez la page après une mise à jour de l’extension.', error);
-      protocolFallback(itemId, button);
+      openApplicationDownload(button);
     }
   }
 
@@ -129,18 +157,16 @@
     button.id = BUTTON_ID;
     button.type = 'button';
     button.className = 'emby-button button-flat detailButton jellyfin-vlc-button';
-    button.title = 'Lire le fichier original avec VLC';
-    button.setAttribute('aria-label', 'Lire avec VLC');
     button.dataset.itemId = itemId;
-    button.dataset.state = 'idle';
-    button.innerHTML = `${iconMarkup()}<span class="jellyfin-vlc-label">Lire avec VLC</span>`;
+    button.innerHTML = `${iconMarkup()}<span class="jellyfin-vlc-label"></span>`;
+    setButtonState(button, bridgeAvailability);
     button.addEventListener('click', () => playItem(button.dataset.itemId, button));
     return button;
   }
 
   function mountButton() {
     scheduled = false;
-    notifyBridgeActivity();
+    checkBridgeAvailability();
     const itemId = getItemId();
     let button = document.getElementById(BUTTON_ID);
 
@@ -184,8 +210,8 @@
   new MutationObserver(scheduleMount).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('hashchange', scheduleMount);
   window.addEventListener('popstate', scheduleMount);
-  window.addEventListener('focus', () => notifyBridgeActivity(true));
-  window.setInterval(notifyBridgeActivity, 15000);
-  notifyBridgeActivity(true);
+  window.addEventListener('focus', () => checkBridgeAvailability(true));
+  window.setInterval(checkBridgeAvailability, 15000);
+  checkBridgeAvailability(true);
   scheduleMount();
 })();

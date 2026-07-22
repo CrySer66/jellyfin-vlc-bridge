@@ -40,6 +40,19 @@
   color: #fff !important;
 }
 
+.jellyfin-vlc-button[data-state='missing'] {
+  background: rgb(194 104 25 / 22%) !important;
+  border-color: #e09045 !important;
+  color: #ffd7ae !important;
+}
+
+.jellyfin-vlc-button[data-state='missing']:hover,
+.jellyfin-vlc-button[data-state='missing']:focus-visible {
+  background: #b85f1f !important;
+  border-color: #f4a460 !important;
+  color: #fff !important;
+}
+
 .jellyfin-vlc-icon {
   fill: currentColor;
   flex: 0 0 auto;
@@ -89,6 +102,10 @@
 
 .jellyfin-vlc-toast--info {
   border-left-color: var(--jf-palette-primary-main, #00a4dc);
+}
+
+.jellyfin-vlc-toast--warning {
+  border-left-color: #e09045;
 }
 
 .jellyfin-vlc-toast.is-visible {

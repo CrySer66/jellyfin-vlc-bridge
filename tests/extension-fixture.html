@@ -28,6 +28,19 @@
       </div>
     </section>
   </main>
+  <script>
+    globalThis.chrome = {
+      runtime: {
+        id: 'fixture-extension',
+        lastError: null,
+        sendMessage(message, callback) {
+          if (message.type === 'status') callback({ ok: !location.search.includes('missing=true') });
+          else callback?.({ ok: true });
+        }
+      }
+    };
+  </script>
+  <script src="../browser-extension/shared.js"></script>
   <script src="../browser-extension/content.js"></script>
 </body>
 </html>
