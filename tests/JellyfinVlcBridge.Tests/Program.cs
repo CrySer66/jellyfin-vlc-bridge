@@ -153,6 +153,42 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("episode-2", queue[0].Id);
         Equal("episode-3", queue[1].Id);
     }),
+    ("Une série peut être limitée au prochain épisode", async () =>
+    {
+        using var http = new HttpClient(new SeriesQueueHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var series = new ItemInfo("series", "Ma série", null, null, null, Type: "Series");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", series, PlaybackScope.Single);
+        Equal(1, queue.Count);
+        Equal("episode-2", queue[0].Id);
+    }),
+    ("Une série complète commence au premier épisode", async () =>
+    {
+        using var http = new HttpClient(new SeriesQueueHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var series = new ItemInfo("series", "Ma série", null, null, null, Type: "Series");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", series, PlaybackScope.All);
+        Equal(3, queue.Count);
+        Equal("episode-1", queue[0].Id);
+    }),
+    ("Les étendues de lecture sont validées", () => Completed(() =>
+    {
+        Equal(PlaybackScope.Automatic, PlaybackQueueResolver.ParseScope(null));
+        Equal(PlaybackScope.Following, PlaybackQueueResolver.ParseScope("following"));
+        Equal(PlaybackScope.All, PlaybackQueueResolver.ParseScope("all"));
+        Throws<ArgumentException>(() => PlaybackQueueResolver.ParseScope("inconnue"));
+    })),
+    ("Un épisode seul ne charge pas le reste de la série", async () =>
+    {
+        using var http = new HttpClient(new NoRequestHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var episode = new ItemInfo(
+            "episode-2", "Deux", @"D:\Series\S01E02.mkv", null, null,
+            Type: "Episode", SeriesId: "series", SeasonId: "season-1");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", episode, PlaybackScope.Single);
+        Equal(1, queue.Count);
+        Equal("episode-2", queue[0].Id);
+    }),
     ("Une collection devient une liste de films", async () =>
     {
         var handler = new CollectionQueueHandler();
@@ -164,6 +200,15 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("movie-2", queue[0].Id);
         Equal("movie-3", queue[1].Id);
         Equal(true, handler.ValidQuery);
+    }),
+    ("Une collection complète reprend au premier film", async () =>
+    {
+        using var http = new HttpClient(new CollectionQueueHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var collection = new ItemInfo("pirates", "Pirates des Caraïbes", null, null, null, Type: "BoxSet");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", collection, PlaybackScope.All);
+        Equal(3, queue.Count);
+        Equal("movie-1", queue[0].Id);
     }),
     ("Rapports Jellyfin", async () =>
     {
@@ -214,6 +259,12 @@ sealed class CaptureHandler : HttpMessageHandler
         Bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
         return new HttpResponseMessage(System.Net.HttpStatusCode.NoContent);
     }
+}
+
+sealed class NoRequestHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Aucune requête Jellyfin ne devait être envoyée.");
 }
 
 sealed class ProxyHandler : HttpMessageHandler
