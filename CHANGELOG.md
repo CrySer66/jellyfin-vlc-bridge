@@ -1,5 +1,26 @@
 # Historique des versions
 
+## 1.10.0 — 2026-07-23
+
+- ajout d'une commande locale d'aperçu de lecture sans exposer le jeton Jellyfin à Chrome ;
+- prise en charge des choix `single`, `following` et `all` pour les épisodes, séries, saisons et collections ;
+- possibilité de reprendre la première vidéo ou de la recommencer depuis le début ;
+- transmission sécurisée des choix de lecture par la messagerie native déjà installée ;
+- limitation et normalisation des métadonnées d'aperçu renvoyées au navigateur ;
+- ajout de tests de non-régression pour les nouvelles étendues de lecture.
+
+## Extension Chrome 1.5.0 — 2026-07-23
+
+- nouvelle fenêtre intégrée à Jellyfin avant le lancement de VLC ;
+- choix entre reprise de lecture et redémarrage depuis le début ;
+- choix entre un épisode seul, les épisodes suivants ou une série/saison complète ;
+- choix entre la suite d'une collection et sa lecture complète depuis le premier film ;
+- aperçu des dix premiers médias, du nombre total et de la durée approximative ;
+- protection contre les réponses obsolètes après des changements rapides et fermeture lors de la navigation ;
+- indication « Recharger Jellyfin » lorsque Chrome invalide une ancienne page après mise à jour ;
+- maintien de la lecture classique avec les anciennes versions du Bridge ;
+- aucune nouvelle autorisation Chrome demandée.
+
 ## 1.9.1 — 2026-07-23
 
 - prise en charge des collections Jellyfin (`BoxSet`) comme listes de lecture VLC ;
