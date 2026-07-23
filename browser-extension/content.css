@@ -75,6 +75,219 @@
   z-index: 2147483000;
 }
 
+.jellyfin-vlc-dialog {
+  align-items: center;
+  backdrop-filter: blur(9px);
+  background: rgb(5 9 14 / 72%);
+  box-sizing: border-box;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 2147483646;
+}
+
+.jellyfin-vlc-dialog *,
+.jellyfin-vlc-dialog *::before,
+.jellyfin-vlc-dialog *::after {
+  box-sizing: border-box;
+}
+
+.jellyfin-vlc-dialog__panel {
+  background: linear-gradient(145deg, rgb(35 42 51 / 99%), rgb(18 23 29 / 99%));
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: .85rem;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 58%);
+  color: #f6f8fa;
+  max-height: min(88vh, 48rem);
+  max-width: 40rem;
+  overflow: auto;
+  width: 100%;
+}
+
+.jellyfin-vlc-dialog__header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1.25rem 1.35rem 1rem;
+}
+
+.jellyfin-vlc-dialog__header h2 {
+  color: #fff;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin: .2rem 0 0;
+}
+
+.jellyfin-vlc-dialog__eyebrow {
+  color: #6ed5fa;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.jellyfin-vlc-dialog__close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: #d8dee6;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.7rem;
+  height: 2.2rem;
+  justify-content: center;
+  line-height: 1;
+  width: 2.2rem;
+}
+
+.jellyfin-vlc-dialog__close:hover,
+.jellyfin-vlc-dialog__close:focus-visible {
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  outline: 2px solid #55c7ee;
+}
+
+.jellyfin-vlc-dialog__body {
+  padding: 1rem 1.35rem .4rem;
+}
+
+.jellyfin-vlc-dialog__status {
+  color: #c9d2dc;
+  margin: 0 0 .9rem;
+}
+
+.jellyfin-vlc-dialog__section {
+  border: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.jellyfin-vlc-dialog__section legend {
+  color: #fff;
+  font-size: .86rem;
+  font-weight: 700;
+  margin-bottom: .5rem;
+}
+
+.jellyfin-vlc-dialog__section label {
+  align-items: center;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid transparent;
+  border-radius: .5rem;
+  cursor: pointer;
+  display: flex;
+  gap: .4rem;
+  margin: .35rem 0;
+  min-height: 2.65rem;
+  padding: .55rem .75rem;
+}
+
+.jellyfin-vlc-dialog__section label:has(input:checked) {
+  background: rgb(0 164 220 / 18%);
+  border-color: rgb(55 194 239 / 72%);
+}
+
+.jellyfin-vlc-dialog__section input {
+  accent-color: #00a4dc;
+  flex: 0 0 auto;
+}
+
+.jellyfin-vlc-dialog__section input:disabled + span {
+  opacity: .55;
+}
+
+.jellyfin-vlc-dialog__preview {
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: .6rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.jellyfin-vlc-dialog__summary {
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  color: #9fdff5;
+  font-size: .82rem;
+  font-weight: 700;
+  padding: .65rem .85rem;
+}
+
+.jellyfin-vlc-dialog__items {
+  list-style-position: inside;
+  margin: 0;
+  max-height: 14.5rem;
+  overflow: auto;
+  padding: .35rem .85rem .55rem;
+}
+
+.jellyfin-vlc-dialog__items li {
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  color: #edf1f5;
+  padding: .55rem 0;
+}
+
+.jellyfin-vlc-dialog__items li:last-child {
+  border-bottom: 0;
+}
+
+.jellyfin-vlc-dialog__items small {
+  color: #9ca9b6;
+  display: block;
+  font-size: .75rem;
+  margin: .2rem 0 0 1.25rem;
+}
+
+.jellyfin-vlc-dialog__remainder {
+  color: #9ca9b6 !important;
+  font-style: italic;
+  list-style: none;
+}
+
+.jellyfin-vlc-dialog__footer {
+  align-items: center;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  display: flex;
+  gap: .65rem;
+  justify-content: flex-end;
+  padding: 1rem 1.35rem 1.2rem;
+}
+
+.jellyfin-vlc-dialog__cancel,
+.jellyfin-vlc-dialog__launch {
+  border: 0 !important;
+  border-radius: .45rem !important;
+  cursor: pointer;
+  font-weight: 650 !important;
+  min-height: 2.55rem;
+  padding: .6rem 1rem !important;
+}
+
+.jellyfin-vlc-dialog__cancel {
+  background: rgb(255 255 255 / 9%) !important;
+  color: #fff !important;
+}
+
+.jellyfin-vlc-dialog__launch {
+  background: #087eaa !important;
+  color: #fff !important;
+}
+
+.jellyfin-vlc-dialog__launch:hover:not(:disabled),
+.jellyfin-vlc-dialog__launch:focus-visible {
+  background: #00a4dc !important;
+  outline: 2px solid #fff;
+}
+
+.jellyfin-vlc-dialog__launch:disabled {
+  cursor: wait;
+  opacity: .5;
+}
+
 .jellyfin-vlc-toast {
   align-items: center;
   backdrop-filter: blur(12px);
@@ -123,10 +336,26 @@
     bottom: 1rem;
     right: 1rem;
   }
+
+  .jellyfin-vlc-dialog {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .jellyfin-vlc-dialog__panel {
+    border-radius: .9rem .9rem 0 0;
+    max-height: 92vh;
+  }
+
+  .jellyfin-vlc-dialog__footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .jellyfin-vlc-button,
+  .jellyfin-vlc-dialog,
   .jellyfin-vlc-toast {
     transition: none;
   }

@@ -231,7 +231,8 @@ public sealed record ItemInfo(
     [property: JsonPropertyName("SeriesId")] string? SeriesId = null,
     [property: JsonPropertyName("SeasonId")] string? SeasonId = null,
     [property: JsonPropertyName("ParentIndexNumber")] int? ParentIndexNumber = null,
-    [property: JsonPropertyName("IndexNumber")] int? IndexNumber = null);
+    [property: JsonPropertyName("IndexNumber")] int? IndexNumber = null,
+    [property: JsonPropertyName("RunTimeTicks")] long? RunTimeTicks = null);
 
 public sealed record ItemQueryResult(
     [property: JsonPropertyName("Items")] List<ItemInfo>? Items,

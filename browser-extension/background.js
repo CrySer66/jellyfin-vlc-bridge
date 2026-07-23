@@ -39,8 +39,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return false;
   }
+  if (message?.type === 'inspect' && message.itemId) {
+    sendNative({ type: 'inspect', itemId: message.itemId, scope: message.scope || 'auto' }, result => {
+      sendResponse(result?.ok
+        ? { ok: true, inspection: result.response }
+        : { ok: false, error: result?.error });
+    });
+    return true;
+  }
   if (message?.type !== 'play' || !message.itemId) return false;
-  sendNative({ type: 'play', itemId: message.itemId }, result => {
+  sendNative({
+    type: 'play',
+    itemId: message.itemId,
+    scope: message.scope || 'auto',
+    startMode: message.startMode || 'resume'
+  }, result => {
     sendResponse(result?.ok ? { ok: true } : { ok: false, error: result?.error });
   });
   return true;

@@ -10,15 +10,15 @@ Le paquet destiné à la boutique ne contient volontairement pas le champ `key`,
 
 ## État de la publication
 
-La version 1.3.0 a été acceptée par Google et l'extension est disponible publiquement sous l'identifiant `hkjbodgdbjhignhlbecchiigcfigpidp`.
+La version 1.4.0 a été acceptée par Google et l'extension est disponible publiquement sous l'identifiant `hkjbodgdbjhignhlbecchiigcfigpidp`.
 
-La prochaine mise à jour est la version 1.4.0. Elle ajoute une fenêtre d'information, le lien GitHub et l'installation guidée lorsque le Bridge Windows est absent, sans demander de nouvelle autorisation Chrome.
+La prochaine mise à jour est la version 1.5.0. Elle ajoute le choix de reprise, l'étendue des séries et collections ainsi qu'un aperçu local de la playlist, sans demander de nouvelle autorisation Chrome.
 
 ## Envoyer une mise à jour
 
 1. Ouvrir l'élément existant dans le Chrome Web Store Developer Dashboard.
-2. Importer `JellyfinVlcBridge-Extension-1.4.0-ChromeWebStore.zip` dans **Package**.
-3. Vérifier que la version affichée est `1.4.0` et que seule l'autorisation `nativeMessaging` est demandée.
+2. Importer `JellyfinVlcBridge-Extension-1.5.0-ChromeWebStore.zip` dans **Package**.
+3. Vérifier que la version affichée est `1.5.0` et que seule l'autorisation `nativeMessaging` est demandée.
 4. Enregistrer le brouillon, puis choisir **Envoyer pour examen**.
 5. Après validation, tester une installation depuis la fiche publique. Chrome met ensuite automatiquement les utilisateurs à jour.
 
@@ -26,19 +26,19 @@ La prochaine mise à jour est la version 1.4.0. Elle ajoute une fenêtre d'infor
 
 ### Résumé court
 
-Ajoute « Lire avec VLC » aux fiches Jellyfin et transmet la lecture au Bridge VLC installé sur votre ordinateur.
+Ajoute « Lire avec VLC » aux fiches Jellyfin, permet de préparer la playlist et transmet la lecture au Bridge VLC installé sur votre ordinateur.
 
 ### Objectif unique
 
-Permettre à l'utilisateur de lancer dans VLC le média Jellyfin actuellement affiché, puis de synchroniser localement sa progression avec son propre serveur Jellyfin.
+Permettre à l'utilisateur de choisir et prévisualiser les médias Jellyfin à lancer dans VLC, puis de synchroniser localement leur progression avec son propre serveur Jellyfin.
 
 ### Justification de `nativeMessaging`
 
-Cette permission est nécessaire pour transmettre l'identifiant du média au programme Jellyfin VLC Bridge installé localement. L'extension ne peut pas démarrer VLC directement depuis la page Web sans cette communication native.
+Cette permission est nécessaire pour échanger localement l'identifiant du média, l'aperçu de la playlist et les choix de lecture avec le programme Jellyfin VLC Bridge installé sur l'ordinateur. L'extension ne peut pas démarrer VLC directement depuis la page Web sans cette communication native.
 
 ### Données
 
-L'extension lit uniquement l'identifiant technique du film ou de l'épisode affiché dans l'URL Jellyfin. Cet identifiant est transmis au Bridge installé sur le même ordinateur. Aucune donnée n'est envoyée au développeur, à un service publicitaire ou à un serveur tiers.
+L'extension lit l'identifiant technique du média affiché dans l'URL Jellyfin. Cet identifiant et les choix de lecture sont transmis au Bridge installé sur le même ordinateur. Le Bridge renvoie localement les titres, durées et positions de reprise nécessaires à l'aperçu, sans les conserver dans l'extension. Aucune donnée n'est envoyée au développeur, à un service publicitaire ou à un serveur tiers.
 
 ## Éléments graphiques à fournir
 
@@ -51,4 +51,4 @@ L'extension lit uniquement l'identifiant technique du film ou de l'épisode affi
 
 Chaque mise à jour doit utiliser le même élément du tableau de bord, conserver tous les fichiers dans le ZIP et augmenter la version dans `manifest.json`. Les utilisateurs recevront ensuite automatiquement les versions validées par Google.
 
-L'installateur Windows 1.4.0 ouvre directement la fiche officielle `https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp`. Les sources complètes de l'extension restent dans le dépôt GitHub et dans son propre ZIP Chrome Web Store ; elles ne sont plus dupliquées dans le paquet Windows.
+L'installateur Windows 1.10.0 ouvre directement la fiche officielle `https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp`. Les sources complètes de l'extension restent dans le dépôt GitHub et dans son propre ZIP Chrome Web Store ; elles ne sont plus dupliquées dans le paquet Windows.

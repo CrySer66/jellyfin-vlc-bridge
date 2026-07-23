@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.9.1'
+    [string]$Version = '1.10.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,7 +75,7 @@ Write-Host 'OK  Centre de controle compatible avec l application sans console'
 
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/'
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
-$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.3.0"}')
+$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.5.0"}')
 $nativeProcess.StandardInput.BaseStream.Write([BitConverter]::GetBytes([int]$payload.Length), 0, 4)
 $nativeProcess.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
 $nativeProcess.StandardInput.BaseStream.Flush()

@@ -35,6 +35,24 @@
         lastError: null,
         sendMessage(message, callback) {
           if (message.type === 'status') callback({ ok: !location.search.includes('missing=true') });
+          else if (message.type === 'inspect') callback({
+            ok: true,
+            inspection: {
+              itemType: new URLSearchParams(location.search).get('type') || 'Series',
+              title: 'Série de démonstration',
+              scope: message.scope,
+              totalCount: message.scope === 'single' ? 1 : 4,
+              totalDurationSeconds: message.scope === 'single' ? 2580 : 10320,
+              hasResume: true,
+              resumeSeconds: 1320,
+              items: [
+                { label: 'S01E02 — Le deuxième épisode', resumeSeconds: 1320 },
+                { label: 'S01E03 — La suite', resumeSeconds: 0 },
+                { label: 'S01E04 — Le tournant', resumeSeconds: 0 },
+                { label: 'S01E05 — La conclusion', resumeSeconds: 0 }
+              ].slice(0, message.scope === 'single' ? 1 : 4)
+            }
+          });
           else callback?.({ ok: true });
         }
       }
