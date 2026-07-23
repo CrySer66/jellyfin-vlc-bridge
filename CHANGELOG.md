@@ -1,5 +1,28 @@
 # Historique des versions
 
+## 1.11.0 — 2026-07-23
+
+- ajout d'un stockage local facultatif des préférences de lecture dans l'application compagnon ;
+- mémorisation séparée du point de départ et de l'étendue pour les films, épisodes, saisons, séries et collections ;
+- lecture et écriture des préférences par la messagerie native déjà autorisée, sans exposer le jeton Jellyfin ;
+- validation stricte et enregistrement atomique du fichier de préférences ;
+- suppression des préférences lors d'une désinstallation complète ;
+- correction du faux échec de nettoyage provoqué par la lecture directe du code retour de l'application sans console ;
+- attente explicite de la fin du nettoyage et arrêt du centre de contrôle avant la suppression des fichiers ;
+- exécution du désinstalleur graphique depuis une copie temporaire extérieure au dossier de l'application afin d'éviter son auto-verrouillage ;
+- déplacement du dossier de travail du raccourci de désinstallation vers le répertoire temporaire Windows ;
+- poursuite de la désinstallation du programme même si une association Windows secondaire ne peut pas être nettoyée ;
+- maintien de la compatibilité avec les anciennes versions de l'extension et du Bridge ;
+- ajout de tests de non-régression pour l'enregistrement et les valeurs invalides.
+
+## Extension Chrome 1.6.0 — 2026-07-23
+
+- ajout de l'option explicite « Retenir ces choix » dans la fenêtre de lecture ;
+- présélection du choix reprise/redémarrage et de l'étendue selon le type de contenu ;
+- conservation locale par l'application compagnon, sans stockage de préférence dans Chrome ;
+- masquage automatique de l'option lorsqu'une ancienne version du Bridge ne la prend pas en charge ;
+- aucune nouvelle autorisation Chrome demandée.
+
 ## 1.10.0 — 2026-07-23
 
 - ajout d'une commande locale d'aperçu de lecture sans exposer le jeton Jellyfin à Chrome ;

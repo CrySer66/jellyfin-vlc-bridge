@@ -2,5 +2,5 @@ namespace JellyfinVlcBridge.Core;
 
 public static class BridgeVersion
 {
-    public const string Current = "1.10.0";
+    public const string Current = "1.11.0";
 }

@@ -62,7 +62,47 @@
     }
   }
 
-  const api = Object.freeze({ links, availabilityFromResult, buttonPresentation, formatDuration, scopeChoices });
+  function normalizePreferences(value) {
+    const source = value?.preferences || value || {};
+    const scopes = source.scopes && typeof source.scopes === 'object' ? source.scopes : {};
+    const normalizedScopes = {};
+    for (const [itemType, scope] of Object.entries(scopes)) {
+      const key = String(itemType || '').trim().toLowerCase();
+      const normalizedScope = String(scope || '').trim().toLowerCase();
+      if (key && ['single', 'following', 'all'].includes(normalizedScope))
+        normalizedScopes[key] = normalizedScope;
+    }
+    return Object.freeze({
+      rememberChoices: source.rememberChoices === true,
+      startMode: source.startMode === 'restart' ? 'restart' : 'resume',
+      scopes: Object.freeze(normalizedScopes)
+    });
+  }
+
+  function preferredScope(preferences, itemType) {
+    const choices = scopeChoices(itemType);
+    const normalized = normalizePreferences(preferences);
+    if (!normalized.rememberChoices) return choices[0].value;
+    const saved = normalized.scopes[String(itemType || '').toLowerCase()];
+    return choices.some(choice => choice.value === saved) ? saved : choices[0].value;
+  }
+
+  function preferredStartMode(preferences, hasResume) {
+    if (!hasResume) return 'restart';
+    const normalized = normalizePreferences(preferences);
+    return normalized.rememberChoices ? normalized.startMode : 'resume';
+  }
+
+  const api = Object.freeze({
+    links,
+    availabilityFromResult,
+    buttonPresentation,
+    formatDuration,
+    scopeChoices,
+    normalizePreferences,
+    preferredScope,
+    preferredStartMode
+  });
   globalThis.JellyfinVlcBridge = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
