@@ -185,12 +185,17 @@ static async Task<int> HandleUriAsync(string[] args)
     var query = ParseQuery(uri.Query);
     if (!query.TryGetValue("itemId", out var itemId) || string.IsNullOrWhiteSpace(itemId))
         throw new ArgumentException("itemId manque dans l'URI.");
-    return await PlayAsync(["--item", itemId]);
+    var playArgs = new List<string> { "--item", itemId };
+    if (query.TryGetValue("scope", out var scope)) playArgs.AddRange(["--scope", scope]);
+    if (query.TryGetValue("start", out var start)) playArgs.AddRange(["--start", start]);
+    return await PlayAsync([.. playArgs]);
 }
 
 static async Task<int> PlayAsync(string[] args)
 {
     var itemId = ValidateItemId(Required(args, "--item"));
+    var scope = PlaybackQueueResolver.ParseScope(Optional(args, "--scope"));
+    var restartFirst = ParseStartMode(Optional(args, "--start"));
     var dryRun = args.Contains("--dry-run");
     var config = BridgeConfig.Load();
     var token = new EnvironmentOrWindowsCredentialStore().Read(SecretKeys.ForServer(config.ServerUrl));
@@ -201,7 +206,7 @@ static async Task<int> PlayAsync(string[] args)
     using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
     var jellyfin = new JellyfinClient(http, config.ServerUrl, token, config.DeviceId);
     var selected = await jellyfin.GetItemAsync(config.UserId, itemId);
-    var queue = await PlaybackQueueResolver.ResolveAsync(jellyfin, config.UserId, selected);
+    var queue = await PlaybackQueueResolver.ResolveAsync(jellyfin, config.UserId, selected, scope);
     if (queue.Count == 0)
         throw new InvalidDataException("Cet élément ne contient aucun média lisible.");
 
@@ -215,14 +220,53 @@ static async Task<int> PlayAsync(string[] args)
 
     if (queue.Count == 1)
     {
-        await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, queue[0], dryRun);
+        await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, queue[0], dryRun, restartFirst);
         return 0;
     }
 
     if (dryRun)
-        foreach (var item in queue) await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, item, true);
+        for (var index = 0; index < queue.Count; index++)
+            await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, queue[index], true, restartFirst && index == 0);
     else
-        await PlayQueueAsync(vlc, config, token, http, jellyfin, queue);
+        await PlayQueueAsync(vlc, config, token, http, jellyfin, queue, restartFirst);
+    return 0;
+}
+
+static async Task<int> InspectPlaybackAsync(string itemId, PlaybackScope scope)
+{
+    var config = BridgeConfig.Load();
+    var token = new EnvironmentOrWindowsCredentialStore().Read(SecretKeys.ForServer(config.ServerUrl));
+    if (string.IsNullOrWhiteSpace(token))
+        throw new InvalidOperationException("Jeton absent. Relancez la configuration Quick Connect.");
+
+    using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+    var jellyfin = new JellyfinClient(http, config.ServerUrl, token, config.DeviceId);
+    var selected = await jellyfin.GetItemAsync(config.UserId, itemId);
+    var queue = await PlaybackQueueResolver.ResolveAsync(jellyfin, config.UserId, selected, scope);
+    var firstResumeTicks = queue.FirstOrDefault()?.UserData?.PlaybackPositionTicks ?? 0;
+    var totalDurationTicks = queue.Sum(item => Math.Max(0, item.RunTimeTicks ?? 0));
+
+    await WriteNativeResponseAsync(new
+    {
+        accepted = true,
+        type = "inspection",
+        bridgeVersion = BridgeVersion.Current,
+        itemType = selected.Type ?? "Video",
+        title = PreviewText(selected.Name ?? "Lecture Jellyfin"),
+        scope = ScopeValue(scope),
+        totalCount = queue.Count,
+        totalDurationSeconds = totalDurationTicks / TimeSpan.TicksPerSecond,
+        hasResume = firstResumeTicks > 0,
+        resumeSeconds = firstResumeTicks / TimeSpan.TicksPerSecond,
+        items = queue.Take(100).Select(item => new
+        {
+            id = PreviewText(item.Id, 256),
+            label = PreviewText(EpisodeLabel(item)),
+            resumeSeconds = Math.Max(0, item.UserData?.PlaybackPositionTicks ?? 0) / TimeSpan.TicksPerSecond,
+            durationSeconds = Math.Max(0, item.RunTimeTicks ?? 0) / TimeSpan.TicksPerSecond,
+            played = item.UserData?.Played == true
+        }).ToArray()
+    });
     return 0;
 }
 
@@ -232,16 +276,18 @@ static async Task PlayQueueAsync(
     string token,
     HttpClient http,
     JellyfinClient jellyfin,
-    IReadOnlyList<ItemInfo> queue)
+    IReadOnlyList<ItemInfo> queue,
+    bool restartFirst)
 {
     AuthenticatedStreamProxy? proxy = null;
     var playlist = new List<PlaybackMedia>();
     try
     {
-        foreach (var item in queue)
+        for (var index = 0; index < queue.Count; index++)
         {
+            var item = queue[index];
             var mediaSourceId = item.MediaSources?.FirstOrDefault()?.Id;
-            var resumeTicks = item.UserData?.PlaybackPositionTicks ?? 0;
+            var resumeTicks = restartFirst && index == 0 ? 0 : item.UserData?.PlaybackPositionTicks ?? 0;
             var resumeAt = resumeTicks > 0 ? TimeSpan.FromTicks(resumeTicks) : (TimeSpan?)null;
             string media;
             if (config.PlaybackMode == "smb")
@@ -281,11 +327,12 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     HttpClient http,
     JellyfinClient jellyfin,
     ItemInfo item,
-    bool dryRun)
+    bool dryRun,
+    bool restart)
 {
     var itemId = item.Id;
     var mediaSourceId = item.MediaSources?.FirstOrDefault()?.Id;
-    var resumeTicks = item.UserData?.PlaybackPositionTicks ?? 0;
+    var resumeTicks = restart ? 0 : item.UserData?.PlaybackPositionTicks ?? 0;
     var resumeAt = resumeTicks > 0 ? TimeSpan.FromTicks(resumeTicks) : (TimeSpan?)null;
     if (config.PlaybackMode == "smb")
     {
@@ -586,6 +633,14 @@ static string EpisodeLabel(ItemInfo item)
     return number + (item.Name ?? item.Id);
 }
 
+static string PreviewText(string value, int maximumLength = 240)
+{
+    var normalized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+    return normalized.Length <= maximumLength
+        ? normalized
+        : normalized[..maximumLength] + "…";
+}
+
 static int InstallProtocol()
 {
     if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Installation automatique disponible sur Windows uniquement.");
@@ -735,14 +790,31 @@ static async Task<int> NativeMessageAsync(string[] args)
         await WriteNativeResponseAsync(new { accepted = true, type = "pong", bridgeVersion = BridgeVersion.Current });
         return 0;
     }
-    if (messageType != "play") throw new InvalidDataException("Type de message navigateur inconnu.");
+    if (messageType is not ("play" or "inspect"))
+        throw new InvalidDataException("Type de message navigateur inconnu.");
     if (!document.RootElement.TryGetProperty("itemId", out var itemProperty))
         throw new InvalidDataException("itemId absent du message navigateur.");
     var itemId = ValidateItemId(itemProperty.GetString());
+    var scopeText = document.RootElement.TryGetProperty("scope", out var scopeProperty)
+        ? scopeProperty.GetString()
+        : null;
+    var scope = PlaybackQueueResolver.ParseScope(scopeText);
+
+    if (messageType == "inspect")
+        return await InspectPlaybackAsync(itemId, scope);
+
+    var startMode = document.RootElement.TryGetProperty("startMode", out var startProperty)
+        ? startProperty.GetString()
+        : null;
+    ParseStartMode(startMode);
 
     await WriteNativeResponseAsync(new { accepted = true });
     Console.SetOut(Console.Error);
-    return await PlayAsync(["--item", itemId]);
+    return await PlayAsync([
+        "--item", itemId,
+        "--scope", ScopeValue(scope),
+        "--start", startMode ?? "resume"
+    ]);
 }
 
 static async Task WriteNativeResponseAsync(object value)
@@ -821,7 +893,7 @@ Jellyfin VLC Bridge
   status --json                 État complet lisible par le centre de contrôle
   repair                        Répare le protocole et la connexion Chrome/Edge
   uninstall-cleanup [--purge]    Nettoyage Windows utilisé par le désinstallateur
-  play --item ID [--dry-run]
+  play --item ID [--scope auto|single|following|all] [--start resume|restart] [--dry-run]
   doctor
 """);
     return 2;
@@ -834,6 +906,19 @@ static string? Optional(string[] args, string name)
     var index = Array.IndexOf(args, name);
     return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
 }
+static bool ParseStartMode(string? value) => value?.Trim().ToLowerInvariant() switch
+{
+    null or "" or "resume" => false,
+    "restart" => true,
+    _ => throw new ArgumentException("Mode de démarrage inconnu.", nameof(value))
+};
+static string ScopeValue(PlaybackScope scope) => scope switch
+{
+    PlaybackScope.Single => "single",
+    PlaybackScope.Following => "following",
+    PlaybackScope.All => "all",
+    _ => "auto"
+};
 static IEnumerable<string> Values(string[] args, string name)
 {
     for (var i = 0; i < args.Length - 1; i++) if (args[i] == name) yield return args[i + 1];
