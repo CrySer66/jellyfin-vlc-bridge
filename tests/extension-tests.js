@@ -21,4 +21,23 @@ assert.deepEqual(bridge.scopeChoices('Series').map(choice => choice.value), ['fo
 assert.deepEqual(bridge.scopeChoices('BoxSet').map(choice => choice.value), ['following', 'all']);
 assert.deepEqual(bridge.scopeChoices('Movie').map(choice => choice.value), ['single']);
 
+assert.deepEqual(bridge.normalizePreferences(), {
+  rememberChoices: false,
+  startMode: 'resume',
+  scopes: {}
+});
+const remembered = bridge.normalizePreferences({
+  rememberChoices: true,
+  startMode: 'restart',
+  scopes: { Series: 'all', invalid: 'anything' }
+});
+assert.equal(remembered.rememberChoices, true);
+assert.equal(remembered.startMode, 'restart');
+assert.equal(remembered.scopes.series, 'all');
+assert.equal(bridge.preferredScope(remembered, 'Series'), 'all');
+assert.equal(bridge.preferredScope(remembered, 'Episode'), 'following');
+assert.equal(bridge.preferredStartMode(remembered, true), 'restart');
+assert.equal(bridge.preferredStartMode(remembered, false), 'restart');
+assert.equal(bridge.preferredStartMode({}, true), 'resume');
+
 console.log('OK  États et liens de l’extension Chrome');

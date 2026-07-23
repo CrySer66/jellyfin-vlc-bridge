@@ -10,6 +10,8 @@ Jellyfin VLC Bridge traite uniquement les informations nécessaires à son fonct
 
 Lorsque l'utilisateur consulte une fiche vidéo Jellyfin, l'extension examine l'adresse de la page et la présence des commandes de lecture afin d'afficher le bouton « Lire avec VLC ». Après un clic explicite, elle transmet l'identifiant technique du média et les choix de lecture au programme Jellyfin VLC Bridge installé sur le même ordinateur, grâce à la messagerie native de Chrome. Le programme renvoie localement les titres, durées et positions de reprise nécessaires à l'aperçu de la liste de lecture.
 
+Si l'utilisateur active explicitement l'option « Retenir ces choix », l'application compagnon enregistre uniquement, sur cet ordinateur, le choix entre reprise et redémarrage ainsi que l'étendue préférée pour chaque type de contenu. Ces préférences ne contiennent ni jeton Jellyfin, ni historique de lecture, ni titre de média, et ne sont pas transmises au développeur.
+
 Ces opérations peuvent relever des catégories « activité de navigation Web » et « contenu du site Web » dans les déclarations du Chrome Web Store. Elles sont limitées à la page Jellyfin en cours, restent locales et servent exclusivement à la fonctionnalité demandée par l'utilisateur.
 
 ## Communication avec Jellyfin
@@ -22,7 +24,7 @@ L'extension ne contient aucun système publicitaire, outil d'analyse, traceur ou
 
 ## Conservation et suppression
 
-L'extension ne conserve pas d'historique de navigation ni de copie du contenu Jellyfin. Les informations affichées dans l'aperçu restent en mémoire uniquement pendant l'ouverture de la fenêtre de lecture. Sa suppression arrête immédiatement son accès aux pages Jellyfin. Les informations enregistrées par l'application compagnon peuvent être supprimées avec le désinstallateur Jellyfin VLC Bridge.
+L'extension ne conserve pas d'historique de navigation ni de copie du contenu Jellyfin. Les informations affichées dans l'aperçu restent en mémoire uniquement pendant l'ouverture de la fenêtre de lecture. Sa suppression arrête immédiatement son accès aux pages Jellyfin. Les préférences facultatives et les autres informations enregistrées par l'application compagnon peuvent être supprimées en choisissant la désinstallation complète de Jellyfin VLC Bridge.
 
 ## Modifications
 

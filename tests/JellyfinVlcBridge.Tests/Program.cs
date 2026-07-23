@@ -49,6 +49,31 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("media", await localHttp.GetStringAsync(localUrl));
         Equal("secret", handler.Token);
     }),
+    ("Préférences de lecture enregistrées atomiquement", () => Completed(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "JvbPreferencesTest-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "playback-preferences.json");
+        try
+        {
+            var preferences = new PlaybackPreferences().WithChoice(true, "restart", "Series", "all");
+            PlaybackPreferencesStore.Save(preferences, path);
+            var loaded = PlaybackPreferencesStore.Load(path);
+            Equal(true, loaded.RememberChoices);
+            Equal("restart", loaded.StartMode);
+            Equal("all", loaded.Scopes["series"]);
+            Equal(0, Directory.GetFiles(directory, "*.tmp-*").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    })),
+    ("Préférences de lecture invalides refusées", () => Completed(() =>
+        Throws<InvalidDataException>(() => new PlaybackPreferences
+        {
+            RememberChoices = true,
+            StartMode = "inconnu"
+        }.Validate()))),
     ("Identifiant Chrome Web Store officiel", () => Completed(() =>
         Equal("hkjbodgdbjhignhlbecchiigcfigpidp", BridgeLinks.ChromeWebStoreExtensionId))),
     ("Origines Chrome limitées aux deux extensions attendues", () => Completed(() =>

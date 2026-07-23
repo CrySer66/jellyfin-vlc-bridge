@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.10.0'
+    [string]$Version = '1.11.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,9 +73,26 @@ if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
 }
 Write-Host 'OK  Centre de controle compatible avec l application sans console'
 
+$uninstallerScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Desinstaller-GUI.ps1') -Raw
+if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or
+    $uninstallerScript -notmatch 'ProcessStartInfo' -or
+    $uninstallerScript -notmatch 'WaitForExit\(\)' -or
+    $uninstallerScript -notmatch '\.ExitCode' -or
+    $uninstallerScript -notmatch 'jellyfin-vlc-bridge-control' -or
+    $uninstallerScript -notmatch 'JellyfinVlcBridgeUninstall-' -or
+    $uninstallerScript -notmatch 'TemporaryRun' -or
+    $uninstallerScript -notmatch 'Set-Location\s+-LiteralPath\s+\$env:TEMP') {
+    throw 'Le desinstallateur ne gere pas correctement application graphique ou centre de controle.'
+}
+$installerScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Installer-GUI.ps1') -Raw
+if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$env:TEMP') {
+    throw 'Le raccourci de desinstallation conserve encore le dossier application comme repertoire de travail.'
+}
+Write-Host 'OK  Desinstallation executee hors du dossier supprime et sans faux code erreur'
+
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/'
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
-$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.5.0"}')
+$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.6.0"}')
 $nativeProcess.StandardInput.BaseStream.Write([BitConverter]::GetBytes([int]$payload.Length), 0, 4)
 $nativeProcess.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
 $nativeProcess.StandardInput.BaseStream.Flush()

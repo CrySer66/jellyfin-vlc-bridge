@@ -143,6 +143,35 @@
     });
   }
 
+  function loadPlaybackPreferences() {
+    return new Promise(resolve => {
+      try {
+        chrome.runtime.sendMessage({ type: 'preferences-get' }, response => {
+          let runtimeError;
+          try { runtimeError = chrome.runtime.lastError; } catch { runtimeError = true; }
+          resolve(runtimeError || !response?.ok
+            ? { supported: false, preferences: BRIDGE.normalizePreferences() }
+            : { supported: true, preferences: BRIDGE.normalizePreferences(response.preferences) });
+        });
+      } catch {
+        resolve({ supported: false, preferences: BRIDGE.normalizePreferences() });
+      }
+    });
+  }
+
+  function savePlaybackPreferences(preferences) {
+    try {
+      chrome.runtime.sendMessage({ type: 'preferences-save', ...preferences }, response => {
+        let runtimeError;
+        try { runtimeError = chrome.runtime.lastError; } catch { runtimeError = true; }
+        if (runtimeError || !response?.ok)
+          console.warn('Jellyfin VLC Bridge : préférences non enregistrées.', runtimeError?.message || response?.error);
+      });
+    } catch (error) {
+      console.warn('Jellyfin VLC Bridge : préférences non enregistrées.', error);
+    }
+  }
+
   function createPlaybackDialog() {
     closeActiveDialog?.();
     const previousFocus = document.activeElement;
@@ -173,6 +202,13 @@
             <div class="jellyfin-vlc-dialog__summary"></div>
             <ol class="jellyfin-vlc-dialog__items"></ol>
           </div>
+          <label class="jellyfin-vlc-dialog__remember" hidden>
+            <input type="checkbox" class="jellyfin-vlc-dialog__remember-input">
+            <span>
+              <strong>Retenir ces choix</strong>
+              <small>Ils seront proposés automatiquement pour ce type de contenu.</small>
+            </span>
+          </label>
         </div>
         <footer class="jellyfin-vlc-dialog__footer">
           <button class="emby-button jellyfin-vlc-dialog__cancel" type="button">Annuler</button>
@@ -223,12 +259,19 @@
     const summary = dialog.overlay.querySelector('.jellyfin-vlc-dialog__summary');
     const items = dialog.overlay.querySelector('.jellyfin-vlc-dialog__items');
     const launch = dialog.overlay.querySelector('.jellyfin-vlc-dialog__launch');
+    const remember = dialog.overlay.querySelector('.jellyfin-vlc-dialog__remember');
+    const rememberInput = dialog.overlay.querySelector('.jellyfin-vlc-dialog__remember-input');
     let selectedScope = 'auto';
+    let selectedItemType = 'video';
+    let preferences = BRIDGE.normalizePreferences();
+    let preferencesSupported = false;
+    let rememberInitialized = false;
     let inspectionRequest = 0;
 
     const renderInspection = data => {
       const choices = scopeChoices(data.itemType);
-      if (selectedScope === 'auto') selectedScope = choices[0].value;
+      selectedItemType = String(data.itemType || 'video').toLowerCase();
+      if (selectedScope === 'auto') selectedScope = BRIDGE.preferredScope(preferences, data.itemType);
       const chosen = choices.some(choice => choice.value === selectedScope) ? selectedScope : choices[0].value;
       selectedScope = chosen;
 
@@ -239,12 +282,18 @@
       startSection.hidden = !data.totalCount;
       scopeSection.hidden = choices.length < 2;
       preview.hidden = !data.totalCount;
+      remember.hidden = !data.totalCount || !preferencesSupported;
+      if (!rememberInitialized) {
+        rememberInput.checked = preferences.rememberChoices;
+        rememberInitialized = true;
+      }
 
       const resume = dialog.overlay.querySelector('input[value="resume"]');
       const restart = dialog.overlay.querySelector('input[value="restart"]');
+      const preferredStart = BRIDGE.preferredStartMode(preferences, data.hasResume);
       resume.disabled = !data.hasResume;
-      resume.checked = Boolean(data.hasResume);
-      restart.checked = !data.hasResume;
+      resume.checked = preferredStart === 'resume';
+      restart.checked = preferredStart === 'restart';
       dialog.overlay.querySelector('.jellyfin-vlc-resume-label').textContent = data.hasResume
         ? `Reprendre à ${formatDuration(data.resumeSeconds)}`
         : 'Aucune reprise enregistrée';
@@ -314,15 +363,33 @@
     });
     launch.addEventListener('click', () => {
       const startMode = dialog.overlay.querySelector('input[name="jvb-start"]:checked')?.value || 'resume';
+      if (preferencesSupported) {
+        savePlaybackPreferences({
+          rememberChoices: rememberInput.checked,
+          startMode,
+          itemType: selectedItemType,
+          scope: selectedScope
+        });
+      }
       dialog.close();
       playItem(itemId, button, { scope: selectedScope, startMode });
     });
 
     try {
       const request = ++inspectionRequest;
-      const data = await inspectItem(itemId, 'auto');
+      const [data, loadedPreferences] = await Promise.all([
+        inspectItem(itemId, 'auto'),
+        loadPlaybackPreferences()
+      ]);
       if (request !== inspectionRequest || !dialog.overlay.isConnected) return;
-      renderInspection(data);
+      preferencesSupported = loadedPreferences.supported;
+      preferences = loadedPreferences.preferences;
+      const preferred = BRIDGE.preferredScope(preferences, data.itemType);
+      selectedScope = preferred;
+      const choices = scopeChoices(data.itemType);
+      if (preferences.rememberChoices && preferred !== choices[0].value)
+        await refresh(preferred);
+      else renderInspection(data);
     } catch (error) {
       if (!dialog.overlay.isConnected) return;
       dialog.close();

@@ -35,6 +35,15 @@
         lastError: null,
         sendMessage(message, callback) {
           if (message.type === 'status') callback({ ok: !location.search.includes('missing=true') });
+          else if (message.type === 'preferences-get') callback({
+            ok: true,
+            preferences: {
+              rememberChoices: location.search.includes('remember=true'),
+              startMode: 'restart',
+              scopes: { series: 'all' }
+            }
+          });
+          else if (message.type === 'preferences-save') callback({ ok: true });
           else if (message.type === 'inspect') callback({
             ok: true,
             inspection: {

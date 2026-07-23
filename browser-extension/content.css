@@ -248,6 +248,43 @@
   list-style: none;
 }
 
+.jellyfin-vlc-dialog__remember {
+  align-items: flex-start;
+  background: rgb(0 164 220 / 9%);
+  border: 1px solid rgb(55 194 239 / 24%);
+  border-radius: .6rem;
+  cursor: pointer;
+  display: flex;
+  gap: .65rem;
+  margin: 0 0 1rem;
+  padding: .7rem .8rem;
+}
+
+.jellyfin-vlc-dialog__remember[hidden] {
+  display: none;
+}
+
+.jellyfin-vlc-dialog__remember input {
+  accent-color: #00a4dc;
+  margin-top: .18rem;
+}
+
+.jellyfin-vlc-dialog__remember span,
+.jellyfin-vlc-dialog__remember small {
+  display: block;
+}
+
+.jellyfin-vlc-dialog__remember strong {
+  color: #fff;
+  font-size: .88rem;
+}
+
+.jellyfin-vlc-dialog__remember small {
+  color: #aeb9c5;
+  font-size: .75rem;
+  margin-top: .18rem;
+}
+
 .jellyfin-vlc-dialog__footer {
   align-items: center;
   border-top: 1px solid rgb(255 255 255 / 10%);

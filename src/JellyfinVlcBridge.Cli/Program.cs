@@ -755,6 +755,7 @@ static int UninstallCleanup(string[] args)
         if (config is not null)
             new EnvironmentOrWindowsCredentialStore().Delete(SecretKeys.ForServer(config.ServerUrl));
         if (File.Exists(BridgeConfig.DefaultPath)) File.Delete(BridgeConfig.DefaultPath);
+        if (File.Exists(PlaybackPreferencesStore.DefaultPath)) File.Delete(PlaybackPreferencesStore.DefaultPath);
         Console.WriteLine("Associations, configuration et jeton supprimés.");
     }
     else Console.WriteLine("Application retirée ; configuration et jeton conservés pour une réinstallation.");
@@ -790,6 +791,34 @@ static async Task<int> NativeMessageAsync(string[] args)
         await WriteNativeResponseAsync(new { accepted = true, type = "pong", bridgeVersion = BridgeVersion.Current });
         return 0;
     }
+    if (messageType == "preferences-get")
+    {
+        await WritePreferencesResponseAsync(PlaybackPreferencesStore.LoadOrDefault());
+        return 0;
+    }
+    if (messageType == "preferences-save")
+    {
+        var rememberChoices = document.RootElement.TryGetProperty("rememberChoices", out var rememberProperty) &&
+            rememberProperty.ValueKind == System.Text.Json.JsonValueKind.True;
+        var preferences = PlaybackPreferencesStore.LoadOrDefault();
+        if (rememberChoices)
+        {
+            var savedStartMode = document.RootElement.TryGetProperty("startMode", out var savedStartProperty)
+                ? savedStartProperty.GetString()
+                : null;
+            var itemType = document.RootElement.TryGetProperty("itemType", out var itemTypeProperty)
+                ? itemTypeProperty.GetString()
+                : null;
+            var savedScope = document.RootElement.TryGetProperty("scope", out var savedScopeProperty)
+                ? savedScopeProperty.GetString()
+                : null;
+            preferences = preferences.WithChoice(true, savedStartMode, itemType, savedScope);
+        }
+        else preferences = preferences with { RememberChoices = false };
+        PlaybackPreferencesStore.Save(preferences);
+        await WritePreferencesResponseAsync(preferences);
+        return 0;
+    }
     if (messageType is not ("play" or "inspect"))
         throw new InvalidDataException("Type de message navigateur inconnu.");
     if (!document.RootElement.TryGetProperty("itemId", out var itemProperty))
@@ -816,6 +845,15 @@ static async Task<int> NativeMessageAsync(string[] args)
         "--start", startMode ?? "resume"
     ]);
 }
+
+static Task WritePreferencesResponseAsync(PlaybackPreferences preferences) => WriteNativeResponseAsync(new
+{
+    accepted = true,
+    type = "preferences",
+    rememberChoices = preferences.RememberChoices,
+    startMode = preferences.StartMode,
+    scopes = preferences.Scopes
+});
 
 static async Task WriteNativeResponseAsync(object value)
 {

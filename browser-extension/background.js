@@ -47,6 +47,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
     return true;
   }
+  if (message?.type === 'preferences-get') {
+    sendNative({ type: 'preferences-get' }, result => {
+      sendResponse(result?.ok
+        ? { ok: true, preferences: result.response }
+        : { ok: false, error: result?.error });
+    });
+    return true;
+  }
+  if (message?.type === 'preferences-save') {
+    sendNative({
+      type: 'preferences-save',
+      rememberChoices: Boolean(message.rememberChoices),
+      startMode: message.startMode,
+      itemType: message.itemType,
+      scope: message.scope
+    }, result => {
+      sendResponse(result?.ok
+        ? { ok: true, preferences: result.response }
+        : { ok: false, error: result?.error });
+    });
+    return true;
+  }
   if (message?.type !== 'play' || !message.itemId) return false;
   sendNative({
     type: 'play',
