@@ -28,7 +28,7 @@ Jellyfin VLC Bridge ajoute un bouton **Lire avec VLC** dans Jellyfin Web. Le mé
 
 | Application | Plateforme | Extension |
 |---|---|---|
-| **1.12.0** | **Windows 10/11 x64** | **Chrome Web Store 1.7.0** |
+| **1.13.0** | **Windows 10/11 x64** | **Chrome Web Store 1.7.0** |
 
 <p align="center">
   <img src="assets/chrome-web-store/sources/film-dialog-source.png" width="820" alt="Préparation d’un film Jellyfin avant son lancement dans VLC">
@@ -61,13 +61,15 @@ Le guide anglais se trouve dans [INSTALLATION.en.md](INSTALLATION.en.md).
 - jeton conservé dans le Gestionnaire d'identifiants Windows ;
 - installation et désinstallation graphiques ;
 - centre de contrôle graphique avec diagnostic et réparation en un clic ;
+- diagnostic détaillé avec cause probable et conseil de résolution ;
+- création d’un paquet d’assistance ZIP expurgé, prêt à joindre à une Issue ;
 - aide intégrée pour ouvrir le guide ou signaler un problème ;
 - vérification et installation guidée des nouvelles Releases GitHub ;
 - lecture lancée silencieusement en arrière-plan, sans fenêtre CMD ;
 - environnement .NET intégré à l'application, sans prérequis à installer séparément ;
 - aucune modification des fichiers du serveur Jellyfin.
 
-Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. Cette fenêtre permet de vérifier Jellyfin, VLC et Chrome/Edge, de choisir le mode HTTP ou SMB et de copier un diagnostic sans secret.
+Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. Cette fenêtre permet de vérifier Jellyfin, VLC et Chrome/Edge, de choisir le mode HTTP ou SMB, puis de créer un diagnostic ou un paquet d’assistance sans secret.
 
 ## Deux téléchargements
 

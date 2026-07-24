@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.12.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.13.0
 ```
 
 Le script :
@@ -40,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.12.0-Setup.exe
-outputs\JellyfinVlcBridge-1.12.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.13.0-Setup.exe
+outputs\JellyfinVlcBridge-1.13.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome

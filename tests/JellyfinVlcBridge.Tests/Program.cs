@@ -240,6 +240,31 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal(3, queue.Count);
         Equal("movie-1", queue[0].Id);
     }),
+    ("Le paquet d'assistance retire les données privées", () => Completed(() =>
+    {
+        const string token = "token-tres-secret-123456";
+        var config = new BridgeConfig
+        {
+            ServerUrl = "http://192.168.1.90:8096",
+            UserId = "956b5d10c0fba3ca8dfa4c0777302559"
+        };
+        var source = $"""
+        server={config.ServerUrl}
+        user={config.UserId}
+        token={token}
+        Authorization: Bearer {token}
+        stream?api_key={token}
+        media="D:\Films privés\Vacances.mkv"
+        share=\\PC-PRIVE\Films\Vacances.mkv
+        """;
+        var sanitized = BridgeSupportBundle.Sanitize(source, config, token);
+        Equal(false, sanitized.Contains(config.ServerUrl, StringComparison.OrdinalIgnoreCase));
+        Equal(false, sanitized.Contains(config.UserId, StringComparison.OrdinalIgnoreCase));
+        Equal(false, sanitized.Contains(token, StringComparison.OrdinalIgnoreCase));
+        Equal(false, sanitized.Contains(@"D:\Films privés", StringComparison.OrdinalIgnoreCase));
+        Equal(false, sanitized.Contains(@"\\PC-PRIVE\Films", StringComparison.OrdinalIgnoreCase));
+        Equal(true, sanitized.Contains("<REDACTED>", StringComparison.Ordinal));
+    })),
     ("Rapports Jellyfin", async () =>
     {
         var handler = new CaptureHandler();

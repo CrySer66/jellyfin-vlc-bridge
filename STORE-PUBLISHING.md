@@ -55,4 +55,4 @@ L'extension lit l'identifiant technique du média affiché dans l'URL Jellyfin. 
 
 Chaque mise à jour doit utiliser le même élément du tableau de bord, conserver tous les fichiers dans le ZIP et augmenter la version dans `manifest.json`. Les utilisateurs recevront ensuite automatiquement les versions validées par Google.
 
-L’installateur Windows 1.12.0 ouvre directement la fiche officielle `https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp`. Les sources complètes de l’extension restent dans le dépôt GitHub et dans son propre ZIP Chrome Web Store ; elles ne sont plus dupliquées dans le paquet Windows.
+L’installateur Windows 1.13.0 ouvre directement la fiche officielle `https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp`. Les sources complètes de l’extension restent dans le dépôt GitHub et dans son propre ZIP Chrome Web Store ; elles ne sont plus dupliquées dans le paquet Windows.

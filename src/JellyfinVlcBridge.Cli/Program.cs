@@ -18,6 +18,7 @@ static async Task<int> MainAsync(string[] args)
             "install-protocol" => InstallProtocol(),
             "doctor" => await DoctorAsync(),
             "status" => await StatusAsync(args[1..]),
+            "support-bundle" => await SupportBundleAsync(args[1..]),
             "repair" => Repair(),
             "version" or "--version" => ShowVersion(),
             "install-native-host" => InstallNativeHost(),
@@ -888,7 +889,12 @@ static async Task<int> DoctorAsync()
     Console.WriteLine($"Extension : {(status.ExtensionActive ? $"ACTIVE ({status.ExtensionVersion})" : "INACTIVE OU SANS CONTACT")}");
     Console.WriteLine($"Mode : {status.PlaybackMode}");
     Console.WriteLine($"Journal : {status.LogPath}");
-    return status.Configured && status.SecretReady && status.VlcReady ? 0 : 1;
+    foreach (var finding in status.Findings)
+    {
+        Console.WriteLine($"[{finding.Severity.ToUpperInvariant()}] {finding.Code} - {finding.Message}");
+        Console.WriteLine($"  Action : {finding.Action}");
+    }
+    return status.Ready ? 0 : 1;
 }
 
 static async Task<int> StatusAsync(string[] args)
@@ -897,6 +903,22 @@ static async Task<int> StatusAsync(string[] args)
     var status = await BridgeDiagnostics.CheckAsync();
     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(status,
         new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+    return 0;
+}
+
+static async Task<int> SupportBundleAsync(string[] args)
+{
+    var output = Required(args, "--output");
+    var result = await BridgeSupportBundle.CreateAsync(output);
+    if (args.Contains("--json"))
+    {
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            }));
+    }
+    else Console.WriteLine($"Paquet d’assistance créé : {result.Path}");
     return 0;
 }
 
@@ -929,6 +951,8 @@ Jellyfin VLC Bridge
   check-update --json           Vérifie la dernière Release GitHub officielle
   download-update --json        Télécharge le nouvel installateur officiel
   status --json                 État complet lisible par le centre de contrôle
+  support-bundle --output ZIP [--json]
+                                Crée un paquet d’assistance expurgé
   repair                        Répare le protocole et la connexion Chrome/Edge
   uninstall-cleanup [--purge]    Nettoyage Windows utilisé par le désinstallateur
   play --item ID [--scope auto|single|following|all] [--start resume|restart] [--dry-run]

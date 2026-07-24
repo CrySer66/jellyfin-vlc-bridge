@@ -33,11 +33,17 @@ a new Quick Connect session.
 Open **Jellyfin VLC Bridge** from the Windows Start menu. It immediately checks
 Jellyfin, VLC and the Chrome/Edge integration.
 
-- **Repair** registers the local communication with the extension again;
+- **Repair browser** registers the local communication with the extension again;
 - **Playback settings** selects HTTP Direct Play or SMB and the VLC executable;
 - **Copy a diagnostic without secrets** copies useful version and status
   information without a token or user identifier;
+- **Create support package** saves a ZIP containing the diagnostic and recent
+  redacted logs, ready to attach to a GitHub Issue;
 - **Help and report a bug** opens the official guides and support forms.
+
+When a check fails, the corresponding card explains the likely cause and
+suggests the next action. Support packages automatically remove tokens, Jellyfin
+identifiers, server addresses and personal Windows paths.
 
 ## Install the Chrome extension
 

@@ -3,6 +3,13 @@ using Microsoft.Win32;
 
 namespace JellyfinVlcBridge.Core;
 
+public sealed record BridgeHealthFinding(
+    string Component,
+    string Code,
+    string Severity,
+    string Message,
+    string Action);
+
 public sealed record BridgeHealthStatus(
     string Version,
     string ConfigPath,
@@ -21,7 +28,9 @@ public sealed record BridgeHealthStatus(
     string? ExtensionVersion,
     DateTimeOffset? ExtensionLastSeenUtc,
     string PlaybackMode,
-    string LogPath);
+    string LogPath,
+    bool Ready,
+    IReadOnlyList<BridgeHealthFinding> Findings);
 
 public static class BridgeDiagnostics
 {
@@ -43,6 +52,7 @@ public static class BridgeDiagnostics
         var vlcVersion = GetVlcVersion(vlcPath);
         var jellyfinConnected = false;
         string? jellyfinUser = null;
+        var jellyfinCode = secretReady ? "jellyfin.unreachable" : "jellyfin.connection-missing";
         var jellyfinMessage = secretReady
             ? UiLanguage.Text("Server unreachable.", "Serveur non joignable.")
             : UiLanguage.Text("Jellyfin connection missing.", "Connexion Jellyfin absente.");
@@ -56,16 +66,24 @@ public static class BridgeDiagnostics
                     .GetCurrentUserAsync(cancellationToken);
                 jellyfinConnected = true;
                 jellyfinUser = user.Name;
+                jellyfinCode = "jellyfin.ready";
                 jellyfinMessage = UiLanguage.Text(
                     $"Connected as {user.Name}.",
                     $"Connecté en tant que {user.Name}.");
             }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            catch (TaskCanceledException exception)
             {
+                jellyfinCode = "jellyfin.timeout";
+                jellyfinMessage = UiLanguage.Text("Server response timed out: ", "Délai de réponse du serveur dépassé : ") + exception.Message;
+            }
+            catch (HttpRequestException exception)
+            {
+                jellyfinCode = "jellyfin.unreachable";
                 jellyfinMessage = UiLanguage.Text("Server unreachable: ", "Serveur injoignable : ") + exception.Message;
             }
             catch (Exception exception)
             {
+                jellyfinCode = "jellyfin.connection-refused";
                 jellyfinMessage = UiLanguage.Text("Connection refused: ", "Connexion refusée : ") + exception.Message;
             }
         }
@@ -85,11 +103,57 @@ public static class BridgeDiagnostics
             nativeMessagingReady = IsValidNativeManifest(manifestPath);
         }
 
+        var findings = new List<BridgeHealthFinding>();
+        if (!secretReady)
+            findings.Add(Finding(
+                "jellyfin", "jellyfin.connection-missing", "error",
+                "The saved Jellyfin connection is missing.",
+                "La connexion Jellyfin enregistrée est absente.",
+                "Run the installer and authorize a new Quick Connect code.",
+                "Relancez l’installateur et autorisez un nouveau code Quick Connect."));
+        else if (!jellyfinConnected)
+            findings.Add(Finding(
+                "jellyfin", jellyfinCode, "error",
+                "Jellyfin could not be contacted with the saved connection.",
+                "Jellyfin ne répond pas avec la connexion enregistrée.",
+                "Check the server address and network, then try again. Change server only if the address is wrong.",
+                "Vérifiez l’adresse et le réseau, puis réessayez. Changez de serveur uniquement si l’adresse est incorrecte."));
+
+        if (!vlcReady)
+        {
+            var configuredPathMissing = !string.IsNullOrWhiteSpace(config.VlcPath);
+            findings.Add(Finding(
+                "vlc",
+                configuredPathMissing ? "vlc.configured-path-missing" : "vlc.not-found",
+                "error",
+                configuredPathMissing ? "The configured VLC path no longer exists." : "VLC was not found on this PC.",
+                configuredPathMissing ? "Le chemin VLC enregistré n’existe plus." : "VLC est introuvable sur ce PC.",
+                "Select the installed vlc.exe in Playback settings.",
+                "Sélectionnez le fichier vlc.exe installé dans les réglages de lecture."));
+        }
+
+        if (!protocolReady || !nativeMessagingReady)
+            findings.Add(Finding(
+                "browser", "browser.integration-missing", "error",
+                "The Windows connection with the browser is incomplete.",
+                "La connexion Windows avec le navigateur est incomplète.",
+                "Select Repair, then fully reload Jellyfin.",
+                "Cliquez sur Réparer, puis rechargez complètement Jellyfin."));
+        else if (!extensionActive)
+            findings.Add(Finding(
+                "browser", "browser.extension-inactive", "warning",
+                "The extension has not contacted the Bridge recently.",
+                "L’extension n’a pas contacté le Bridge récemment.",
+                "Open a Jellyfin page and reload it, then refresh this diagnostic.",
+                "Ouvrez une page Jellyfin et rechargez-la, puis actualisez ce diagnostic."));
+
+        var ready = jellyfinConnected && vlcReady && protocolReady &&
+            nativeMessagingReady && extensionActive;
         return new BridgeHealthStatus(
             BridgeVersion.Current, BridgeConfig.DefaultPath, true, config.ServerUrl, secretReady,
             jellyfinConnected, jellyfinUser, jellyfinMessage, vlcReady, vlcPath, vlcVersion,
             protocolReady, nativeMessagingReady, extensionActive, heartbeat?.Version,
-            heartbeat?.LastSeenUtc, config.PlaybackMode, BridgeLog.FilePath);
+            heartbeat?.LastSeenUtc, config.PlaybackMode, BridgeLog.FilePath, ready, findings);
     }
 
     private static bool IsValidNativeManifest(string? path)
@@ -119,7 +183,30 @@ public static class BridgeDiagnostics
         catch { return null; }
     }
 
+    private static BridgeHealthFinding Finding(
+        string component,
+        string code,
+        string severity,
+        string englishMessage,
+        string frenchMessage,
+        string englishAction,
+        string frenchAction) => new(
+            component,
+            code,
+            severity,
+            UiLanguage.Text(englishMessage, frenchMessage),
+            UiLanguage.Text(englishAction, frenchAction));
+
     private static BridgeHealthStatus Empty(string message) => new(
         BridgeVersion.Current, BridgeConfig.DefaultPath, false, null, false, false, null,
-        message, false, null, null, false, false, false, null, null, "http", BridgeLog.FilePath);
+        message, false, null, null, false, false, false, null, null, "http", BridgeLog.FilePath,
+        false,
+        [
+            Finding(
+                "configuration", "configuration.invalid", "error",
+                "The local configuration is missing or invalid.",
+                "La configuration locale est absente ou invalide.",
+                "Run the installer and complete Quick Connect again.",
+                "Relancez l’installateur et terminez de nouveau Quick Connect.")
+        ]);
 }
