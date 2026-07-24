@@ -78,6 +78,17 @@ Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. 
 
 Les sources de l'application et de l'extension restent toutes disponibles dans ce dépôt. Elles ne sont pas dupliquées dans le ZIP Windows afin de garder le téléchargement lisible.
 
+## Signature du code
+
+Le projet prépare sa candidature au programme gratuit de signature open source
+de **SignPath Foundation**. Les téléchargements actuels restent non signés
+jusqu’à l’acceptation de cette candidature.
+
+Après activation, seuls les exécutables construits depuis la branche protégée
+`main`, testés par GitHub Actions et approuvés manuellement pourront être
+signés. Consultez la [politique de signature du code](CODE_SIGNING.md) pour le
+périmètre, les rôles et la procédure de publication.
+
 ## Vie privée et sécurité
 
 L'extension transmet uniquement au programme installé sur le même PC l'identifiant technique du média et les choix faits dans la fenêtre de lecture. Le programme lui renvoie temporairement les titres nécessaires à l'aperçu, puis communique directement avec le serveur Jellyfin choisi par l'utilisateur.
@@ -132,7 +143,7 @@ Une vulnérabilité ne doit jamais être publiée dans une Issue : consultez
 - VLC doit être installé séparément ;
 - les pistes audio et les sous-titres sont choisis dans VLC ;
 - l'extension dépend de l'interface Jellyfin Web et peut nécessiter une adaptation après une évolution importante de Jellyfin ;
-- l'installateur n'est pas encore signé avec un certificat commercial, Windows SmartScreen peut donc afficher un avertissement.
+- la candidature SignPath est en préparation ; tant qu’elle n’est pas acceptée, Windows SmartScreen peut afficher un avertissement.
 
 ## Signaler un problème
 
