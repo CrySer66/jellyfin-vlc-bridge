@@ -12,6 +12,8 @@ Lorsque l'utilisateur consulte une fiche vidéo Jellyfin, l'extension examine l'
 
 Si l'utilisateur active explicitement l'option « Retenir ces choix », l'application compagnon enregistre uniquement, sur cet ordinateur, le choix entre reprise et redémarrage ainsi que l'étendue préférée pour chaque type de contenu. Ces préférences ne contiennent ni jeton Jellyfin, ni historique de lecture, ni titre de média, et ne sont pas transmises au développeur.
 
+La préférence de langue (`auto`, `fr` ou `en`) est elle aussi conservée uniquement dans le profil Windows local. Elle ne contient aucune donnée personnelle et n’est envoyée à aucun service.
+
 Ces opérations peuvent relever des catégories « activité de navigation Web » et « contenu du site Web » dans les déclarations du Chrome Web Store. Elles sont limitées à la page Jellyfin en cours, restent locales et servent exclusivement à la fonctionnalité demandée par l'utilisateur.
 
 ## Communication avec Jellyfin

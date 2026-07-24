@@ -1,17 +1,19 @@
 # Jellyfin VLC Bridge
 
+[English documentation](README.en.md)
+
 [![Vérifications Windows](https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml)
 
 Jellyfin VLC Bridge ajoute un bouton **Lire avec VLC** dans Jellyfin Web. Le média original est ouvert dans VLC sur le PC client, sans modifier Jellyfin et sans transmettre de données au développeur.
 
-Version actuelle : **1.11.0**  
+Version actuelle : **1.12.0**
 Plateforme disponible : **Windows 10/11 x64**  
 Extension Chrome Web Store : **disponible publiquement**
 
 ## Installation rapide
 
 1. Installez [VLC Media Player](https://www.videolan.org/vlc/).
-2. Téléchargez `JellyfinVlcBridge-1.11.0-Setup.exe` depuis la page **Releases** de ce dépôt.
+2. Téléchargez `JellyfinVlcBridge-1.12.0-Setup.exe` depuis la page **Releases** de ce dépôt.
 3. Lancez l'installateur et saisissez l'adresse de votre serveur Jellyfin.
 4. Dans Jellyfin, autorisez le code affiché depuis **Paramètres → Quick Connect**.
 5. La fiche Chrome Web Store s'ouvre automatiquement. Cliquez sur **Ajouter à Chrome**.
@@ -44,8 +46,8 @@ Après l'installation, ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. 
 
 ## Deux téléchargements
 
-- `JellyfinVlcBridge-1.11.0-Setup.exe` : installation recommandée et guidée ;
-- `JellyfinVlcBridge-1.11.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
+- `JellyfinVlcBridge-1.12.0-Setup.exe` : installation recommandée et guidée ;
+- `JellyfinVlcBridge-1.12.0-win-x64.zip` : paquet avancé inspectable et utilisable manuellement.
 
 Les sources de l'application et de l'extension restent toutes disponibles dans ce dépôt. Elles ne sont pas dupliquées dans le ZIP Windows afin de garder le téléchargement lisible.
 
@@ -55,7 +57,16 @@ L'extension transmet uniquement au programme installé sur le même PC l'identif
 
 Depuis la version 1.5.0 de l'extension, le bouton affiche avant lecture un choix clair entre reprise et redémarrage, propose l'étendue des séries ou collections et présente la liste qui sera envoyée à VLC. Un clic sur l'icône Chrome affiche toujours l'état du Bridge local ainsi que les accès au téléchargement Windows, au dépôt GitHub et à l'assistance.
 
-La prochaine extension 1.6.0 peut mémoriser localement le point de départ et l'étendue choisis pour chaque type de contenu. Cette option reste désactivée tant que l'utilisateur ne coche pas explicitement **Retenir ces choix**.
+L’extension 1.7.0 peut mémoriser localement le point de départ et l’étendue choisis pour chaque type de contenu. Cette option reste désactivée tant que l’utilisateur ne coche pas explicitement **Retenir ces choix**.
+
+## Langues
+
+L’application Windows et l’extension Chrome sont disponibles en français et en anglais.
+
+- Chrome choisit automatiquement la langue du navigateur.
+- Le centre de contrôle suit Windows par défaut.
+- Le menu **Langue / Language** du centre de contrôle permet de forcer le français ou l’anglais.
+- Pour toute autre langue, l’anglais est utilisé.
 
 - aucun compte auprès du développeur ;
 - aucune publicité, télémétrie ou analyse d'utilisation ;

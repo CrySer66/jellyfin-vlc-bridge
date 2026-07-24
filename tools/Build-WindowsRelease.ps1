@@ -1,5 +1,5 @@
-param(
-    [string]$Version = '1.11.0'
+﻿param(
+    [string]$Version = '1.12.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,7 +62,7 @@ try {
     $compiler = 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
     if (-not (Test-Path $compiler)) { throw 'Compilateur Windows .NET Framework introuvable.' }
     $controlCenterExe = Join-Path $releaseDirectory 'jellyfin-vlc-bridge-control.exe'
-    & $compiler /nologo /target:winexe "/out:$controlCenterExe" `
+    & $compiler /nologo /target:winexe /codepage:65001 "/out:$controlCenterExe" `
         "/win32icon:$appIcon" `
         /reference:System.Windows.Forms.dll `
         (Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs')
@@ -71,20 +71,32 @@ try {
     foreach ($file in @(
         'installer\Installer-GUI.ps1',
         'installer\Centre-Controle.ps1',
+        'installer\Localization.ps1',
         'installer\INSTALLER-WINDOWS.cmd',
         'installer\Desinstaller-GUI.ps1',
         'installer\Desinstaller-JellyfinVlcBridge.ps1',
         'installer\DESINSTALLER-WINDOWS.cmd',
         'README.md',
+        'README.en.md',
         'LICENSE',
         'PRIVACY.md'
     )) { Copy-Item (Join-Path $projectDirectory $file) $releaseDirectory -Force }
+
+    # Windows PowerShell 5.1 interprète un fichier UTF-8 sans signature comme du
+    # texte ANSI. La signature UTF-8 évite les textes du type "sÃ©curisÃ©e" dans
+    # l'installateur, le centre de contrôle et le désinstallateur.
+    $utf8WithBom = New-Object System.Text.UTF8Encoding($true)
+    $utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
+    Get-ChildItem -LiteralPath $releaseDirectory -Filter '*.ps1' -File | ForEach-Object {
+        $scriptContent = [IO.File]::ReadAllText($_.FullName, $utf8Strict)
+        [IO.File]::WriteAllText($_.FullName, $scriptContent, $utf8WithBom)
+    }
 
     Compress-Archive -Path (Join-Path $releaseDirectory '*') -DestinationPath $releaseZip -CompressionLevel Optimal -Force
 
     $payload = Join-Path $buildDirectory 'payload.zip'
     Compress-Archive -Path (Join-Path $releaseDirectory '*') -DestinationPath $payload -CompressionLevel Optimal -Force
-    & $compiler /nologo /target:winexe "/out:$setupExe" `
+    & $compiler /nologo /target:winexe /codepage:65001 "/out:$setupExe" `
         "/win32icon:$appIcon" `
         /reference:System.Windows.Forms.dll `
         /reference:System.IO.Compression.dll `

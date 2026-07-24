@@ -1,8 +1,11 @@
-param(
+﻿param(
     [switch]$TemporaryRun
 )
 
 $ErrorActionPreference = 'Stop'
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$localizationFile = Join-Path $scriptDirectory 'Localization.ps1'
+if (Test-Path -LiteralPath $localizationFile) { . $localizationFile }
 
 # Le script installé se trouve dans le dossier qu'il doit supprimer. Une copie
 # temporaire évite que PowerShell ou son dossier de travail garde App verrouillé.
@@ -11,6 +14,7 @@ if (-not $TemporaryRun) {
     New-Item -ItemType Directory -Path $temporaryDirectory -Force | Out-Null
     $temporaryScript = Join-Path $temporaryDirectory 'Desinstaller-GUI.ps1'
     Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination $temporaryScript -Force
+    Copy-Item -LiteralPath $localizationFile -Destination (Join-Path $temporaryDirectory 'Localization.ps1') -Force
 
     $temporaryProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
     $temporaryProcessInfo.FileName = 'powershell.exe'
@@ -19,7 +23,7 @@ if (-not $TemporaryRun) {
     $temporaryProcessInfo.UseShellExecute = $false
     $temporaryProcessInfo.CreateNoWindow = $true
     $temporaryProcess = [System.Diagnostics.Process]::Start($temporaryProcessInfo)
-    if ($null -eq $temporaryProcess) { throw 'Impossible de demarrer le desinstallateur temporaire.' }
+    if ($null -eq $temporaryProcess) { throw (T 'CleanupStartFailed') }
     $temporaryProcess.Dispose()
     exit 0
 }
@@ -37,8 +41,8 @@ Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 $choice = [System.Windows.Forms.MessageBox]::Show(
-    "Voulez-vous aussi effacer la connexion Jellyfin enregistree ?`r`n`r`nOui : tout effacer et repartir a zero.`r`nNon : conserver la connexion pour une reinstallation.`r`nAnnuler : ne rien modifier.",
-    'Desinstaller Jellyfin VLC Bridge',
+    (T 'UninstallQuestion'),
+    (T 'UninstallTitle'),
     [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
     [System.Windows.Forms.MessageBoxIcon]::Question)
 
@@ -59,7 +63,7 @@ function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $processInfo
-    if (-not $process.Start()) { throw 'Impossible de demarrer le nettoyage du Bridge.' }
+    if (-not $process.Start()) { throw (T 'CleanupStartFailed') }
     $outputTask = $process.StandardOutput.ReadToEndAsync()
     $errorTask = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
@@ -83,16 +87,16 @@ try {
                 } else {
                     $cleanupResult.Error
                 }
-                $cleanupWarning = "Le nettoyage des associations Windows est incomplet : $detail"
+                $cleanupWarning = T 'CleanupIncomplete' @($detail)
             }
         } catch {
-            $cleanupWarning = "Le nettoyage des associations Windows est incomplet : $($_.Exception.Message)"
+            $cleanupWarning = T 'CleanupIncomplete' @($_.Exception.Message)
         }
     }
 
     $expected = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\App'))
     $actual = [IO.Path]::GetFullPath($installDirectory)
-    if ($actual -ne $expected) { throw 'Chemin de desinstallation inattendu.' }
+    if ($actual -ne $expected) { throw (T 'UnsafeUninstallPath') }
 
     if (Test-Path $actual) {
         Get-Process -Name 'jellyfin-vlc-bridge', 'jellyfin-vlc-bridge-control' -ErrorAction SilentlyContinue | ForEach-Object {
@@ -115,16 +119,16 @@ try {
     if ($purge -and (Test-Path $rootDirectory)) {
         Remove-Item -LiteralPath $rootDirectory -Recurse -Force -ErrorAction SilentlyContinue
     }
-    $completionMessage = "Jellyfin VLC Bridge a ete desinstalle.`r`n`r`nRetirez maintenant extension depuis Chrome ou Edge."
+    $completionMessage = T 'UninstallComplete'
     $completionIcon = 'Information'
     if (-not [string]::IsNullOrWhiteSpace($cleanupWarning)) {
-        $completionMessage += "`r`n`r`nAttention : $cleanupWarning"
+        $completionMessage += "`r`n`r`n" + (T 'Warning' @($cleanupWarning))
         $completionIcon = 'Warning'
     }
     [System.Windows.Forms.MessageBox]::Show(
         $completionMessage,
-        'Desinstallation terminee', 'OK', $completionIcon) | Out-Null
+        (T 'UninstallCompleteTitle'), 'OK', $completionIcon) | Out-Null
 } catch {
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Erreur de desinstallation', 'OK', 'Error') | Out-Null
+    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, (T 'UninstallErrorTitle'), 'OK', 'Error') | Out-Null
     exit 1
 }

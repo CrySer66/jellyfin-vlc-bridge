@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using System.Reflection;
 using System.Windows.Forms;
 
@@ -8,11 +9,14 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("Lance le centre de contrôle sans fenêtre de console")]
 [assembly: AssemblyCompany("Jellyfin VLC Bridge Project")]
 [assembly: AssemblyProduct("Jellyfin VLC Bridge")]
-[assembly: AssemblyVersion("1.11.0.0")]
-[assembly: AssemblyFileVersion("1.11.0.0")]
+[assembly: AssemblyVersion("1.12.0.0")]
+[assembly: AssemblyFileVersion("1.12.0.0")]
 
 internal static class ControlCenterBootstrap
 {
+    private static bool IsFrench { get { return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr"; } }
+    private static string Localized(string english, string french) { return IsFrench ? french : english; }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -21,7 +25,9 @@ internal static class ControlCenterBootstrap
             string directory = AppDomain.CurrentDomain.BaseDirectory;
             string script = Path.Combine(directory, "Centre-Controle.ps1");
             if (!File.Exists(script))
-                throw new FileNotFoundException("Le centre de contrôle est incomplet.", script);
+                throw new FileNotFoundException(
+                    Localized("The Control Center installation is incomplete.", "L’installation du centre de contrôle est incomplète."),
+                    script);
 
             string validationArgument = Array.IndexOf(args, "--validate-only") >= 0 ? " -ValidateOnly" : "";
             var startInfo = new ProcessStartInfo(
@@ -34,7 +40,9 @@ internal static class ControlCenterBootstrap
             };
             using (Process process = Process.Start(startInfo))
             {
-                if (process == null) throw new InvalidOperationException("Le centre de contrôle n'a pas pu démarrer.");
+                if (process == null)
+                    throw new InvalidOperationException(
+                        Localized("The Control Center could not start.", "Le centre de contrôle n’a pas pu démarrer."));
                 process.WaitForExit();
                 return process.ExitCode;
             }

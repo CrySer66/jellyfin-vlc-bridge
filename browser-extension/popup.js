@@ -2,14 +2,23 @@
   'use strict';
 
   const bridge = globalThis.JellyfinVlcBridge;
+  const i18n = globalThis.JellyfinVlcBridgeI18n;
+  const t = i18n.t;
   const status = document.getElementById('status');
   const title = document.getElementById('status-title');
   const detail = document.getElementById('status-detail');
 
-  document.getElementById('version').textContent = `Extension ${chrome.runtime.getManifest().version}`;
+  document.documentElement.lang = i18n.locale().split('-')[0] || 'en';
+  document.getElementById('version').textContent =
+    t('popupExtensionVersion', chrome.runtime.getManifest().version);
   document.getElementById('download').href = bridge.links.latestRelease;
+  document.getElementById('download').textContent = t('popupDownload');
   document.getElementById('github').href = bridge.links.repository;
+  document.getElementById('github').textContent = t('popupGithub');
   document.getElementById('support').href = bridge.links.support;
+  document.getElementById('support').textContent = t('popupSupport');
+  title.textContent = t('popupCheckingTitle');
+  detail.textContent = t('popupCheckingDetail');
 
   for (const link of document.querySelectorAll('a')) {
     link.target = '_blank';
@@ -22,11 +31,11 @@
     status.className = `status status--${availability}`;
 
     if (availability === 'ready') {
-      title.textContent = 'Application prête';
-      detail.textContent = 'Le Bridge est installé et peut lancer VLC depuis Jellyfin.';
+      title.textContent = t('popupReadyTitle');
+      detail.textContent = t('popupReadyDetail');
     } else {
-      title.textContent = 'Application non installée';
-      detail.textContent = 'Installez le Bridge Windows pour activer la lecture avec VLC.';
+      title.textContent = t('popupMissingTitle');
+      detail.textContent = t('popupMissingDetail');
     }
   });
 })();

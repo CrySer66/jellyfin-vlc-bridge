@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Repository = 'CrySer66/jellyfin-vlc-bridge',
     [string]$Version = '1.6.1'
 )

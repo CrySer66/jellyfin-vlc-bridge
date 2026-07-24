@@ -1,5 +1,22 @@
 # Historique des versions
 
+## 1.12.0 — 2026-07-24
+
+- ajout du français et de l’anglais dans l’installateur, le centre de contrôle et le désinstallateur ;
+- détection automatique de la langue de Windows ;
+- ajout du choix manuel **Automatique / Français / English** dans le centre de contrôle ;
+- conservation locale de la préférence de langue, séparée de la connexion Jellyfin ;
+- encodage UTF-8 compatible avec Windows PowerShell 5.1 afin d’afficher correctement tous les accents ;
+- traduction des rares erreurs affichées avant le lancement de l’interface.
+
+## Extension Chrome 1.7.0 — 2026-07-24
+
+- ajout des traductions française et anglaise avec l’API `chrome.i18n` ;
+- détection automatique de la langue de Chrome ;
+- traduction du manifeste, de la fenêtre de l’extension, du bouton Jellyfin et de la préparation des listes de lecture ;
+- anglais utilisé comme langue de repli ;
+- aucune nouvelle autorisation demandée.
+
 ## 1.11.0 — 2026-07-23
 
 - ajout d'un stockage local facultatif des préférences de lecture dans l'application compagnon ;

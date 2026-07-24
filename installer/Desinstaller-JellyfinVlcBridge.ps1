@@ -1,12 +1,14 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'Localization.ps1')
 
 Write-Host ''
-Write-Host '=== Desinstallation de Jellyfin VLC Bridge ===' -ForegroundColor Cyan
+Write-Host (T 'UninstallConsoleHeader') -ForegroundColor Cyan
 Write-Host ''
-Write-Host 'Voulez-vous aussi effacer la connexion Jellyfin enregistree ?'
-Write-Host '  N = conserver la connexion pour une future reinstallation (recommande)'
-Write-Host '  O = tout effacer et repartir completement a zero'
-$answer = (Read-Host 'Tout effacer ? O/N').Trim()
+Write-Host (T 'UninstallConsoleQuestion')
+Write-Host (T 'UninstallConsoleKeep')
+Write-Host (T 'UninstallConsolePurge')
+$answer = (Read-Host (T 'UninstallConsolePrompt')).Trim()
 $purge = $answer -match '^(o|oui|y|yes)$'
 
 $rootDirectory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge'
@@ -30,7 +32,7 @@ function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $processInfo
-    if (-not $process.Start()) { throw 'Impossible de demarrer le nettoyage du Bridge.' }
+    if (-not $process.Start()) { throw (T 'CleanupStartFailed') }
     $outputTask = $process.StandardOutput.ReadToEndAsync()
     $errorTask = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
@@ -53,16 +55,16 @@ if (Test-Path $executable) {
             } else {
                 $cleanupResult.Error
             }
-            $cleanupWarning = "Le nettoyage des associations Windows est incomplet : $detail"
+            $cleanupWarning = T 'CleanupIncomplete' @($detail)
         }
     } catch {
-        $cleanupWarning = "Le nettoyage des associations Windows est incomplet : $($_.Exception.Message)"
+        $cleanupWarning = T 'CleanupIncomplete' @($_.Exception.Message)
     }
 }
 
 $expected = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\App'))
 $actual = [IO.Path]::GetFullPath($installDirectory)
-if ($actual -ne $expected) { throw 'Chemin de desinstallation inattendu, arret de securite.' }
+if ($actual -ne $expected) { throw (T 'UnsafeUninstallPath') }
 if (Test-Path $actual) {
     # Chrome/Edge peut conserver temporairement un hote natif après la fermeture de VLC.
     # Ne terminer que les processus dont l'exécutable provient exactement de notre dossier.
@@ -94,11 +96,11 @@ if ($purge -and (Test-Path $rootDirectory) -and -not (Get-ChildItem -LiteralPath
 }
 
 Write-Host ''
-Write-Host 'Le programme et les associations Windows ont ete retires.' -ForegroundColor Green
-if ($purge) { Write-Host 'La configuration et le jeton ont aussi ete effaces.' }
-else { Write-Host 'La configuration est conservee et sera reutilisee automatiquement.' }
+Write-Host (T 'ProgramRemoved') -ForegroundColor Green
+if ($purge) { Write-Host (T 'SettingsRemoved') }
+else { Write-Host (T 'SettingsKept') }
 Write-Host ''
-Write-Host 'Derniere action : retirez manuellement extension Jellyfin VLC Bridge dans Chrome/Edge.' -ForegroundColor Yellow
+Write-Host (T 'RemoveExtensionLast') -ForegroundColor Yellow
 if (-not [string]::IsNullOrWhiteSpace($cleanupWarning)) {
     Write-Warning $cleanupWarning
 }
