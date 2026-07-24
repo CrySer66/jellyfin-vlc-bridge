@@ -28,7 +28,7 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 
 | Application | Platform | Extension |
 |---|---|---|
-| **1.13.0** | **Windows 10/11 x64** | **Chrome Web Store 1.7.0** |
+| **1.14.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="A media item moving from Jellyfin to VLC through the local Bridge">
@@ -48,6 +48,7 @@ Installation is per Windows user and does not require administrator rights. The 
 ## Features
 
 - movies, episodes, seasons, shows and collections;
+- Jellyfin media-version selection, such as 1080p or 4K, before launching VLC;
 - resume from the saved position or restart from the beginning;
 - playback, pause, stop and progress synchronization with Jellyfin;
 - automatic continuation through prepared episodes or movies;
@@ -74,6 +75,7 @@ The Windows application and Chrome extension support French and English. Chrome 
 
 - [Detailed installation](INSTALLATION.en.md)
 - [Building and development](docs/DEVELOPMENT.md)
+- [Compatibility and supported environments](docs/COMPATIBILITY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Release history](CHANGELOG.md)
 - [Report a problem](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose)

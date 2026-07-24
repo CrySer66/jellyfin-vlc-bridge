@@ -240,7 +240,17 @@ public sealed record ItemQueryResult(
 
 public sealed record MediaSourceInfo(
     [property: JsonPropertyName("Id")] string? Id,
-    [property: JsonPropertyName("Path")] string? Path);
+    [property: JsonPropertyName("Path")] string? Path,
+    [property: JsonPropertyName("Name")] string? Name = null,
+    [property: JsonPropertyName("Container")] string? Container = null,
+    [property: JsonPropertyName("MediaStreams")] List<MediaStreamInfo>? MediaStreams = null);
+
+public sealed record MediaStreamInfo(
+    [property: JsonPropertyName("Type")] string? Type,
+    [property: JsonPropertyName("Codec")] string? Codec = null,
+    [property: JsonPropertyName("Height")] int? Height = null,
+    [property: JsonPropertyName("DisplayTitle")] string? DisplayTitle = null,
+    [property: JsonPropertyName("Index")] int? Index = null);
 
 public sealed record UserItemData(
     [property: JsonPropertyName("PlaybackPositionTicks")] long PlaybackPositionTicks,

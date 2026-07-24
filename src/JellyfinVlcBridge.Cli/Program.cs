@@ -189,6 +189,8 @@ static async Task<int> HandleUriAsync(string[] args)
     var playArgs = new List<string> { "--item", itemId };
     if (query.TryGetValue("scope", out var scope)) playArgs.AddRange(["--scope", scope]);
     if (query.TryGetValue("start", out var start)) playArgs.AddRange(["--start", start]);
+    if (query.TryGetValue("mediaSourceId", out var mediaSourceId))
+        playArgs.AddRange(["--media-source", ValidateOptionalIdentifier(mediaSourceId, "version de média")!]);
     return await PlayAsync([.. playArgs]);
 }
 
@@ -197,6 +199,7 @@ static async Task<int> PlayAsync(string[] args)
     var itemId = ValidateItemId(Required(args, "--item"));
     var scope = PlaybackQueueResolver.ParseScope(Optional(args, "--scope"));
     var restartFirst = ParseStartMode(Optional(args, "--start"));
+    var selectedMediaSourceId = ValidateOptionalIdentifier(Optional(args, "--media-source"), "version de média");
     var dryRun = args.Contains("--dry-run");
     var config = BridgeConfig.Load();
     var token = new EnvironmentOrWindowsCredentialStore().Read(SecretKeys.ForServer(config.ServerUrl));
@@ -221,13 +224,15 @@ static async Task<int> PlayAsync(string[] args)
 
     if (queue.Count == 1)
     {
-        await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, queue[0], dryRun, restartFirst);
+        await PlayResolvedItemAsync(
+            vlc, config, token, http, jellyfin, queue[0], selectedMediaSourceId, dryRun, restartFirst);
         return 0;
     }
 
     if (dryRun)
         for (var index = 0; index < queue.Count; index++)
-            await PlayResolvedItemAsync(vlc, config, token, http, jellyfin, queue[index], true, restartFirst && index == 0);
+            await PlayResolvedItemAsync(
+                vlc, config, token, http, jellyfin, queue[index], null, true, restartFirst && index == 0);
     else
         await PlayQueueAsync(vlc, config, token, http, jellyfin, queue, restartFirst);
     return 0;
@@ -246,6 +251,17 @@ static async Task<int> InspectPlaybackAsync(string itemId, PlaybackScope scope)
     var queue = await PlaybackQueueResolver.ResolveAsync(jellyfin, config.UserId, selected, scope);
     var firstResumeTicks = queue.FirstOrDefault()?.UserData?.PlaybackPositionTicks ?? 0;
     var totalDurationTicks = queue.Sum(item => Math.Max(0, item.RunTimeTicks ?? 0));
+    var firstItem = queue.FirstOrDefault();
+    var mediaSources = queue.Count == 1
+        ? (firstItem?.MediaSources ?? [])
+            .Where(source => !string.IsNullOrWhiteSpace(source.Id))
+            .Select((source, index) => new
+            {
+                id = PreviewText(source.Id!, 256),
+                label = PreviewText(MediaSourceSelector.Label(source, index))
+            })
+            .ToArray()
+        : [];
 
     await WriteNativeResponseAsync(new
     {
@@ -259,6 +275,7 @@ static async Task<int> InspectPlaybackAsync(string itemId, PlaybackScope scope)
         totalDurationSeconds = totalDurationTicks / TimeSpan.TicksPerSecond,
         hasResume = firstResumeTicks > 0,
         resumeSeconds = firstResumeTicks / TimeSpan.TicksPerSecond,
+        mediaSources,
         items = queue.Take(100).Select(item => new
         {
             id = PreviewText(item.Id, 256),
@@ -328,16 +345,19 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     HttpClient http,
     JellyfinClient jellyfin,
     ItemInfo item,
+    string? selectedMediaSourceId,
     bool dryRun,
     bool restart)
 {
     var itemId = item.Id;
-    var mediaSourceId = item.MediaSources?.FirstOrDefault()?.Id;
+    var mediaSource = MediaSourceSelector.Select(item, selectedMediaSourceId);
+    var mediaSourceId = mediaSource?.Id;
     var resumeTicks = restart ? 0 : item.UserData?.PlaybackPositionTicks ?? 0;
     var resumeAt = resumeTicks > 0 ? TimeSpan.FromTicks(resumeTicks) : (TimeSpan?)null;
     if (config.PlaybackMode == "smb")
     {
-        var sourcePath = item.Path ?? item.MediaSources?.FirstOrDefault()?.Path
+        var sourcePath = mediaSource?.Path ??
+            (string.IsNullOrWhiteSpace(selectedMediaSourceId) ? item.Path : null)
             ?? throw new InvalidDataException("Jellyfin n'a retourné aucun chemin pour ce média.");
         var media = PathMapper.Map(sourcePath, config.PathMappings);
         Console.WriteLine($"VLC ouvrira le partage : {media}");
@@ -837,14 +857,21 @@ static async Task<int> NativeMessageAsync(string[] args)
         ? startProperty.GetString()
         : null;
     ParseStartMode(startMode);
+    var selectedMediaSourceId = document.RootElement.TryGetProperty("mediaSourceId", out var sourceProperty)
+        ? ValidateOptionalIdentifier(sourceProperty.GetString(), "version de média")
+        : null;
 
     await WriteNativeResponseAsync(new { accepted = true });
     Console.SetOut(Console.Error);
-    return await PlayAsync([
+    var playArguments = new List<string>
+    {
         "--item", itemId,
         "--scope", ScopeValue(scope),
         "--start", startMode ?? "resume"
-    ]);
+    };
+    if (!string.IsNullOrWhiteSpace(selectedMediaSourceId))
+        playArguments.AddRange(["--media-source", selectedMediaSourceId]);
+    return await PlayAsync([.. playArguments]);
 }
 
 static Task WritePreferencesResponseAsync(PlaybackPreferences preferences) => WriteNativeResponseAsync(new
@@ -955,7 +982,7 @@ Jellyfin VLC Bridge
                                 Crée un paquet d’assistance expurgé
   repair                        Répare le protocole et la connexion Chrome/Edge
   uninstall-cleanup [--purge]    Nettoyage Windows utilisé par le désinstallateur
-  play --item ID [--scope auto|single|following|all] [--start resume|restart] [--dry-run]
+  play --item ID [--scope auto|single|following|all] [--start resume|restart] [--media-source ID] [--dry-run]
   doctor
 """);
     return 2;
@@ -997,6 +1024,14 @@ static string ValidateItemId(string? value)
     if (string.IsNullOrWhiteSpace(itemId) || itemId.Length > 256 || itemId.Any(char.IsControl))
         throw new InvalidDataException("Identifiant de média Jellyfin invalide.");
     return itemId;
+}
+static string? ValidateOptionalIdentifier(string? value, string label)
+{
+    if (string.IsNullOrWhiteSpace(value)) return null;
+    var identifier = value.Trim();
+    if (identifier.Length > 256 || identifier.Any(char.IsControl))
+        throw new InvalidDataException($"Identifiant de {label} invalide.");
+    return identifier;
 }
 static Dictionary<string, string> ParseQuery(string query) => query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Split('=', 2)).ToDictionary(x => Uri.UnescapeDataString(x[0]), x => x.Length > 1 ? Uri.UnescapeDataString(x[1]) : "");

@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.13.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.14.0
 ```
 
 Le script :
@@ -40,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.13.0-Setup.exe
-outputs\JellyfinVlcBridge-1.13.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.14.0-Setup.exe
+outputs\JellyfinVlcBridge-1.14.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome
@@ -49,7 +49,8 @@ outputs\JellyfinVlcBridge-1.13.0-win-x64.zip
 La version du manifeste de l'extension peut évoluer indépendamment de celle du Bridge.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.7.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.8.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ExtensionPackage.ps1 -Version 1.8.0
 ```
 
 Le ZIP Chrome Web Store ne contient pas le champ de développement `key`. L'élément existant dans le tableau de bord conserve l'identifiant officiel :
@@ -61,6 +62,10 @@ hkjbodgdbjhignhlbecchiigcfigpidp
 Le paquet doit être envoyé sur la fiche existante du Chrome Web Store afin de
 conserver l’identifiant officiel. La publication de l’extension reste distincte
 des versions Windows et passe par l’examen de Google.
+
+Le contrôle du paquet vérifie les fichiers nécessaires, les deux langues, la
+version du manifeste, l’autorisation `nativeMessaging` et l’absence du champ
+`key` dans le ZIP destiné au magasin.
 
 ## Structure du code
 

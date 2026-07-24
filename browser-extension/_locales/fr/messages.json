@@ -35,6 +35,8 @@
   "resume": { "message": "Reprendre" },
   "playFromBeginning": { "message": "Lire depuis le début" },
   "itemsToPlay": { "message": "Éléments à lire" },
+  "mediaVersion": { "message": "Version du média" },
+  "mediaVersionHint": { "message": "Choisissez la version du fichier que Jellyfin enverra à VLC." },
   "rememberChoices": { "message": "Retenir ces choix" },
   "rememberChoicesHint": { "message": "Ils seront proposés automatiquement pour ce type de contenu." },
   "cancel": { "message": "Annuler" },

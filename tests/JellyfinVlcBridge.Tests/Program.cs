@@ -43,6 +43,33 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("fr", UiLanguage.GetEffectiveLanguage("fr"));
         Equal("en", UiLanguage.GetEffectiveLanguage("en"));
     })),
+    ("Version de média Jellyfin sélectionnée explicitement", () => Completed(() =>
+    {
+        var item = new ItemInfo(
+            "film", "Film", null,
+            [
+                new MediaSourceInfo("source-1080", @"D:\Films\Film-1080.mkv", "1080p"),
+                new MediaSourceInfo("source-4k", @"D:\Films\Film-4K.mkv", "4K")
+            ],
+            null);
+        Equal("source-4k", MediaSourceSelector.Select(item, "source-4k")?.Id);
+        Equal(@"D:\Films\Film-4K.mkv", MediaSourceSelector.Select(item, "source-4k")?.Path);
+    })),
+    ("Version de média disparue refusée", () => Completed(() =>
+    {
+        var item = new ItemInfo(
+            "film", "Film", null,
+            [new MediaSourceInfo("source-1080", @"D:\Films\Film.mkv", "1080p")],
+            null);
+        Throws<InvalidDataException>(() => MediaSourceSelector.Select(item, "source-absente"));
+    })),
+    ("Libellé technique de version de média", () => Completed(() =>
+    {
+        var source = new MediaSourceInfo(
+            "source-4k", null, null, "mkv",
+            [new MediaStreamInfo("Video", "hevc", 2160)]);
+        Equal("4K · HEVC · MKV", MediaSourceSelector.Label(source, 0));
+    })),
     ("Conversion temps VLC", () => Completed(() => Equal(42L * TimeSpan.TicksPerSecond, new VlcStatus("playing", 42, 100, 256).PositionTicks))),
     ("Le relais HTTP local se ferme proprement", async () =>
     {

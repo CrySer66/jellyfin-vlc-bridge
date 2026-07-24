@@ -37,8 +37,9 @@ if ($invalid) {
 
 $extensionVersion = Read-MatchedVersion 'browser-extension\manifest.json' '"version"\s*:\s*"([^"]+)"'
 $extensionBuildVersion = Read-MatchedVersion 'tools\Build-ExtensionPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
-if ($extensionVersion -ne $extensionBuildVersion) {
-    throw "Versions de l'extension incoherentes : manifest=$extensionVersion, build=$extensionBuildVersion"
+$extensionPackageTestVersion = Read-MatchedVersion 'tools\Test-ExtensionPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
+if ($extensionVersion -ne $extensionBuildVersion -or $extensionVersion -ne $extensionPackageTestVersion) {
+    throw "Versions de l'extension incoherentes : manifest=$extensionVersion, build=$extensionBuildVersion, test=$extensionPackageTestVersion"
 }
 
 $extensionDocumentationVersions = [ordered]@{
@@ -50,6 +51,12 @@ $invalidExtensionDocumentation = $extensionDocumentationVersions.GetEnumerator()
 if ($invalidExtensionDocumentation) {
     $details = ($invalidExtensionDocumentation | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '
     throw "Version d extension incoherente dans la documentation. Attendu $extensionVersion : $details"
+}
+
+$changeLog = Get-Content -LiteralPath (Join-Path $projectDirectory 'CHANGELOG.md') -Raw -Encoding UTF8
+if ($changeLog -notmatch [regex]::Escape("## $ExpectedVersion ") -or
+    $changeLog -notmatch [regex]::Escape("## Extension Chrome $extensionVersion ")) {
+    throw "Le CHANGELOG ne decrit pas les versions courantes $ExpectedVersion et $extensionVersion."
 }
 
 foreach ($requiredFile in @('SECURITY.md', 'CONTRIBUTING.md', 'INSTALLATION.en.md', '.github\dependabot.yml')) {

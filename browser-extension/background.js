@@ -74,7 +74,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     type: 'play',
     itemId: message.itemId,
     scope: message.scope || 'auto',
-    startMode: message.startMode || 'resume'
+    startMode: message.startMode || 'resume',
+    mediaSourceId: message.mediaSourceId || ''
   }, result => {
     sendResponse(result?.ok ? { ok: true } : { ok: false, error: result?.error });
   });

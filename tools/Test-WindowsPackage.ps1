@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.13.0'
+    [string]$Version = '1.14.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -116,7 +116,7 @@ Write-Host 'OK  Desinstallation executee hors du dossier supprime et sans faux c
 
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/'
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
-$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.7.0"}')
+$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.8.0"}')
 $nativeProcess.StandardInput.BaseStream.Write([BitConverter]::GetBytes([int]$payload.Length), 0, 4)
 $nativeProcess.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
 $nativeProcess.StandardInput.BaseStream.Flush()
