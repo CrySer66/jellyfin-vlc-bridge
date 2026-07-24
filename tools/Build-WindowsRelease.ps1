@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.14.0'
+    [string]$Version = '1.15.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,6 +73,7 @@ try {
         'installer\Installer-GUI.ps1',
         'installer\Centre-Controle.ps1',
         'installer\Localization.ps1',
+        'installer\UiTheme.ps1',
         'installer\INSTALLER-WINDOWS.cmd',
         'installer\Desinstaller-GUI.ps1',
         'installer\Desinstaller-JellyfinVlcBridge.ps1',

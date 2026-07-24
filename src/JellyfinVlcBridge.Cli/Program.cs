@@ -91,14 +91,20 @@ static async Task<int> QuickSetupAsync(string[] args)
     if (string.IsNullOrWhiteSpace(authentication.AccessToken) || authentication.User is null)
         throw new InvalidDataException("Jellyfin n'a pas retourné le jeton ou l'utilisateur attendu.");
 
-    new BridgeConfig
+    var updatedConfig = new BridgeConfig
     {
         ServerUrl = server,
         UserId = authentication.User.Id,
         DeviceId = deviceId,
-        PlaybackMode = "http"
-    }.Save();
-    new EnvironmentOrWindowsCredentialStore().Write(SecretKeys.ForServer(server), authentication.AccessToken);
+        VlcPath = existing?.VlcPath,
+        PlaybackMode = existing?.PlaybackMode ?? "http",
+        PathMappings = existing?.PathMappings?.ToList() ?? [],
+        ProgressSyncEnabled = existing?.ProgressSyncEnabled ?? true
+    };
+    new EnvironmentOrWindowsCredentialStore().Write(
+        SecretKeys.ForServer(server),
+        authentication.AccessToken);
+    updatedConfig.Save();
     Console.WriteLine($"Appareil autorisé pour l'utilisateur « {authentication.User.Name} ».");
     if (OperatingSystem.IsWindows())
     {

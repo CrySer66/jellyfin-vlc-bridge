@@ -19,7 +19,7 @@ régulièrement.
 
 ## Combinaisons de versions
 
-- le Bridge 1.14.0 et l’extension 1.8.0 forment la combinaison recommandée ;
+- le Bridge 1.15.0 et l’extension 1.8.0 forment la combinaison recommandée ;
 - une extension plus ancienne peut continuer à lancer une lecture standard, sans
   le choix d’une version 1080p ou 4K ;
 - après une mise à jour de l’extension, rechargez les onglets Jellyfin déjà ouverts ;
@@ -58,7 +58,7 @@ Le paquet d’assistance retire les jetons et identifiants personnels connus.
 The installer, Control Center and uninstaller are designed and tested for Windows.
 Linux and macOS are not advertised as supported until they can be tested regularly.
 
-Bridge 1.14.0 with extension 1.8.0 is the recommended combination. An older
+Bridge 1.15.0 with extension 1.8.0 is the recommended combination. An older
 extension can still request standard playback but does not provide media-version
 selection. Reload existing Jellyfin tabs after an extension update.
 
