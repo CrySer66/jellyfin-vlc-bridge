@@ -25,8 +25,8 @@ $versions = [ordered]@{
     'Centre-Controle.ps1' = Read-MatchedVersion 'installer\Centre-Controle.ps1' '\$script:bridgeVersion\s*=\s*''([^'']+)'''
     'ControlCenterBootstrap.cs' = Read-MatchedVersion 'installer\ControlCenterBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
     'SetupBootstrap.cs' = Read-MatchedVersion 'installer\SetupBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
-    'README.md' = Read-MatchedVersion 'README.md' 'Version actuelle\s*:\s*\*\*([^*]+)\*\*'
-    'INSTALLATION.md' = Read-MatchedVersion 'INSTALLATION.md' 'JellyfinVlcBridge-([0-9]+\.[0-9]+\.[0-9]+)-Setup\.exe'
+    'README.md' = Read-MatchedVersion 'README.md' '\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*\s*\|\s*\*\*Windows'
+    'README.en.md' = Read-MatchedVersion 'README.en.md' '\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*\s*\|\s*\*\*Windows'
 }
 
 $invalid = $versions.GetEnumerator() | Where-Object { $_.Value -ne $ExpectedVersion }
@@ -39,6 +39,23 @@ $extensionVersion = Read-MatchedVersion 'browser-extension\manifest.json' '"vers
 $extensionBuildVersion = Read-MatchedVersion 'tools\Build-ExtensionPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
 if ($extensionVersion -ne $extensionBuildVersion) {
     throw "Versions de l'extension incoherentes : manifest=$extensionVersion, build=$extensionBuildVersion"
+}
+
+$extensionDocumentationVersions = [ordered]@{
+    'README.md' = Read-MatchedVersion 'README.md' 'Chrome Web Store\s+([0-9]+\.[0-9]+\.[0-9]+)'
+    'README.en.md' = Read-MatchedVersion 'README.en.md' 'Chrome Web Store\s+([0-9]+\.[0-9]+\.[0-9]+)'
+}
+$invalidExtensionDocumentation = $extensionDocumentationVersions.GetEnumerator() |
+    Where-Object { $_.Value -ne $extensionVersion }
+if ($invalidExtensionDocumentation) {
+    $details = ($invalidExtensionDocumentation | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '
+    throw "Version d extension incoherente dans la documentation. Attendu $extensionVersion : $details"
+}
+
+foreach ($requiredFile in @('SECURITY.md', 'CONTRIBUTING.md', 'INSTALLATION.en.md', '.github\dependabot.yml')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $projectDirectory $requiredFile) -PathType Leaf)) {
+        throw "Fichier public requis introuvable : $requiredFile"
+    }
 }
 
 Write-Host "Versions coherentes : $ExpectedVersion"

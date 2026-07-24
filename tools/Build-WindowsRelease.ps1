@@ -13,6 +13,7 @@ $buildDirectory = Join-Path $workRoot "release-$Version"
 $appIcon = Join-Path $projectDirectory 'assets\JellyfinVlcBridge.ico'
 $runtimeFrameworkVersion = '8.0.22'
 $globalPackagesDirectory = Join-Path $env:USERPROFILE '.nuget\packages'
+$originalAppData = $env:APPDATA
 
 function Remove-GeneratedDirectory([string]$path, [string]$expectedParent) {
     $resolved = [IO.Path]::GetFullPath($path)
@@ -108,5 +109,10 @@ try {
     Write-Output $setupExe
     Write-Output $releaseZip
 } finally {
+    if ($null -eq $originalAppData) {
+        Remove-Item Env:APPDATA -ErrorAction SilentlyContinue
+    } else {
+        $env:APPDATA = $originalAppData
+    }
     Remove-GeneratedDirectory $buildDirectory $workRoot
 }
