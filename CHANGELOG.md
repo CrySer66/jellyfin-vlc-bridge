@@ -1,5 +1,17 @@
 # Historique des versions
 
+## 1.13.0 — 2026-07-24
+
+- diagnostic du centre de contrôle enrichi avec une cause probable et une action conseillée pour Jellyfin, VLC et l’intégration navigateur ;
+- distinction entre délai dépassé, serveur inaccessible, connexion refusée, configuration absente et extension inactive ;
+- état global prêt uniquement lorsque Jellyfin, VLC, la communication Windows et l’extension sont réellement opérationnels ;
+- ajout du bouton **Créer un paquet d’assistance** dans le centre de contrôle ;
+- création d’un ZIP contenant un diagnostic structuré et les journaux récents utiles ;
+- suppression automatique des jetons, identifiants Jellyfin, adresses serveur et chemins Windows personnels dans ce paquet ;
+- limite de taille des journaux afin d’obtenir un fichier d’assistance compact ;
+- textes de diagnostic et d’assistance disponibles en français et en anglais ;
+- ajout de tests empêchant la réapparition de données privées dans les diagnostics.
+
 ## 1.12.0 — 2026-07-24
 
 - ajout du français et de l’anglais dans l’installateur, le centre de contrôle et le désinstallateur ;

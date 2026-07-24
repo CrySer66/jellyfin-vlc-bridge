@@ -6,6 +6,8 @@
 outputs/
 work/
 publish/
+assets/chrome-web-store/local/
+docs/maintainer-local/
 *.exe
 *.dll
 *.pdb

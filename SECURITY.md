@@ -27,6 +27,9 @@ Ne joignez jamais un vrai jeton, mot de passe ou fichier du Gestionnaire
 d'identifiants Windows. Un accusé de réception sera donné dès que possible, puis le
 correctif sera préparé avant toute divulgation publique.
 
+Les règles protégeant la construction et la future signature des exécutables
+sont décrites dans la [politique de signature du code](CODE_SIGNING.md).
+
 ---
 
 # Security policy
@@ -51,3 +54,6 @@ conditions, possible impact and, when available, a suggested fix.
 Never include a real token, password or Windows Credential Manager export. The
 report will be acknowledged as soon as possible and a fix will be prepared before
 public disclosure.
+
+The controls protecting builds and future executable signatures are documented
+in the [code signing policy](CODE_SIGNING.md).

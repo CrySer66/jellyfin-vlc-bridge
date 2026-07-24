@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.12.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.13.0
 ```
 
 Le script :
@@ -40,8 +40,8 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.12.0-Setup.exe
-outputs\JellyfinVlcBridge-1.12.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.13.0-Setup.exe
+outputs\JellyfinVlcBridge-1.13.0-win-x64.zip
 ```
 
 ## Construire l'extension Chrome
@@ -58,7 +58,9 @@ Le ZIP Chrome Web Store ne contient pas le champ de développement `key`. L'él�
 hkjbodgdbjhignhlbecchiigcfigpidp
 ```
 
-Consultez [STORE-PUBLISHING.md](../STORE-PUBLISHING.md) avant d'envoyer une mise à jour.
+Le paquet doit être envoyé sur la fiche existante du Chrome Web Store afin de
+conserver l’identifiant officiel. La publication de l’extension reste distincte
+des versions Windows et passe par l’examen de Google.
 
 ## Structure du code
 
@@ -113,7 +115,7 @@ affiche la commande unique à exécuter.
 
 La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
 
-L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google.
+L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google. Les textes, captures d’écran et autres éléments promotionnels sont gérés dans le tableau de bord du magasin et ne font pas partie des sources nécessaires à la compilation.
 
 ## Publication du code
 

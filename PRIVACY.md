@@ -1,6 +1,6 @@
 # Politique de confidentialité — Jellyfin VLC Bridge
 
-Dernière mise à jour : 23 juillet 2026
+Dernière mise à jour : 24 juillet 2026
 
 ## Résumé
 
@@ -13,6 +13,14 @@ Lorsque l'utilisateur consulte une fiche vidéo Jellyfin, l'extension examine l'
 Si l'utilisateur active explicitement l'option « Retenir ces choix », l'application compagnon enregistre uniquement, sur cet ordinateur, le choix entre reprise et redémarrage ainsi que l'étendue préférée pour chaque type de contenu. Ces préférences ne contiennent ni jeton Jellyfin, ni historique de lecture, ni titre de média, et ne sont pas transmises au développeur.
 
 La préférence de langue (`auto`, `fr` ou `en`) est elle aussi conservée uniquement dans le profil Windows local. Elle ne contient aucune donnée personnelle et n’est envoyée à aucun service.
+
+Le centre de contrôle peut créer, uniquement à la demande de l’utilisateur, un
+paquet d’assistance ZIP enregistré à l’emplacement choisi. Il contient un état
+technique et une copie limitée des journaux récents. Avant l’enregistrement,
+l’application retire les jetons, identifiants Jellyfin, adresses de serveur et
+chemins Windows personnels connus. Ce fichier n’est jamais envoyé
+automatiquement : l’utilisateur décide seul de le conserver ou de le joindre à
+une demande d’assistance.
 
 Ces opérations peuvent relever des catégories « activité de navigation Web » et « contenu du site Web » dans les déclarations du Chrome Web Store. Elles sont limitées à la page Jellyfin en cours, restent locales et servent exclusivement à la fonctionnalité demandée par l'utilisateur.
 

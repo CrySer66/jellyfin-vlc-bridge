@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Drawing
 
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:installDirectory 'Localization.ps1')
-$script:bridgeVersion = '1.12.0'
+$script:bridgeVersion = '1.13.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null
@@ -61,6 +61,34 @@ function Set-Card($card, [bool]$ready, [string]$readyText, [string]$errorText, [
     $card.State.Text = if ($ready) { $readyText } else { $errorText }
     $card.State.ForeColor = if ($ready) { $script:green } else { $script:orange }
     $card.Detail.Text = $detail
+}
+
+function Get-HealthFinding([string]$component) {
+    if (-not $script:health -or -not $script:health.findings) { return $null }
+    return @($script:health.findings) |
+        Where-Object { $_.component -eq $component } |
+        Select-Object -First 1
+}
+
+function Get-FindingDetail($finding, [string]$fallback) {
+    if (-not $finding) { return $fallback }
+    $translationKey = switch ([string]$finding.code) {
+        'configuration.invalid' { 'FindingConfigurationInvalid' }
+        'jellyfin.connection-missing' { 'FindingConnectionMissing' }
+        'jellyfin.timeout' { 'FindingJellyfinTimeout' }
+        'jellyfin.connection-refused' { 'FindingJellyfinRefused' }
+        'jellyfin.unreachable' { 'FindingJellyfinUnreachable' }
+        'jellyfin.ready' { 'FindingJellyfinReady' }
+        'vlc.not-found' { 'FindingVlcMissing' }
+        'vlc.configured-path-missing' { 'FindingVlcMissing' }
+        'vlc.ready' { 'FindingVlcReady' }
+        'browser.integration-missing' { 'FindingBrowserMissing' }
+        'browser.extension-inactive' { 'FindingExtensionInactive' }
+        'browser.ready' { 'FindingBrowserReady' }
+        default { $null }
+    }
+    if ($translationKey) { return T $translationKey }
+    return ($finding.message + ' ' + $finding.action).Trim()
 }
 
 function Update-MappingControls {
@@ -135,21 +163,26 @@ function Refresh-BridgeStatus {
         [System.Windows.Forms.Application]::DoEvents()
         $script:health = (Invoke-Bridge @('status', '--json')) | ConvertFrom-Json
 
+        $jellyfinFinding = Get-HealthFinding 'jellyfin'
+        if (-not $jellyfinFinding) { $jellyfinFinding = Get-HealthFinding 'configuration' }
+        $jellyfinDetail = Get-FindingDetail $jellyfinFinding $script:health.jellyfinMessage
         Set-Card $jellyfinCard $script:health.jellyfinConnected `
-            (T 'Connected') (T 'Check') $script:health.jellyfinMessage
+            (T 'Connected') (T 'Check') $jellyfinDetail
         $vlcDetail = if ($script:health.vlcPath) { $script:health.vlcPath } else { T 'NoPath' }
+        $vlcDetail = Get-FindingDetail (Get-HealthFinding 'vlc') $vlcDetail
         Set-Card $vlcCard $script:health.vlcReady `
             (T 'VlcDetected') (T 'VlcMissing') $vlcDetail
-        $browserRegistered = $script:health.nativeMessagingReady
+        $browserRegistered = $script:health.protocolReady -and $script:health.nativeMessagingReady
         $browserReady = $browserRegistered -and $script:health.extensionActive
+        $browserFinding = Get-HealthFinding 'browser'
         if (-not $browserRegistered) {
-            $browserDetail = T 'BrowserConnectionMissing'
+            $browserDetail = Get-FindingDetail $browserFinding (T 'BrowserConnectionMissing')
             $browserError = T 'RepairRequired'
         } elseif ($script:health.extensionActive) {
             $browserDetail = T 'ExtensionContact' @($script:health.extensionVersion)
             $browserError = T 'ExtensionUnconfirmed'
         } else {
-            $browserDetail = T 'ExtensionOpenHint'
+            $browserDetail = Get-FindingDetail $browserFinding (T 'ExtensionOpenHint')
             $browserError = T 'ExtensionUnconfirmed'
         }
         Set-Card $browserCard $browserReady (T 'ExtensionActive') $browserError $browserDetail
@@ -166,7 +199,7 @@ function Refresh-BridgeStatus {
         }
         Update-MappingControls
 
-        $allReady = $script:health.jellyfinConnected -and $script:health.vlcReady -and $browserReady
+        $allReady = [bool]$script:health.ready
         $summary.Text = if ($allReady) { T 'AllReady' } else { T 'CheckNeeded' }
         $summary.ForeColor = if ($allReady) { $script:green } else { $script:orange }
         $footer.Text = T 'LastCheck' @((Get-Date -Format 'HH:mm:ss'))
@@ -182,7 +215,7 @@ function Refresh-BridgeStatus {
 $form = New-Object System.Windows.Forms.Form
 $form.Text = T 'ControlCenterTitle'
 $form.StartPosition = 'CenterScreen'
-$form.ClientSize = New-Object System.Drawing.Size(780, 690)
+$form.ClientSize = New-Object System.Drawing.Size(780, 735)
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
 $form.BackColor = [System.Drawing.Color]::FromArgb(246, 248, 250)
@@ -439,8 +472,18 @@ $form.Controls.Add($logsButton)
 $copyButton = New-Object System.Windows.Forms.Button
 $copyButton.Text = T 'CopyDiagnostic'
 $copyButton.Location = New-Object System.Drawing.Point(24, 586)
-$copyButton.Size = New-Object System.Drawing.Size(246, 36)
+$copyButton.Size = New-Object System.Drawing.Size(236, 36)
 $form.Controls.Add($copyButton)
+
+$supportButton = New-Object System.Windows.Forms.Button
+$supportButton.Text = T 'CreateSupportBundle'
+$supportButton.Location = New-Object System.Drawing.Point(270, 586)
+$supportButton.Size = New-Object System.Drawing.Size(284, 36)
+$supportButton.BackColor = $script:blue
+$supportButton.ForeColor = [System.Drawing.Color]::White
+$supportButton.FlatStyle = 'Flat'
+$form.Controls.Add($supportButton)
+$toolTip.SetToolTip($supportButton, (T 'SupportBundleTip'))
 
 $helpButton = New-Object System.Windows.Forms.Button
 $helpButton.Text = T 'HelpBug'
@@ -450,14 +493,14 @@ $form.Controls.Add($helpButton)
 
 $privacy = New-Object System.Windows.Forms.Label
 $privacy.Text = T 'PrivacyNote'
-$privacy.Location = New-Object System.Drawing.Point(287, 593)
-$privacy.Size = New-Object System.Drawing.Size(270, 40)
+$privacy.Location = New-Object System.Drawing.Point(24, 634)
+$privacy.Size = New-Object System.Drawing.Size(732, 34)
 $privacy.ForeColor = $script:muted
 $form.Controls.Add($privacy)
 
 $footer = New-Object System.Windows.Forms.Label
 $footer.Text = ''
-$footer.Location = New-Object System.Drawing.Point(24, 650)
+$footer.Location = New-Object System.Drawing.Point(24, 696)
 $footer.Size = New-Object System.Drawing.Size(732, 24)
 $footer.ForeColor = $script:muted
 $form.Controls.Add($footer)
@@ -549,21 +592,45 @@ $copyButton.Add_Click({
     try {
         if (-not $script:health) { Refresh-BridgeStatus }
         $diagnostic = @(
-            'Jellyfin VLC Bridge ' + $script:health.version,
-            'Serveur : ' + $script:health.serverUrl,
-            'Jellyfin connecte : ' + $script:health.jellyfinConnected,
-            'VLC detecte : ' + $script:health.vlcReady,
-            'VLC : ' + $script:health.vlcPath,
-            'Version VLC : ' + $script:health.vlcVersion,
-            'Integration navigateur : ' + ($script:health.protocolReady -and $script:health.nativeMessagingReady),
-            'Extension active : ' + $script:health.extensionActive,
-            'Version extension : ' + $script:health.extensionVersion,
-            'Mode : ' + $script:health.playbackMode,
-            'Journal : ' + $script:health.logPath
+            'BridgeVersion=' + $script:health.version,
+            'Configured=' + $script:health.configured,
+            'JellyfinConnected=' + $script:health.jellyfinConnected,
+            'VlcDetected=' + $script:health.vlcReady,
+            'VlcVersion=' + $script:health.vlcVersion,
+            'BrowserIntegration=' + ($script:health.protocolReady -and $script:health.nativeMessagingReady),
+            'ExtensionActive=' + $script:health.extensionActive,
+            'ExtensionVersion=' + $script:health.extensionVersion,
+            'PlaybackMode=' + $script:health.playbackMode,
+            'Ready=' + $script:health.ready
         ) -join "`r`n"
+        foreach ($finding in @($script:health.findings)) {
+            $diagnostic += "`r`nFinding[$($finding.code)]=$($finding.message)"
+            $diagnostic += "`r`nAction[$($finding.code)]=$($finding.action)"
+        }
         [System.Windows.Forms.Clipboard]::SetText($diagnostic)
         $footer.Text = T 'DiagnosticCopied'
     } catch { Show-BridgeError $_.Exception.Message }
+})
+
+$supportButton.Add_Click({
+    $dialog = New-Object System.Windows.Forms.SaveFileDialog
+    $dialog.Title = T 'SupportBundleDialogTitle'
+    $dialog.Filter = T 'SupportBundleFilter'
+    $dialog.FileName = 'JellyfinVlcBridge-Support-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.zip'
+    $dialog.OverwritePrompt = $true
+    if ($dialog.ShowDialog() -ne 'OK') { return }
+    try {
+        $supportButton.Enabled = $false
+        $footer.Text = T 'CheckInProgress'
+        $result = (Invoke-Bridge @('support-bundle', '--output', $dialog.FileName, '--json')) | ConvertFrom-Json
+        $footer.Text = T 'SupportBundleCreated' @($result.path)
+        [System.Windows.Forms.MessageBox]::Show(
+            (T 'SupportBundleCreated' @($result.path)),
+            'Jellyfin VLC Bridge',
+            'OK',
+            'Information') | Out-Null
+    } catch { Show-BridgeError $_.Exception.Message }
+    finally { $supportButton.Enabled = $true }
 })
 
 $updateTimer = New-Object System.Windows.Forms.Timer
