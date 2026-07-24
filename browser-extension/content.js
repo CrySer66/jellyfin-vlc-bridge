@@ -199,6 +199,11 @@
             <legend>${t('itemsToPlay')}</legend>
             <div class="jellyfin-vlc-dialog__scope-options"></div>
           </fieldset>
+          <fieldset class="jellyfin-vlc-dialog__section jellyfin-vlc-dialog__source" hidden>
+            <legend>${t('mediaVersion')}</legend>
+            <select class="jellyfin-vlc-dialog__source-select" aria-label="${t('mediaVersion')}"></select>
+            <small>${t('mediaVersionHint')}</small>
+          </fieldset>
           <div class="jellyfin-vlc-dialog__preview" hidden>
             <div class="jellyfin-vlc-dialog__summary"></div>
             <ol class="jellyfin-vlc-dialog__items"></ol>
@@ -256,6 +261,8 @@
     const startSection = dialog.overlay.querySelector('.jellyfin-vlc-dialog__start');
     const scopeSection = dialog.overlay.querySelector('.jellyfin-vlc-dialog__scope');
     const scopeOptions = dialog.overlay.querySelector('.jellyfin-vlc-dialog__scope-options');
+    const sourceSection = dialog.overlay.querySelector('.jellyfin-vlc-dialog__source');
+    const sourceSelect = dialog.overlay.querySelector('.jellyfin-vlc-dialog__source-select');
     const preview = dialog.overlay.querySelector('.jellyfin-vlc-dialog__preview');
     const summary = dialog.overlay.querySelector('.jellyfin-vlc-dialog__summary');
     const items = dialog.overlay.querySelector('.jellyfin-vlc-dialog__items');
@@ -264,6 +271,7 @@
     const rememberInput = dialog.overlay.querySelector('.jellyfin-vlc-dialog__remember-input');
     let selectedScope = 'auto';
     let selectedItemType = 'video';
+    let selectedMediaSourceId = '';
     let preferences = BRIDGE.normalizePreferences();
     let preferencesSupported = false;
     let rememberInitialized = false;
@@ -310,6 +318,19 @@
         label.append(radio, document.createTextNode(` ${choice.label}`));
         scopeOptions.appendChild(label);
       }
+
+      const mediaSources = Array.isArray(data.mediaSources) ? data.mediaSources : [];
+      const selectedStillExists = mediaSources.some(source => source.id === selectedMediaSourceId);
+      if (!selectedStillExists) selectedMediaSourceId = mediaSources[0]?.id || '';
+      sourceSelect.replaceChildren();
+      for (const source of mediaSources) {
+        const option = document.createElement('option');
+        option.value = source.id;
+        option.textContent = source.label;
+        option.selected = source.id === selectedMediaSourceId;
+        sourceSelect.appendChild(option);
+      }
+      sourceSection.hidden = mediaSources.length < 2;
 
       const duration = formatDuration(data.totalDurationSeconds);
       summary.textContent =
@@ -377,7 +398,14 @@
         });
       }
       dialog.close();
-      playItem(itemId, button, { scope: selectedScope, startMode });
+      playItem(itemId, button, {
+        scope: selectedScope,
+        startMode,
+        mediaSourceId: selectedMediaSourceId
+      });
+    });
+    sourceSelect.addEventListener('change', () => {
+      selectedMediaSourceId = sourceSelect.value;
     });
 
     try {
@@ -437,7 +465,8 @@
         type: 'play',
         itemId,
         scope: options.scope || 'auto',
-        startMode: options.startMode || 'resume'
+        startMode: options.startMode || 'resume',
+        mediaSourceId: options.mediaSourceId || ''
       }, response => {
         let runtimeError;
         try {

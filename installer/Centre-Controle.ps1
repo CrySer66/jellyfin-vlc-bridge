@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Drawing
 
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:installDirectory 'Localization.ps1')
-$script:bridgeVersion = '1.13.0'
+$script:bridgeVersion = '1.14.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null
@@ -168,7 +168,10 @@ function Refresh-BridgeStatus {
         $jellyfinDetail = Get-FindingDetail $jellyfinFinding $script:health.jellyfinMessage
         Set-Card $jellyfinCard $script:health.jellyfinConnected `
             (T 'Connected') (T 'Check') $jellyfinDetail
-        $vlcDetail = if ($script:health.vlcPath) { $script:health.vlcPath } else { T 'NoPath' }
+        $vlcDetail = if ($script:health.vlcPath) {
+            $versionText = if ($script:health.vlcVersion) { 'VLC ' + $script:health.vlcVersion } else { 'VLC' }
+            $versionText + [Environment]::NewLine + $script:health.vlcPath
+        } else { T 'NoPath' }
         $vlcDetail = Get-FindingDetail (Get-HealthFinding 'vlc') $vlcDetail
         Set-Card $vlcCard $script:health.vlcReady `
             (T 'VlcDetected') (T 'VlcMissing') $vlcDetail

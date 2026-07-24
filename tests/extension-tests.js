@@ -62,8 +62,15 @@ delete globalThis.chrome;
 
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'browser-extension', 'manifest.json'), 'utf8'));
 assert.equal(manifest.default_locale, 'en');
-assert.equal(manifest.version, '1.7.0');
+assert.equal(manifest.version, '1.8.0');
 assert.equal(manifest.name, '__MSG_extensionName__');
 assert.equal(manifest.content_scripts[0].js[0], 'i18n.js');
+const contentScript = fs.readFileSync(path.join(__dirname, '..', 'browser-extension', 'content.js'), 'utf8');
+const backgroundScript = fs.readFileSync(path.join(__dirname, '..', 'browser-extension', 'background.js'), 'utf8');
+assert.match(contentScript, /jellyfin-vlc-dialog__source/);
+assert.match(contentScript, /mediaSourceId/);
+assert.match(backgroundScript, /mediaSourceId/);
+assert.equal(english.mediaVersion.message, 'Media version');
+assert.equal(french.mediaVersion.message, 'Version du média');
 
-console.log('OK  Extension Chrome bilingue français/anglais');
+console.log('OK  Extension Chrome bilingue avec choix de version du média');

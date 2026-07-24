@@ -17,7 +17,7 @@ jobs:
   verifier:
     name: Compiler et tester sous Windows
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Récupérer les sources
@@ -58,4 +58,17 @@ jobs:
         run: |
           node --check browser-extension/background.js
           node --check browser-extension/content.js
+          node tests/extension-tests.js
+
+      - name: Construire et vérifier le paquet Chrome Web Store
+        shell: pwsh
+        run: |
+          ./tools/Build-ExtensionPackage.ps1
+          ./tools/Test-ExtensionPackage.ps1
+
+      - name: Construire et vérifier les paquets Windows
+        shell: pwsh
+        run: |
+          ./tools/Build-WindowsRelease.ps1
+          ./tools/Test-WindowsPackage.ps1
 

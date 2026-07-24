@@ -201,6 +201,25 @@
   opacity: .55;
 }
 
+.jellyfin-vlc-dialog__source-select {
+  background: #252c35;
+  border: 1px solid rgb(55 194 239 / 55%);
+  border-radius: .5rem;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  min-height: 2.65rem;
+  padding: .55rem .75rem;
+  width: 100%;
+}
+
+.jellyfin-vlc-dialog__source small {
+  color: rgb(255 255 255 / 62%);
+  display: block;
+  font-size: .75rem;
+  margin-top: .4rem;
+}
+
 .jellyfin-vlc-dialog__preview {
   background: rgb(0 0 0 / 18%);
   border: 1px solid rgb(255 255 255 / 9%);

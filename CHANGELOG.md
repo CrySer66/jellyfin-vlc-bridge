@@ -1,5 +1,24 @@
 # Historique des versions
 
+## 1.14.0 — 2026-07-24
+
+- choix explicite d’une version Jellyfin lorsqu’un film possède plusieurs fichiers, par exemple 1080p et 4K ;
+- utilisation de la version choisie en HTTP Direct Play comme en mode SMB ;
+- refus clair si la version sélectionnée a été supprimée de Jellyfin entre l’aperçu et le lancement ;
+- affichage d’un libellé lisible construit à partir du nom, de la résolution, du codec ou du conteneur disponibles ;
+- ajout de tests fonctionnels pour la sélection de version ;
+- exécution des vrais tests de l’extension dans GitHub Actions ;
+- construction et inspection automatiques des paquets Windows et Chrome Web Store pour chaque Pull Request ;
+- validation du paquet Windows avant toute publication GitHub ;
+- ajout d’une documentation de compatibilité.
+
+## Extension Chrome 1.8.0 — 2026-07-24
+
+- ajout du choix **Version du média** dans la fenêtre de préparation lorsque plusieurs fichiers Jellyfin sont disponibles ;
+- transmission de la version choisie au Bridge sans nouvelle autorisation Chrome ;
+- textes français et anglais ajoutés pour cette sélection ;
+- compatibilité conservée avec les médias ne possédant qu’une seule version.
+
 ## 1.13.0 — 2026-07-24
 
 - diagnostic du centre de contrôle enrichi avec une cause probable et une action conseillée pour Jellyfin, VLC et l’intégration navigateur ;

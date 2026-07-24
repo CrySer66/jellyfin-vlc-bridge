@@ -60,10 +60,13 @@ jobs:
           dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
           dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
           dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
+          node tests/extension-tests.js
 
       - name: Construire l’installateur et le ZIP
         shell: pwsh
-        run: ./tools/Build-WindowsRelease.ps1 -Version '${{ steps.version.outputs.version }}'
+        run: |
+          ./tools/Build-WindowsRelease.ps1 -Version '${{ steps.version.outputs.version }}'
+          ./tools/Test-WindowsPackage.ps1 -Version '${{ steps.version.outputs.version }}'
 
       - name: Publier les téléchargements
         shell: pwsh
