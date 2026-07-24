@@ -62,6 +62,17 @@ SMB mode lets VLC open an existing Windows network share directly. Use it only w
 
 The Bridge can resume playback, synchronize progress with Jellyfin, continue with following episodes and prepare movie collections.
 
+## Code signing
+
+The project is preparing an application to the free SignPath Foundation
+open-source code signing program. Current downloads remain unsigned until that
+application is accepted.
+
+Once enabled, only executables built from the protected `main` branch, tested by
+GitHub Actions and manually approved will be eligible for signing. See the
+[code signing policy](CODE_SIGNING.md) for the exact scope, roles and release
+process.
+
 ## Privacy
 
 The project contains no advertising, analytics or telemetry. The Jellyfin token is protected locally by Windows and is never included in copied diagnostics. See [PRIVACY.md](PRIVACY.md).
