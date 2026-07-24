@@ -28,7 +28,7 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 | Application | Plateforme | Extension |
 |---|---|---|
-| **1.16.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
+| **1.15.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Un média passe de Jellyfin vers VLC grâce au Bridge local">
