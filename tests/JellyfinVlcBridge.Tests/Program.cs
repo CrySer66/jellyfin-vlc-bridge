@@ -38,6 +38,11 @@ var tests = new (string Name, Func<Task> Run)[]
         }
     })),
     ("Clé de secret stable", () => Completed(() => Equal("JellyfinVlcBridge:192.168.1.25:8096", SecretKeys.ForServer("http://192.168.1.25:8096")))),
+    ("Choix de langue explicite", () => Completed(() =>
+    {
+        Equal("fr", UiLanguage.GetEffectiveLanguage("fr"));
+        Equal("en", UiLanguage.GetEffectiveLanguage("en"));
+    })),
     ("Conversion temps VLC", () => Completed(() => Equal(42L * TimeSpan.TicksPerSecond, new VlcStatus("playing", 42, 100, 256).PositionTicks))),
     ("Le relais HTTP local se ferme proprement", async () =>
     {

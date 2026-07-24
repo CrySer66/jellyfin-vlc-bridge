@@ -1,4 +1,4 @@
-param([switch]$ValidateOnly)
+﻿param([switch]$ValidateOnly)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -6,6 +6,8 @@ Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $script:installDirectory 'Localization.ps1')
+$script:bridgeVersion = '1.12.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null
@@ -38,7 +40,7 @@ function New-StatusCard([int]$left, [string]$title) {
     $panel.Controls.Add($name)
 
     $state = New-Object System.Windows.Forms.Label
-    $state.Text = 'Verification...'
+    $state.Text = T 'Checking'
     $state.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10)
     $state.Location = New-Object System.Drawing.Point(15, 43)
     $state.AutoSize = $true
@@ -65,14 +67,14 @@ function Update-MappingControls {
     $enabled = $modeBox.SelectedIndex -eq 1
     $mappingPanel.Visible = $enabled
     $modeDescription.Text = if ($enabled) {
-        'Mode avance : VLC ouvre directement un dossier partage sur le reseau.'
+        T 'SmbModeDescription'
     } else {
-        'Mode recommande : Jellyfin envoie le fichier original a VLC, sans transcodage.'
+        T 'HttpModeDescription'
     }
 }
 
 function Invoke-Bridge([string[]]$arguments) {
-    if (-not (Test-Path $script:executable)) { throw 'Le programme principal est introuvable.' }
+    if (-not (Test-Path $script:executable)) { throw (T 'MainProgramMissing') }
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $script:executable
     $processInfo.Arguments = ($arguments | ForEach-Object { '"' + $_.Replace('"', '\"') + '"' }) -join ' '
@@ -83,17 +85,17 @@ function Invoke-Bridge([string[]]$arguments) {
     $processInfo.RedirectStandardError = $true
 
     $process = [System.Diagnostics.Process]::Start($processInfo)
-    if (-not $process) { throw 'Le programme principal n a pas pu demarrer.' }
+    if (-not $process) { throw (T 'ProgramStartFailed') }
     try {
         $output = $process.StandardOutput.ReadToEnd()
         $errorOutput = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
         if ($process.ExitCode -ne 0) {
-            $message = if ($errorOutput) { $errorOutput.Trim() } elseif ($output) { $output.Trim() } else { 'Erreur inconnue.' }
+            $message = if ($errorOutput) { $errorOutput.Trim() } elseif ($output) { $output.Trim() } else { T 'UnknownError' }
             throw $message
         }
         if (($arguments -contains '--json') -and [string]::IsNullOrWhiteSpace($output)) {
-            throw 'Le programme principal n a renvoye aucun resultat.'
+            throw (T 'NoResult')
         }
         return $output.TrimEnd()
     } finally {
@@ -106,7 +108,7 @@ function Start-UpdateOperation([string]$operation) {
     try {
         $script:updateOperation = $operation
         $updateButton.Enabled = $false
-        $updateStatus.Text = if ($operation -eq 'download') { 'Telechargement en cours...' } else { 'Verification en cours...' }
+        $updateStatus.Text = if ($operation -eq 'download') { T 'Downloading' } else { T 'UpdateChecking' }
         $updateStatus.ForeColor = [System.Drawing.Color]::White
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
         $processInfo.FileName = $script:executable
@@ -119,8 +121,8 @@ function Start-UpdateOperation([string]$operation) {
         $script:updateProcess = [System.Diagnostics.Process]::Start($processInfo)
         $updateTimer.Start()
     } catch {
-        $updateStatus.Text = 'Verification impossible.'
-        $updateButton.Text = 'Reessayer'
+        $updateStatus.Text = T 'CheckImpossible'
+        $updateButton.Text = T 'Retry'
         $updateButton.Enabled = $true
         $script:updateOperation = 'idle'
     }
@@ -129,32 +131,32 @@ function Start-UpdateOperation([string]$operation) {
 function Refresh-BridgeStatus {
     try {
         $refreshButton.Enabled = $false
-        $footer.Text = 'Verification en cours...'
+        $footer.Text = T 'CheckInProgress'
         [System.Windows.Forms.Application]::DoEvents()
         $script:health = (Invoke-Bridge @('status', '--json')) | ConvertFrom-Json
 
         Set-Card $jellyfinCard $script:health.jellyfinConnected `
-            'Connecte' 'A verifier' $script:health.jellyfinMessage
-        $vlcDetail = if ($script:health.vlcPath) { $script:health.vlcPath } else { 'Aucun chemin detecte' }
+            (T 'Connected') (T 'Check') $script:health.jellyfinMessage
+        $vlcDetail = if ($script:health.vlcPath) { $script:health.vlcPath } else { T 'NoPath' }
         Set-Card $vlcCard $script:health.vlcReady `
-            'VLC detecte' 'VLC introuvable' $vlcDetail
+            (T 'VlcDetected') (T 'VlcMissing') $vlcDetail
         $browserRegistered = $script:health.nativeMessagingReady
         $browserReady = $browserRegistered -and $script:health.extensionActive
         if (-not $browserRegistered) {
-            $browserDetail = 'Connexion Windows absente. Utilisez Reparer.'
-            $browserError = 'Reparation requise'
+            $browserDetail = T 'BrowserConnectionMissing'
+            $browserError = T 'RepairRequired'
         } elseif ($script:health.extensionActive) {
-            $browserDetail = 'Extension ' + $script:health.extensionVersion + ' en contact avec le Bridge.'
-            $browserError = 'Extension non confirmee'
+            $browserDetail = T 'ExtensionContact' @($script:health.extensionVersion)
+            $browserError = T 'ExtensionUnconfirmed'
         } else {
-            $browserDetail = 'Ouvrez ou rechargez Jellyfin pour confirmer que l extension est active.'
-            $browserError = 'Extension non confirmee'
+            $browserDetail = T 'ExtensionOpenHint'
+            $browserError = T 'ExtensionUnconfirmed'
         }
-        Set-Card $browserCard $browserReady 'Extension active' $browserError $browserDetail
+        Set-Card $browserCard $browserReady (T 'ExtensionActive') $browserError $browserDetail
 
-        $serverValue.Text = if ($script:health.serverUrl) { $script:health.serverUrl } else { 'Non configure' }
-        $versionLabel.Text = 'Version ' + $script:health.version
-        $modeBox.SelectedItem = if ($script:health.playbackMode -eq 'smb') { 'SMB (partage reseau)' } else { 'HTTP Direct Play' }
+        $serverValue.Text = if ($script:health.serverUrl) { $script:health.serverUrl } else { T 'NotConfigured' }
+        $versionLabel.Text = T 'Version' @($script:health.version)
+        $modeBox.SelectedItem = if ($script:health.playbackMode -eq 'smb') { T 'SmbMode' } else { 'HTTP Direct Play' }
         $vlcBox.Text = if ($script:health.vlcPath) { $script:health.vlcPath } else { '' }
         if (Test-Path $script:configFile) {
             $savedConfig = Get-Content -LiteralPath $script:configFile -Raw | ConvertFrom-Json
@@ -165,11 +167,11 @@ function Refresh-BridgeStatus {
         Update-MappingControls
 
         $allReady = $script:health.jellyfinConnected -and $script:health.vlcReady -and $browserReady
-        $summary.Text = if ($allReady) { 'Tout est pret pour lire avec VLC.' } else { 'Une verification est necessaire.' }
+        $summary.Text = if ($allReady) { T 'AllReady' } else { T 'CheckNeeded' }
         $summary.ForeColor = if ($allReady) { $script:green } else { $script:orange }
-        $footer.Text = 'Derniere verification : ' + (Get-Date -Format 'HH:mm:ss')
+        $footer.Text = T 'LastCheck' @((Get-Date -Format 'HH:mm:ss'))
     } catch {
-        $summary.Text = 'Le diagnostic a echoue.'
+        $summary.Text = T 'CheckFailed'
         $summary.ForeColor = $script:red
         $footer.Text = $_.Exception.Message
     } finally {
@@ -178,7 +180,7 @@ function Refresh-BridgeStatus {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge - Centre de controle'
+$form.Text = T 'ControlCenterTitle'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(780, 690)
 $form.FormBorderStyle = 'FixedDialog'
@@ -209,14 +211,14 @@ $title.Location = New-Object System.Drawing.Point(112, 22)
 $header.Controls.Add($title)
 
 $subtitle = New-Object System.Windows.Forms.Label
-$subtitle.Text = 'Centre de controle et diagnostic'
+$subtitle.Text = T 'ControlCenterSubtitle'
 $subtitle.ForeColor = [System.Drawing.Color]::FromArgb(214, 238, 247)
 $subtitle.AutoSize = $true
 $subtitle.Location = New-Object System.Drawing.Point(116, 64)
 $header.Controls.Add($subtitle)
 
 $versionLabel = New-Object System.Windows.Forms.Label
-$versionLabel.Text = 'Version 1.11.0'
+$versionLabel.Text = T 'Version' @($script:bridgeVersion)
 $versionLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $versionLabel.ForeColor = [System.Drawing.Color]::White
 $versionLabel.AutoSize = $true
@@ -224,7 +226,7 @@ $versionLabel.Location = New-Object System.Drawing.Point(515, 17)
 $header.Controls.Add($versionLabel)
 
 $updateStatus = New-Object System.Windows.Forms.Label
-$updateStatus.Text = 'Mises a jour : en attente'
+$updateStatus.Text = T 'UpdatesWaiting'
 $updateStatus.ForeColor = [System.Drawing.Color]::FromArgb(214, 238, 247)
 $updateStatus.Location = New-Object System.Drawing.Point(515, 43)
 $updateStatus.Size = New-Object System.Drawing.Size(235, 22)
@@ -232,7 +234,7 @@ $updateStatus.TextAlign = 'MiddleLeft'
 $header.Controls.Add($updateStatus)
 
 $updateButton = New-Object System.Windows.Forms.Button
-$updateButton.Text = 'Verifier maintenant'
+$updateButton.Text = T 'CheckNow'
 $updateButton.Location = New-Object System.Drawing.Point(585, 72)
 $updateButton.Size = New-Object System.Drawing.Size(165, 30)
 $updateButton.BackColor = [System.Drawing.Color]::FromArgb(34, 139, 94)
@@ -241,19 +243,36 @@ $updateButton.FlatStyle = 'Flat'
 $updateButton.Enabled = $false
 $header.Controls.Add($updateButton)
 
+$languageLabel = New-Object System.Windows.Forms.Label
+$languageLabel.Text = T 'Language'
+$languageLabel.ForeColor = [System.Drawing.Color]::White
+$languageLabel.AutoSize = $true
+$languageLabel.Location = New-Object System.Drawing.Point(333, 79)
+$header.Controls.Add($languageLabel)
+
+$languageBox = New-Object System.Windows.Forms.ComboBox
+$languageBox.DropDownStyle = 'DropDownList'
+[void]$languageBox.Items.Add((T 'LanguageAuto'))
+[void]$languageBox.Items.Add((T 'LanguageFrench'))
+[void]$languageBox.Items.Add((T 'LanguageEnglish'))
+$languageBox.Location = New-Object System.Drawing.Point(400, 74)
+$languageBox.Size = New-Object System.Drawing.Size(170, 28)
+$languageBox.SelectedIndex = switch ($script:JvbLanguagePreference) { 'fr' { 1 } 'en' { 2 } default { 0 } }
+$header.Controls.Add($languageBox)
+
 $summary = New-Object System.Windows.Forms.Label
-$summary.Text = 'Verification en cours...'
+$summary.Text = T 'CheckInProgress'
 $summary.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11)
 $summary.AutoSize = $true
 $summary.Location = New-Object System.Drawing.Point(24, 121)
 $form.Controls.Add($summary)
 
 $jellyfinCard = New-StatusCard 24 'Jellyfin'
-$vlcCard = New-StatusCard 273 'Lecteur VLC'
-$browserCard = New-StatusCard 522 'Extension navigateur'
+$vlcCard = New-StatusCard 273 (T 'VlcPlayer')
+$browserCard = New-StatusCard 522 (T 'BrowserExtension')
 
 $settings = New-Object System.Windows.Forms.GroupBox
-$settings.Text = 'Reglages de lecture'
+$settings.Text = T 'PlaybackSettings'
 $settings.Location = New-Object System.Drawing.Point(24, 282)
 $settings.Size = New-Object System.Drawing.Size(732, 230)
 $form.Controls.Add($settings)
@@ -264,20 +283,20 @@ $toolTip.InitialDelay = 250
 $toolTip.ReshowDelay = 100
 
 $serverLabel = New-Object System.Windows.Forms.Label
-$serverLabel.Text = 'Serveur Jellyfin'
+$serverLabel.Text = T 'JellyfinServer'
 $serverLabel.Location = New-Object System.Drawing.Point(18, 31)
 $serverLabel.AutoSize = $true
 $settings.Controls.Add($serverLabel)
 
 $serverValue = New-Object System.Windows.Forms.Label
-$serverValue.Text = 'Non configure'
+$serverValue.Text = T 'NotConfigured'
 $serverValue.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.5)
 $serverValue.Location = New-Object System.Drawing.Point(153, 31)
 $serverValue.Size = New-Object System.Drawing.Size(550, 22)
 $settings.Controls.Add($serverValue)
 
 $modeLabel = New-Object System.Windows.Forms.Label
-$modeLabel.Text = 'Mode de lecture'
+$modeLabel.Text = T 'PlaybackMode'
 $modeLabel.Location = New-Object System.Drawing.Point(18, 70)
 $modeLabel.AutoSize = $true
 $settings.Controls.Add($modeLabel)
@@ -285,7 +304,7 @@ $settings.Controls.Add($modeLabel)
 $modeBox = New-Object System.Windows.Forms.ComboBox
 $modeBox.DropDownStyle = 'DropDownList'
 [void]$modeBox.Items.Add('HTTP Direct Play')
-[void]$modeBox.Items.Add('SMB (partage reseau)')
+[void]$modeBox.Items.Add((T 'SmbMode'))
 $modeBox.Location = New-Object System.Drawing.Point(153, 66)
 $modeBox.Size = New-Object System.Drawing.Size(225, 28)
 $settings.Controls.Add($modeBox)
@@ -299,7 +318,7 @@ $modeHelp.FlatStyle = 'Flat'
 $modeHelp.FlatAppearance.BorderColor = $script:blue
 $modeHelp.ForeColor = $script:blue
 $settings.Controls.Add($modeHelp)
-$toolTip.SetToolTip($modeHelp, 'HTTP Direct Play est recommande : Jellyfin transmet le fichier original sans le convertir. SMB est reserve aux utilisateurs qui disposent deja d un partage reseau Windows.')
+$toolTip.SetToolTip($modeHelp, (T 'ModeHelpTip'))
 
 $modeDescription = New-Object System.Windows.Forms.Label
 $modeDescription.Location = New-Object System.Drawing.Point(425, 61)
@@ -308,7 +327,7 @@ $modeDescription.ForeColor = $script:muted
 $settings.Controls.Add($modeDescription)
 
 $vlcLabel = New-Object System.Windows.Forms.Label
-$vlcLabel.Text = 'Chemin de VLC'
+$vlcLabel.Text = T 'VlcPath'
 $vlcLabel.Location = New-Object System.Drawing.Point(18, 112)
 $vlcLabel.AutoSize = $true
 $settings.Controls.Add($vlcLabel)
@@ -322,7 +341,7 @@ $vlcHelp.FlatStyle = 'Flat'
 $vlcHelp.FlatAppearance.BorderColor = $script:blue
 $vlcHelp.ForeColor = $script:blue
 $settings.Controls.Add($vlcHelp)
-$toolTip.SetToolTip($vlcHelp, 'Le Bridge detecte normalement VLC tout seul. Modifiez ce chemin uniquement si VLC est installe dans un dossier inhabituel.')
+$toolTip.SetToolTip($vlcHelp, (T 'VlcHelpTip'))
 
 $vlcBox = New-Object System.Windows.Forms.TextBox
 $vlcBox.Location = New-Object System.Drawing.Point(153, 108)
@@ -330,7 +349,7 @@ $vlcBox.Size = New-Object System.Drawing.Size(452, 28)
 $settings.Controls.Add($vlcBox)
 
 $browseButton = New-Object System.Windows.Forms.Button
-$browseButton.Text = 'Parcourir...'
+$browseButton.Text = T 'Browse'
 $browseButton.Location = New-Object System.Drawing.Point(614, 106)
 $browseButton.Size = New-Object System.Drawing.Size(95, 31)
 $settings.Controls.Add($browseButton)
@@ -342,7 +361,7 @@ $mappingPanel.Visible = $false
 $settings.Controls.Add($mappingPanel)
 
 $serverPathLabel = New-Object System.Windows.Forms.Label
-$serverPathLabel.Text = 'Chemin vu par Jellyfin'
+$serverPathLabel.Text = T 'JellyfinPath'
 $serverPathLabel.Location = New-Object System.Drawing.Point(4, 1)
 $serverPathLabel.AutoSize = $true
 $mappingPanel.Controls.Add($serverPathLabel)
@@ -353,7 +372,7 @@ $serverPathBox.Size = New-Object System.Drawing.Size(315, 28)
 $mappingPanel.Controls.Add($serverPathBox)
 
 $clientPathLabel = New-Object System.Windows.Forms.Label
-$clientPathLabel.Text = 'Adresse reseau utilisable sur ce PC'
+$clientPathLabel.Text = T 'ClientNetworkPath'
 $clientPathLabel.Location = New-Object System.Drawing.Point(346, 1)
 $clientPathLabel.AutoSize = $true
 $mappingPanel.Controls.Add($clientPathLabel)
@@ -364,7 +383,7 @@ $clientPathBox.Size = New-Object System.Drawing.Size(315, 28)
 $mappingPanel.Controls.Add($clientPathBox)
 
 $mappingHint = New-Object System.Windows.Forms.Label
-$mappingHint.Text = 'Exemple : D:\Films   devient   \\PC-SERVEUR\Films'
+$mappingHint.Text = T 'MappingExample'
 $mappingHint.Location = New-Object System.Drawing.Point(4, 55)
 $mappingHint.Size = New-Object System.Drawing.Size(610, 20)
 $mappingHint.ForeColor = $script:muted
@@ -379,10 +398,10 @@ $mappingHelp.FlatStyle = 'Flat'
 $mappingHelp.FlatAppearance.BorderColor = $script:blue
 $mappingHelp.ForeColor = $script:blue
 $mappingPanel.Controls.Add($mappingHelp)
-$toolTip.SetToolTip($mappingHelp, 'Le premier chemin est celui enregistre dans Jellyfin sur le serveur. Le second est le partage reseau permettant a ce PC d ouvrir les memes fichiers. Cette option ne sert pas en HTTP Direct Play.')
+$toolTip.SetToolTip($mappingHelp, (T 'MappingHelpTip'))
 
 $saveButton = New-Object System.Windows.Forms.Button
-$saveButton.Text = 'Enregistrer les reglages'
+$saveButton.Text = T 'SaveSettings'
 $saveButton.Location = New-Object System.Drawing.Point(568, 529)
 $saveButton.Size = New-Object System.Drawing.Size(188, 38)
 $saveButton.BackColor = $script:blue
@@ -391,13 +410,13 @@ $saveButton.FlatStyle = 'Flat'
 $form.Controls.Add($saveButton)
 
 $refreshButton = New-Object System.Windows.Forms.Button
-$refreshButton.Text = 'Actualiser'
+$refreshButton.Text = T 'Refresh'
 $refreshButton.Location = New-Object System.Drawing.Point(24, 529)
 $refreshButton.Size = New-Object System.Drawing.Size(105, 38)
 $form.Controls.Add($refreshButton)
 
 $repairButton = New-Object System.Windows.Forms.Button
-$repairButton.Text = 'Reparer'
+$repairButton.Text = T 'Repair'
 $repairButton.Location = New-Object System.Drawing.Point(139, 529)
 $repairButton.Size = New-Object System.Drawing.Size(105, 38)
 $repairButton.BackColor = [System.Drawing.Color]::FromArgb(34, 139, 94)
@@ -406,31 +425,31 @@ $repairButton.FlatStyle = 'Flat'
 $form.Controls.Add($repairButton)
 
 $extensionButton = New-Object System.Windows.Forms.Button
-$extensionButton.Text = 'Ouvrir extension'
+$extensionButton.Text = T 'OpenExtension'
 $extensionButton.Location = New-Object System.Drawing.Point(254, 529)
 $extensionButton.Size = New-Object System.Drawing.Size(136, 38)
 $form.Controls.Add($extensionButton)
 
 $logsButton = New-Object System.Windows.Forms.Button
-$logsButton.Text = 'Voir les journaux'
+$logsButton.Text = T 'ViewLogs'
 $logsButton.Location = New-Object System.Drawing.Point(400, 529)
 $logsButton.Size = New-Object System.Drawing.Size(146, 38)
 $form.Controls.Add($logsButton)
 
 $copyButton = New-Object System.Windows.Forms.Button
-$copyButton.Text = 'Copier un diagnostic sans secret'
+$copyButton.Text = T 'CopyDiagnostic'
 $copyButton.Location = New-Object System.Drawing.Point(24, 586)
 $copyButton.Size = New-Object System.Drawing.Size(246, 36)
 $form.Controls.Add($copyButton)
 
 $helpButton = New-Object System.Windows.Forms.Button
-$helpButton.Text = 'Aide et signaler un bug'
+$helpButton.Text = T 'HelpBug'
 $helpButton.Location = New-Object System.Drawing.Point(574, 586)
 $helpButton.Size = New-Object System.Drawing.Size(182, 36)
 $form.Controls.Add($helpButton)
 
 $privacy = New-Object System.Windows.Forms.Label
-$privacy.Text = 'Le jeton Jellyfin reste protege dans Windows et ne figure jamais dans le diagnostic.'
+$privacy.Text = T 'PrivacyNote'
 $privacy.Location = New-Object System.Drawing.Point(287, 593)
 $privacy.Size = New-Object System.Drawing.Size(270, 40)
 $privacy.ForeColor = $script:muted
@@ -444,32 +463,36 @@ $footer.ForeColor = $script:muted
 $form.Controls.Add($footer)
 
 $refreshButton.Add_Click({ Refresh-BridgeStatus })
+$languageBox.Add_SelectedIndexChanged({
+    $preference = switch ($languageBox.SelectedIndex) { 1 { 'fr' } 2 { 'en' } default { 'auto' } }
+    if ($preference -eq $script:JvbLanguagePreference) { return }
+    Set-JvbLanguagePreference $preference
+    $script:JvbLanguagePreference = $preference
+    $footer.Text = T 'LanguageRestart'
+})
 $updateButton.Add_Click({
     if ($script:updateAvailable) { Start-UpdateOperation 'download' }
     else { Start-UpdateOperation 'check' }
 })
 $modeHelp.Add_Click({
     [System.Windows.Forms.MessageBox]::Show(
-        "HTTP Direct Play (recommande)`r`nLe fichier original passe par Jellyfin sans transcodage. Aucun dossier reseau n'est a regler.`r`n`r`nSMB (avance)`r`nVLC ouvre directement un partage Windows. Choisissez ce mode uniquement si ce partage fonctionne deja dans l'Explorateur de fichiers.",
-        'Quel mode choisir ?', 'OK', 'Information') | Out-Null
+        (T 'HttpHelpBody'), (T 'HttpHelpTitle'), 'OK', 'Information') | Out-Null
 })
 $vlcHelp.Add_Click({
     [System.Windows.Forms.MessageBox]::Show(
-        "Le Bridge trouve normalement VLC automatiquement.`r`n`r`nUtilisez Parcourir uniquement si VLC est installe dans un dossier inhabituel ou si le message VLC introuvable apparait.",
-        'Chemin de VLC', 'OK', 'Information') | Out-Null
+        (T 'VlcHelpBody'), (T 'VlcHelpTitle'), 'OK', 'Information') | Out-Null
 })
 $mappingHelp.Add_Click({
     [System.Windows.Forms.MessageBox]::Show(
-        "Ce reglage traduit le chemin connu par Jellyfin vers le partage accessible depuis ce PC.`r`n`r`nExemple :`r`nChemin vu par Jellyfin : D:\Films`r`nAdresse reseau sur ce PC : \\PC-SERVEUR\Films`r`n`r`nIl est inutile en HTTP Direct Play.",
-        'Correspondance des dossiers SMB', 'OK', 'Information') | Out-Null
+        (T 'MappingHelpBody'), (T 'MappingHelpTitle'), 'OK', 'Information') | Out-Null
 })
 $repairButton.Add_Click({
     try {
         $repairButton.Enabled = $false
-        $footer.Text = 'Reparation en cours...'
+        $footer.Text = T 'Repairing'
         [void](Invoke-Bridge @('repair'))
         Refresh-BridgeStatus
-        [System.Windows.Forms.MessageBox]::Show('Integration Chrome et Edge reparee.', 'Jellyfin VLC Bridge', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show((T 'RepairDone'), 'Jellyfin VLC Bridge', 'OK', 'Information') | Out-Null
     } catch { Show-BridgeError $_.Exception.Message }
     finally { $repairButton.Enabled = $true }
 })
@@ -494,13 +517,13 @@ $browseButton.Add_Click({
 $modeBox.Add_SelectedIndexChanged({ Update-MappingControls })
 $saveButton.Add_Click({
     try {
-        if (-not (Test-Path $script:configFile)) { throw 'La configuration Jellyfin est absente. Reinstallez avec Quick Connect.' }
+        if (-not (Test-Path $script:configFile)) { throw (T 'MissingConfig') }
         $config = Get-Content -LiteralPath $script:configFile -Raw | ConvertFrom-Json
         $config.playbackMode = if ($modeBox.SelectedIndex -eq 1) { 'smb' } else { 'http' }
         $config.vlcPath = if ([string]::IsNullOrWhiteSpace($vlcBox.Text)) { $null } else { $vlcBox.Text.Trim() }
         if ($config.playbackMode -eq 'smb') {
             if ([string]::IsNullOrWhiteSpace($serverPathBox.Text) -or [string]::IsNullOrWhiteSpace($clientPathBox.Text)) {
-                throw 'Le mode SMB exige un dossier serveur et le partage reseau correspondant.'
+                throw (T 'SmbRequiresMapping')
             }
             $config.pathMappings = @([PSCustomObject]@{
                 serverPrefix = $serverPathBox.Text.Trim()
@@ -518,7 +541,7 @@ $saveButton.Add_Click({
         } finally {
             if (Test-Path -LiteralPath $temporaryConfig) { Remove-Item -LiteralPath $temporaryConfig -Force -ErrorAction SilentlyContinue }
         }
-        $footer.Text = 'Reglages enregistres.'
+        $footer.Text = T 'SettingsSaved'
         Refresh-BridgeStatus
     } catch { Show-BridgeError $_.Exception.Message }
 })
@@ -539,7 +562,7 @@ $copyButton.Add_Click({
             'Journal : ' + $script:health.logPath
         ) -join "`r`n"
         [System.Windows.Forms.Clipboard]::SetText($diagnostic)
-        $footer.Text = 'Diagnostic copie. Aucun jeton ni identifiant utilisateur inclus.'
+        $footer.Text = T 'DiagnosticCopied'
     } catch { Show-BridgeError $_.Exception.Message }
 })
 
@@ -563,12 +586,12 @@ $updateTimer.Add_Tick({
             $script:updateAvailable = [bool]$result.updateAvailable
             $script:latestVersion = $result.latestVersion
             if ($script:updateAvailable) {
-                $updateStatus.Text = 'Nouvelle version : ' + $result.latestVersion
-                $updateButton.Text = 'Installer ' + $result.latestVersion
+                $updateStatus.Text = T 'NewVersion' @($result.latestVersion)
+                $updateButton.Text = T 'InstallVersion' @($result.latestVersion)
                 $updateButton.Enabled = $true
             } else {
-                $updateStatus.Text = 'Le logiciel est a jour.'
-                $updateButton.Text = 'A jour'
+                $updateStatus.Text = T 'UpToDate'
+                $updateButton.Text = T 'UpToDateButton'
                 $updateButton.Enabled = $false
             }
             return
@@ -577,21 +600,21 @@ $updateTimer.Add_Tick({
         $updatesRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\Updates')).TrimEnd('\') + '\'
         $installerPath = [IO.Path]::GetFullPath([string]$result.path)
         if (-not $installerPath.StartsWith($updatesRoot, [StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path $installerPath)) {
-            throw 'Le fichier de mise a jour est introuvable ou non sur.'
+            throw (T 'UpdateFileUnsafe')
         }
-        $updateStatus.Text = 'Ouverture de l installateur...'
+        $updateStatus.Text = T 'InstallerOpening'
         Start-Process -FilePath $installerPath
         $form.Close()
     } catch {
         $message = $_.Exception.Message
         $script:updateAvailable = $false
         if ($message -match 'publication') {
-            $updateStatus.Text = 'Disponible apres publication GitHub.'
+            $updateStatus.Text = T 'AvailableAfterPublication'
         } else {
-            $updateStatus.Text = 'Verification impossible.'
+            $updateStatus.Text = T 'CheckImpossible'
             $footer.Text = $message
         }
-        $updateButton.Text = 'Reessayer'
+        $updateButton.Text = T 'Retry'
         $updateButton.Enabled = $true
         $script:updateOperation = 'idle'
         if ($script:updateProcess) {

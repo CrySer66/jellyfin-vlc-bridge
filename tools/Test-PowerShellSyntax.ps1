@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $PSScriptRoot
 $allErrors = [System.Collections.Generic.List[string]]::new()
 $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
@@ -14,8 +14,8 @@ foreach ($directory in @('installer', 'tools')) {
             $allErrors.Add("$($_.FullName): encodage UTF-8 invalide ($($_.Exception.Message))")
             return
         }
-        foreach ($error in @($parseErrors)) {
-            $allErrors.Add("$($_.FullName):$($error.Extent.StartLineNumber) $($error.Message)")
+        foreach ($parseError in @($parseErrors)) {
+            $allErrors.Add("$($_.FullName):$($parseError.Extent.StartLineNumber) $($parseError.Message)")
         }
     }
 }

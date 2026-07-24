@@ -1,12 +1,13 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.11.0'
+$script:bridgeVersion = '1.12.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $script:packageDirectory 'Localization.ps1')
 $script:rootDirectory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge'
 $script:installDirectory = Join-Path $script:rootDirectory 'App'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
@@ -42,7 +43,7 @@ function Show-SetupError([string]$message) {
 
 function Open-ChromeWebStore {
     try { Start-Process $script:chromeWebStoreUrl }
-    catch { Show-SetupError "Impossible d'ouvrir le navigateur. Adresse : $script:chromeWebStoreUrl" }
+    catch { Show-SetupError (T 'BrowserOpenFailed' @($script:chromeWebStoreUrl)) }
 }
 
 function Copy-ApplicationFiles {
@@ -50,12 +51,13 @@ function Copy-ApplicationFiles {
         'jellyfin-vlc-bridge.exe',
         'jellyfin-vlc-bridge-control.exe',
         'Centre-Controle.ps1',
+        'Localization.ps1',
         'DESINSTALLER-WINDOWS.cmd',
         'Desinstaller-JellyfinVlcBridge.ps1',
         'Desinstaller-GUI.ps1'
     )
     foreach ($file in $requiredFiles) {
-        if (-not (Test-Path (Join-Path $script:packageDirectory $file))) { throw "Fichier manquant : $file" }
+        if (-not (Test-Path (Join-Path $script:packageDirectory $file))) { throw (T 'MissingFile' @($file)) }
     }
     New-Item -ItemType Directory -Path $script:installDirectory -Force | Out-Null
     foreach ($file in $requiredFiles) {
@@ -117,28 +119,28 @@ function Complete-Installation {
     $timer.Stop()
     $progress.Style = 'Continuous'
     $progress.Value = 100
-    $statusLabel.Text = 'Installation terminee avec succes.'
+    $statusLabel.Text = T 'InstallSuccess'
     $statusLabel.ForeColor = [System.Drawing.Color]::FromArgb(34, 139, 34)
     $codeTitle.Visible = $false
     $codeLabel.Visible = $false
     if ($script:replaceExistingConfig) {
-        $instructions.Text = 'Nouvelle connexion Jellyfin enregistree. L extension deja installee reste utilisable.'
+        $instructions.Text = T 'NewConnectionSaved'
         $extensionButton.Visible = $false
     } elseif ($script:hadExistingConfig) {
-        $instructions.Text = 'Mise a jour terminee. Votre connexion Jellyfin et vos reglages ont ete conserves.'
+        $instructions.Text = T 'UpdateCompletePreserved'
         $extensionButton.Visible = $false
     } else {
-        $instructions.Text = "Installez maintenant l'extension Chrome. Le bouton vert permet de rouvrir sa fiche."
+        $instructions.Text = T 'InstallExtensionNow'
         $extensionButton.Visible = $true
     }
     $serverBox.Enabled = $false
-    $installButton.Text = 'Fermer'
+    $installButton.Text = T 'Close'
     $installButton.Enabled = $true
     if (-not $script:hadExistingConfig) { Open-ChromeWebStore }
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.11.0'
+$form.Text = 'Jellyfin VLC Bridge 1.12.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(620, 445)
 $form.FormBorderStyle = 'FixedDialog'
@@ -169,14 +171,14 @@ $title.Location = New-Object System.Drawing.Point(104, 17)
 $header.Controls.Add($title)
 
 $subtitle = New-Object System.Windows.Forms.Label
-$subtitle.Text = 'Installation et connexion securisee avec Quick Connect'
+$subtitle.Text = T 'SetupSubtitle'
 $subtitle.AutoSize = $true
 $subtitle.ForeColor = [System.Drawing.Color]::FromArgb(214, 238, 247)
 $subtitle.Location = New-Object System.Drawing.Point(107, 58)
 $header.Controls.Add($subtitle)
 
 $serverLabel = New-Object System.Windows.Forms.Label
-$serverLabel.Text = 'Adresse de votre serveur Jellyfin'
+$serverLabel.Text = T 'ServerAddress'
 $serverLabel.AutoSize = $true
 $serverLabel.Location = New-Object System.Drawing.Point(31, 116)
 $form.Controls.Add($serverLabel)
@@ -189,7 +191,7 @@ $serverBox.ReadOnly = $script:hadExistingConfig
 $form.Controls.Add($serverBox)
 
 $changeServerButton = New-Object System.Windows.Forms.Button
-$changeServerButton.Text = 'Changer de serveur Jellyfin'
+$changeServerButton.Text = T 'ChangeServer'
 $changeServerButton.Location = New-Object System.Drawing.Point(378, 180)
 $changeServerButton.Size = New-Object System.Drawing.Size(208, 34)
 $changeServerButton.FlatStyle = 'Flat'
@@ -197,7 +199,7 @@ $changeServerButton.Visible = $script:hadExistingConfig
 $form.Controls.Add($changeServerButton)
 
 $codeTitle = New-Object System.Windows.Forms.Label
-$codeTitle.Text = 'Code Quick Connect'
+$codeTitle.Text = T 'QuickConnectCode'
 $codeTitle.AutoSize = $true
 $codeTitle.Location = New-Object System.Drawing.Point(31, 187)
 $codeTitle.Visible = $false
@@ -214,9 +216,9 @@ $form.Controls.Add($codeLabel)
 
 $instructions = New-Object System.Windows.Forms.Label
 $instructions.Text = if ($script:hadExistingConfig) {
-    'Connexion existante detectee. Cette adresse, Quick Connect et vos reglages seront conserves.'
+    T 'ExistingConnection'
 } else {
-    'Le programme sera installe pour votre compte Windows, sans droits administrateur.'
+    T 'PerUserInstall'
 }
 $instructions.Location = New-Object System.Drawing.Point(31, 270)
 $instructions.Size = New-Object System.Drawing.Size(555, 48)
@@ -224,7 +226,7 @@ $instructions.ForeColor = [System.Drawing.Color]::DimGray
 $form.Controls.Add($instructions)
 
 $statusLabel = New-Object System.Windows.Forms.Label
-$statusLabel.Text = 'Pret a installer.'
+$statusLabel.Text = T 'ReadyToInstall'
 $statusLabel.AutoSize = $true
 $statusLabel.Location = New-Object System.Drawing.Point(31, 326)
 $form.Controls.Add($statusLabel)
@@ -235,7 +237,7 @@ $progress.Size = New-Object System.Drawing.Size(552, 22)
 $form.Controls.Add($progress)
 
 $extensionButton = New-Object System.Windows.Forms.Button
-$extensionButton.Text = 'Ouvrir Chrome Web Store'
+$extensionButton.Text = T 'OpenChromeStore'
 $extensionButton.Location = New-Object System.Drawing.Point(286, 390)
 $extensionButton.Size = New-Object System.Drawing.Size(198, 38)
 $extensionButton.BackColor = [System.Drawing.Color]::FromArgb(34, 139, 94)
@@ -245,7 +247,7 @@ $extensionButton.Visible = $false
 $form.Controls.Add($extensionButton)
 
 $installButton = New-Object System.Windows.Forms.Button
-$installButton.Text = 'Installer'
+$installButton.Text = T 'Install'
 $installButton.Location = New-Object System.Drawing.Point(496, 390)
 $installButton.Size = New-Object System.Drawing.Size(90, 38)
 $installButton.BackColor = [System.Drawing.Color]::FromArgb(8, 91, 126)
@@ -257,19 +259,19 @@ $extensionButton.Add_Click({ Open-ChromeWebStore })
 
 $changeServerButton.Add_Click({
     $choice = [System.Windows.Forms.MessageBox]::Show(
-        "La connexion actuelle sera remplacee et Jellyfin demandera un nouveau code Quick Connect.`r`n`r`nContinuer ?",
-        'Changer de serveur Jellyfin',
+        (T 'ChangeServerQuestion'),
+        (T 'ChangeServer'),
         'YesNo',
         'Question'
     )
     if ($choice -ne 'Yes') { return }
     $script:replaceExistingConfig = $true
-    $serverLabel.Text = 'Adresse du nouveau serveur Jellyfin'
+    $serverLabel.Text = T 'NewServerAddress'
     $serverBox.ReadOnly = $false
     $serverBox.SelectAll()
     $serverBox.Focus()
     $changeServerButton.Visible = $false
-    $instructions.Text = 'Saisissez la nouvelle adresse. Un nouveau code Quick Connect sera demande.'
+    $instructions.Text = T 'NewServerInstructions'
 })
 
 $timer = New-Object System.Windows.Forms.Timer
@@ -280,17 +282,17 @@ $timer.Add_Tick({
             $codeLabel.Text = (Get-Content -LiteralPath $script:codeFile -Raw).Trim()
             $codeTitle.Visible = $true
             $codeLabel.Visible = $true
-            $instructions.Text = 'Dans Jellyfin : Parametres > Quick Connect. Saisissez ce code puis confirmez.'
-            $statusLabel.Text = "Attente de l'autorisation Jellyfin..."
+            $instructions.Text = T 'QuickConnectInstructions'
+            $statusLabel.Text = T 'WaitingAuthorization'
         }
         if ($script:setupProcess -and $script:setupProcess.HasExited) {
-            if ($script:setupProcess.ExitCode -ne 0) { throw 'Quick Connect a echoue ou a expire. Relancez installation.' }
+            if ($script:setupProcess.ExitCode -ne 0) { throw (T 'QuickConnectFailed') }
             Complete-Installation
         }
     } catch {
         $timer.Stop()
         $installButton.Enabled = $true
-        $statusLabel.Text = 'Installation interrompue.'
+        $statusLabel.Text = T 'InstallationInterrupted'
         Show-SetupError $_.Exception.Message
     }
 })
@@ -304,17 +306,17 @@ $installButton.Add_Click({
             -not [string]::IsNullOrEmpty($uri.UserInfo) -or
             -not [string]::IsNullOrEmpty($uri.Query) -or
             -not [string]::IsNullOrEmpty($uri.Fragment)) {
-            throw 'Adresse Jellyfin invalide.'
+            throw (T 'InvalidJellyfinAddress')
         }
         $installButton.Enabled = $false
         $serverBox.Enabled = $false
         $progress.Style = 'Marquee'
-        $statusLabel.Text = 'Copie des fichiers...'
+        $statusLabel.Text = T 'CopyingFiles'
         [System.Windows.Forms.Application]::DoEvents()
         Copy-ApplicationFiles
 
         if ((Test-Path $script:configFile) -and -not $script:replaceExistingConfig) {
-            $statusLabel.Text = 'Connexion existante conservee.'
+            $statusLabel.Text = T 'ConnectionPreserved'
             Start-Process -FilePath $script:executable -ArgumentList 'install-protocol' -WindowStyle Hidden -Wait
             Start-Process -FilePath $script:executable -ArgumentList 'install-native-host' -WindowStyle Hidden -Wait
             Complete-Installation
@@ -322,13 +324,13 @@ $installButton.Add_Click({
         }
 
         if ($script:replaceExistingConfig -and (Test-Path $script:configFile)) {
-            $statusLabel.Text = 'Suppression de l ancienne connexion...'
+            $statusLabel.Text = T 'RemovingOldConnection'
             $cleanupProcess = Start-Process -FilePath $script:executable `
                 -ArgumentList 'uninstall-cleanup --purge' -WindowStyle Hidden -Wait -PassThru
-            if ($cleanupProcess.ExitCode -ne 0) { throw 'Impossible de remplacer la connexion Jellyfin existante.' }
+            if ($cleanupProcess.ExitCode -ne 0) { throw (T 'ReplaceConnectionFailed') }
         }
 
-        $statusLabel.Text = 'Demande du code Quick Connect...'
+        $statusLabel.Text = T 'RequestingCode'
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
         $processInfo.FileName = $script:executable
         $processInfo.Arguments = 'setup --server "' + $serverBox.Text.Trim() + '" --code-path "' + $script:codeFile + '"'
@@ -341,7 +343,7 @@ $installButton.Add_Click({
         $progress.Style = 'Continuous'
         $installButton.Enabled = $true
         $serverBox.Enabled = $true
-        $statusLabel.Text = 'Installation interrompue.'
+        $statusLabel.Text = T 'InstallationInterrupted'
         Show-SetupError $_.Exception.Message
     }
 })

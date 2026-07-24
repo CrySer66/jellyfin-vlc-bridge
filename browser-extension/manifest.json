@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Jellyfin VLC Bridge",
-  "short_name": "Jellyfin VLC",
-  "version": "1.6.0",
+  "name": "__MSG_extensionName__",
+  "short_name": "__MSG_extensionShortName__",
+  "version": "1.7.0",
+  "default_locale": "en",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsj+hQompkaNFXW2yDtQW9fE6B/5eYwokEG+SOeBazkpBc8WIWWIPpVkt9u8Ru0a0+ypvzsGy6eTfPoqJqgNe8qcKhaZ53oHiL3YdPjXD995yqf0X9glJrzHTCjYSaKFg2JNMj9X0XYQ/1SUjJUiTUOAOApyS+TghGvUbEqENiUvEY6Ad9rhDKROHTmx4BBXWtJ4Hz90J18rws0Uq3mnwfY1AqGzrAOYbAUlzREL1tWN04kA2/Y+vKijxwIQ58tflAnoV//vtV09qvbuT2ybiLsT84VTaEeq8vRugbFfv7Lyj2MA735M/Z6yYUoXpKyO+BJExN9eDG7FSbIZnP6ssGQIDAQAB",
-  "description": "Prépare et lance les films, séries et collections Jellyfin dans VLC.",
+  "description": "__MSG_extensionDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -13,7 +14,7 @@
   },
   "permissions": ["nativeMessaging"],
   "action": {
-    "default_title": "Jellyfin VLC Bridge",
+    "default_title": "__MSG_extensionName__",
     "default_popup": "popup.html"
   },
   "background": { "service_worker": "background.js" },
@@ -25,7 +26,7 @@
         "http://*/*/web/*",
         "https://*/*/web/*"
       ],
-      "js": ["shared.js", "content.js"],
+      "js": ["i18n.js", "shared.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

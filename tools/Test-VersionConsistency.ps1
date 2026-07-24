@@ -1,4 +1,4 @@
-param([string]$ExpectedVersion)
+﻿param([string]$ExpectedVersion)
 
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $PSScriptRoot
@@ -22,7 +22,7 @@ $versions = [ordered]@{
     'Build-WindowsRelease.ps1' = Read-MatchedVersion 'tools\Build-WindowsRelease.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
     'Test-WindowsPackage.ps1' = Read-MatchedVersion 'tools\Test-WindowsPackage.ps1' '\[string\]\$Version\s*=\s*''([^'']+)'''
     'Installer-GUI.ps1' = Read-MatchedVersion 'installer\Installer-GUI.ps1' '\$script:bridgeVersion\s*=\s*''([^'']+)'''
-    'Centre-Controle.ps1' = Read-MatchedVersion 'installer\Centre-Controle.ps1' '\$versionLabel\.Text\s*=\s*''Version\s+([^'']+)'''
+    'Centre-Controle.ps1' = Read-MatchedVersion 'installer\Centre-Controle.ps1' '\$script:bridgeVersion\s*=\s*''([^'']+)'''
     'ControlCenterBootstrap.cs' = Read-MatchedVersion 'installer\ControlCenterBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
     'SetupBootstrap.cs' = Read-MatchedVersion 'installer\SetupBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
     'README.md' = Read-MatchedVersion 'README.md' 'Version actuelle\s*:\s*\*\*([^*]+)\*\*'

@@ -12,7 +12,7 @@ L'environnement .NET nécessaire est déjà inclus dans l'application. Il n'y a 
 
 ## Installer le Bridge
 
-1. Téléchargez `JellyfinVlcBridge-1.11.0-Setup.exe` depuis la dernière **Release GitHub**.
+1. Téléchargez `JellyfinVlcBridge-1.12.0-Setup.exe` depuis la dernière **Release GitHub**.
 2. Lancez le fichier.
 3. Saisissez l'adresse de Jellyfin, par exemple `http://192.168.1.25:8096`.
 4. L'assistant affiche un code Quick Connect temporaire.

@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  const t = (key, substitutions) =>
+    globalThis.JellyfinVlcBridgeI18n?.t(key, substitutions) || key;
+
   const links = Object.freeze({
     repository: 'https://github.com/CrySer66/jellyfin-vlc-bridge',
     latestRelease: 'https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest',
@@ -13,12 +16,12 @@
 
   function buttonPresentation(state) {
     const presentations = {
-      checking: { label: 'Vérification…', title: 'Vérification de Jellyfin VLC Bridge', disabled: true },
-      loading: { label: 'Ouverture…', title: 'Ouverture du média dans VLC', disabled: true },
-      success: { label: 'VLC lancé', title: 'Lecture lancée dans VLC', disabled: false },
-      reload: { label: 'Recharger Jellyfin', title: 'L’extension a été mise à jour : rechargez cette page', disabled: false },
-      missing: { label: 'Application non installée', title: "Télécharger l'application Jellyfin VLC Bridge", disabled: false },
-      ready: { label: 'Lire avec VLC', title: 'Lire le fichier original avec VLC', disabled: false }
+      checking: { label: t('checking'), title: t('checkingBridgeTitle'), disabled: true },
+      loading: { label: t('opening'), title: t('openingMediaTitle'), disabled: true },
+      success: { label: t('vlcStarted'), title: t('playbackStartedTitle'), disabled: false },
+      reload: { label: t('reloadJellyfin'), title: t('reloadRequiredTitle'), disabled: false },
+      missing: { label: t('applicationNotInstalled'), title: t('downloadApplicationTitle'), disabled: false },
+      ready: { label: t('playWithVlc'), title: t('playOriginalTitle'), disabled: false }
     };
 
     return presentations[state] || presentations.checking;
@@ -30,35 +33,36 @@
     const totalMinutes = Math.max(1, Math.round(value / 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    return hours
-      ? `${hours} h${minutes ? ` ${minutes} min` : ''}`
-      : `${minutes} min`;
+    if (!hours) return t('durationMinutes', String(minutes));
+    return minutes
+      ? t('durationHoursMinutes', [String(hours), String(minutes)])
+      : t('durationHours', String(hours));
   }
 
   function scopeChoices(itemType) {
     switch ((itemType || '').toLowerCase()) {
       case 'episode':
         return [
-          { value: 'following', label: 'Cet épisode et les suivants' },
-          { value: 'single', label: 'Cet épisode uniquement' }
+          { value: 'following', label: t('scopeEpisodeFollowing') },
+          { value: 'single', label: t('scopeEpisodeSingle') }
         ];
       case 'series':
         return [
-          { value: 'following', label: 'À partir du prochain épisode' },
-          { value: 'all', label: 'Toute la série depuis le début' }
+          { value: 'following', label: t('scopeSeriesFollowing') },
+          { value: 'all', label: t('scopeSeriesAll') }
         ];
       case 'season':
         return [
-          { value: 'following', label: 'À partir du prochain épisode' },
-          { value: 'all', label: 'Toute la saison depuis le début' }
+          { value: 'following', label: t('scopeSeasonFollowing') },
+          { value: 'all', label: t('scopeSeasonAll') }
         ];
       case 'boxset':
         return [
-          { value: 'following', label: 'À partir du prochain film' },
-          { value: 'all', label: 'Toute la collection depuis le début' }
+          { value: 'following', label: t('scopeBoxSetFollowing') },
+          { value: 'all', label: t('scopeBoxSetAll') }
         ];
       default:
-        return [{ value: 'single', label: 'Ce média uniquement' }];
+        return [{ value: 'single', label: t('scopeSingle') }];
     }
   }
 

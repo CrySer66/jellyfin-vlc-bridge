@@ -1,5 +1,5 @@
-param(
-    [string]$Version = '1.11.0'
+﻿param(
+    [string]$Version = '1.12.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +12,29 @@ $zip = Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-win-x64.z
 foreach ($path in @($executable, $setup, $zip)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Fichier de paquet manquant : $path" }
 }
+
+$localizationPath = Join-Path $packageDirectory 'Localization.ps1'
+if (-not (Test-Path -LiteralPath $localizationPath)) {
+    throw 'Le module de traduction est absent du paquet Windows.'
+}
+$packagedScripts = Get-ChildItem -LiteralPath $packageDirectory -Filter '*.ps1' -File
+foreach ($packagedScript in $packagedScripts) {
+    $scriptBytes = [IO.File]::ReadAllBytes($packagedScript.FullName)
+    $hasUtf8Bom = $scriptBytes.Length -ge 3 -and
+        $scriptBytes[0] -eq 0xEF -and $scriptBytes[1] -eq 0xBB -and $scriptBytes[2] -eq 0xBF
+    if (-not $hasUtf8Bom) {
+        throw "Le script $($packagedScript.Name) n'est pas encodé en UTF-8 compatible avec Windows PowerShell."
+    }
+}
+Write-Host 'OK  Accents UTF-8 compatibles avec Windows PowerShell'
+
+$localizationScript = Get-Content -LiteralPath $localizationPath -Raw -Encoding UTF8
+if ($localizationScript -notmatch 'LanguageAuto' -or
+    $localizationScript -notmatch 'LanguageFrench' -or
+    $localizationScript -notmatch 'LanguageEnglish') {
+    throw 'Les traductions française et anglaise sont incomplètes.'
+}
+Write-Host 'OK  Traductions française et anglaise incluses'
 
 function Read-Exactly([IO.Stream]$stream, [byte[]]$buffer) {
     $offset = 0
@@ -68,7 +91,8 @@ Write-Host 'OK  Diagnostic JSON redirige pour le centre de controle'
 
 $controlScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Centre-Controle.ps1') -Raw
 if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
-    $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)') {
+    $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)' -or
+    $controlScript -notmatch 'Set-JvbLanguagePreference') {
     throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
 }
 Write-Host 'OK  Centre de controle compatible avec l application sans console'
@@ -92,7 +116,7 @@ Write-Host 'OK  Desinstallation executee hors du dossier supprime et sans faux c
 
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/'
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
-$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.6.0"}')
+$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.7.0"}')
 $nativeProcess.StandardInput.BaseStream.Write([BitConverter]::GetBytes([int]$payload.Length), 0, 4)
 $nativeProcess.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
 $nativeProcess.StandardInput.BaseStream.Flush()

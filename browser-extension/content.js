@@ -5,6 +5,7 @@
   const TOAST_ID = 'jellyfin-vlc-bridge-toast';
   const DIALOG_ID = 'jellyfin-vlc-bridge-dialog';
   const BRIDGE = globalThis.JellyfinVlcBridge;
+  const t = globalThis.JellyfinVlcBridgeI18n.t;
   const ACTION_CONTAINERS = [
     '.detailPagePrimaryContainer .mainDetailButtons',
     '.detailPageContent .mainDetailButtons',
@@ -38,7 +39,7 @@
   function showReloadNotice(button) {
     bridgeAvailability = 'reload';
     setButtonState(button, 'reload');
-    showToast('L’extension a été mise à jour. Rechargez la page Jellyfin.', 'warning');
+    showToast(t('extensionUpdatedToast'), 'warning');
   }
 
   function checkBridgeAvailability(force = false) {
@@ -132,7 +133,7 @@
           let runtimeError;
           try { runtimeError = chrome.runtime.lastError; } catch { runtimeError = true; }
           if (runtimeError || !response?.ok || !response.inspection) {
-            reject(new Error(runtimeError?.message || response?.error || 'Aperçu indisponible'));
+            reject(new Error(runtimeError?.message || response?.error || t('previewUnavailable')));
             return;
           }
           resolve(response.inspection);
@@ -183,19 +184,19 @@
         <header class="jellyfin-vlc-dialog__header">
           <div>
             <span class="jellyfin-vlc-dialog__eyebrow">Jellyfin VLC Bridge</span>
-            <h2 id="jellyfin-vlc-dialog-title">Préparer la lecture</h2>
+            <h2 id="jellyfin-vlc-dialog-title">${t('preparePlayback')}</h2>
           </div>
-          <button class="jellyfin-vlc-dialog__close" type="button" aria-label="Fermer">×</button>
+          <button class="jellyfin-vlc-dialog__close" type="button" aria-label="${t('close')}">×</button>
         </header>
         <div class="jellyfin-vlc-dialog__body">
-          <p class="jellyfin-vlc-dialog__status" role="status">Chargement de la liste de lecture…</p>
+          <p class="jellyfin-vlc-dialog__status" role="status">${t('loadingPlaylist')}</p>
           <fieldset class="jellyfin-vlc-dialog__section jellyfin-vlc-dialog__start" hidden>
-            <legend>Point de départ</legend>
-            <label><input type="radio" name="jvb-start" value="resume"> <span class="jellyfin-vlc-resume-label">Reprendre</span></label>
-            <label><input type="radio" name="jvb-start" value="restart"> Lire depuis le début</label>
+            <legend>${t('startingPoint')}</legend>
+            <label><input type="radio" name="jvb-start" value="resume"> <span class="jellyfin-vlc-resume-label">${t('resume')}</span></label>
+            <label><input type="radio" name="jvb-start" value="restart"> ${t('playFromBeginning')}</label>
           </fieldset>
           <fieldset class="jellyfin-vlc-dialog__section jellyfin-vlc-dialog__scope" hidden>
-            <legend>Éléments à lire</legend>
+            <legend>${t('itemsToPlay')}</legend>
             <div class="jellyfin-vlc-dialog__scope-options"></div>
           </fieldset>
           <div class="jellyfin-vlc-dialog__preview" hidden>
@@ -205,14 +206,14 @@
           <label class="jellyfin-vlc-dialog__remember" hidden>
             <input type="checkbox" class="jellyfin-vlc-dialog__remember-input">
             <span>
-              <strong>Retenir ces choix</strong>
-              <small>Ils seront proposés automatiquement pour ce type de contenu.</small>
+              <strong>${t('rememberChoices')}</strong>
+              <small>${t('rememberChoicesHint')}</small>
             </span>
           </label>
         </div>
         <footer class="jellyfin-vlc-dialog__footer">
-          <button class="emby-button jellyfin-vlc-dialog__cancel" type="button">Annuler</button>
-          <button class="emby-button jellyfin-vlc-dialog__launch" type="button" disabled>Lancer dans VLC</button>
+          <button class="emby-button jellyfin-vlc-dialog__cancel" type="button">${t('cancel')}</button>
+          <button class="emby-button jellyfin-vlc-dialog__launch" type="button" disabled>${t('launchInVlc')}</button>
         </footer>
       </section>`;
     document.body.appendChild(overlay);
@@ -275,10 +276,10 @@
       const chosen = choices.some(choice => choice.value === selectedScope) ? selectedScope : choices[0].value;
       selectedScope = chosen;
 
-      dialog.overlay.querySelector('#jellyfin-vlc-dialog-title').textContent = data.title || 'Préparer la lecture';
+      dialog.overlay.querySelector('#jellyfin-vlc-dialog-title').textContent = data.title || t('preparePlayback');
       status.textContent = data.totalCount
-        ? `${data.totalCount} ${data.totalCount > 1 ? 'éléments prêts' : 'élément prêt'}`
-        : 'Aucun média lisible dans cette sélection.';
+        ? data.totalCount > 1 ? t('itemsReady', String(data.totalCount)) : t('itemReady')
+        : t('noPlayableMedia');
       startSection.hidden = !data.totalCount;
       scopeSection.hidden = choices.length < 2;
       preview.hidden = !data.totalCount;
@@ -295,8 +296,8 @@
       resume.checked = preferredStart === 'resume';
       restart.checked = preferredStart === 'restart';
       dialog.overlay.querySelector('.jellyfin-vlc-resume-label').textContent = data.hasResume
-        ? `Reprendre à ${formatDuration(data.resumeSeconds)}`
-        : 'Aucune reprise enregistrée';
+        ? t('resumeAt', formatDuration(data.resumeSeconds))
+        : t('noResume');
 
       scopeOptions.replaceChildren();
       for (const choice of choices) {
@@ -311,7 +312,9 @@
       }
 
       const duration = formatDuration(data.totalDurationSeconds);
-      summary.textContent = `${data.totalCount} ${data.totalCount > 1 ? 'médias' : 'média'}${duration ? ` • environ ${duration}` : ''}`;
+      summary.textContent =
+        t(data.totalCount > 1 ? 'mediasSummary' : 'mediaSummary', String(data.totalCount)) +
+        (duration ? t('approximatelyDuration', duration) : '');
       items.replaceChildren();
       for (const item of (data.items || []).slice(0, 10)) {
         const row = document.createElement('li');
@@ -320,7 +323,7 @@
         row.appendChild(name);
         if (item.resumeSeconds > 0) {
           const resumeAt = document.createElement('small');
-          resumeAt.textContent = `Reprise à ${formatDuration(item.resumeSeconds)}`;
+          resumeAt.textContent = t('resumeAt', formatDuration(item.resumeSeconds));
           row.appendChild(resumeAt);
         }
         items.appendChild(row);
@@ -328,18 +331,20 @@
       if (data.totalCount > 10) {
         const remainder = document.createElement('li');
         remainder.className = 'jellyfin-vlc-dialog__remainder';
-        remainder.textContent = `… et ${data.totalCount - 10} autres`;
+        remainder.textContent = t('andOthers', String(data.totalCount - 10));
         items.appendChild(remainder);
       }
       launch.disabled = !data.totalCount;
-      launch.textContent = data.totalCount > 1 ? `Lancer ${data.totalCount} médias` : 'Lancer dans VLC';
+      launch.textContent = data.totalCount > 1
+        ? t('launchMediaCount', String(data.totalCount))
+        : t('launchInVlc');
     };
 
     const refresh = async scope => {
       const request = ++inspectionRequest;
       selectedScope = scope;
       launch.disabled = true;
-      status.textContent = 'Actualisation de la liste…';
+      status.textContent = t('refreshingPlaylist');
       try {
         const data = await inspectItem(itemId, scope);
         if (request !== inspectionRequest || !dialog.overlay.isConnected) return;
@@ -352,7 +357,7 @@
           return;
         }
         console.warn('Jellyfin VLC Bridge : aperçu indisponible, lecture classique.', error);
-        showToast('Aperçu indisponible : lancement avec les réglages habituels.', 'warning');
+        showToast(t('classicLaunchWarning'), 'warning');
         playItem(itemId, button);
       }
     };
@@ -398,7 +403,7 @@
         return;
       }
       console.warn('Jellyfin VLC Bridge : aperçu indisponible, lecture classique.', error);
-      showToast('Mettez à jour le Bridge pour obtenir l’aperçu. Lecture classique lancée.', 'warning');
+      showToast(t('updateBridgeWarning'), 'warning');
       playItem(itemId, button);
     }
   }
@@ -406,7 +411,7 @@
   function openApplicationDownload(button) {
     bridgeAvailability = 'missing';
     setButtonState(button, 'missing');
-    showToast('Installez Jellyfin VLC Bridge pour utiliser VLC.', 'warning');
+    showToast(t('installBridgeToast'), 'warning');
     try {
       chrome.runtime.sendMessage({ type: 'open-download' }, () => void chrome.runtime.lastError);
     } catch {
@@ -453,7 +458,7 @@
         }
 
         setButtonState(button, 'success');
-        showToast('Lecture lancée dans VLC.');
+        showToast(t('playbackStartedToast'));
         window.setTimeout(() => setButtonState(button, 'ready'), 1800);
       });
     } catch (error) {

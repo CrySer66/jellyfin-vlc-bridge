@@ -31,7 +31,9 @@ public static class BridgeDiagnostics
         try { config = BridgeConfig.Load(); }
         catch (Exception exception)
         {
-            return Empty("Configuration absente ou invalide : " + exception.Message);
+            return Empty(UiLanguage.Text(
+                "Missing or invalid configuration: ",
+                "Configuration absente ou invalide : ") + exception.Message);
         }
 
         var token = new EnvironmentOrWindowsCredentialStore().Read(SecretKeys.ForServer(config.ServerUrl));
@@ -41,7 +43,9 @@ public static class BridgeDiagnostics
         var vlcVersion = GetVlcVersion(vlcPath);
         var jellyfinConnected = false;
         string? jellyfinUser = null;
-        var jellyfinMessage = secretReady ? "Serveur non joignable." : "Connexion Jellyfin absente.";
+        var jellyfinMessage = secretReady
+            ? UiLanguage.Text("Server unreachable.", "Serveur non joignable.")
+            : UiLanguage.Text("Jellyfin connection missing.", "Connexion Jellyfin absente.");
 
         if (secretReady)
         {
@@ -52,15 +56,17 @@ public static class BridgeDiagnostics
                     .GetCurrentUserAsync(cancellationToken);
                 jellyfinConnected = true;
                 jellyfinUser = user.Name;
-                jellyfinMessage = $"Connecté en tant que {user.Name}.";
+                jellyfinMessage = UiLanguage.Text(
+                    $"Connected as {user.Name}.",
+                    $"Connecté en tant que {user.Name}.");
             }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
             {
-                jellyfinMessage = "Serveur injoignable : " + exception.Message;
+                jellyfinMessage = UiLanguage.Text("Server unreachable: ", "Serveur injoignable : ") + exception.Message;
             }
             catch (Exception exception)
             {
-                jellyfinMessage = "Connexion refusée : " + exception.Message;
+                jellyfinMessage = UiLanguage.Text("Connection refused: ", "Connexion refusée : ") + exception.Message;
             }
         }
 
