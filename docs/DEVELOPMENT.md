@@ -81,12 +81,35 @@ Le `.gitignore` exclut les compilations, paquets, journaux et configurations loc
 
 ## Publier une Release GitHub
 
-1. mettre à jour les numéros de version et le changelog ;
-2. lancer `tools/Test-VersionConsistency.ps1` et les tests ;
-3. tester localement une mise à jour et une installation propre ;
-4. envoyer les changements sur `main` et attendre la réussite des vérifications ;
-5. construire le Setup et le ZIP localement, puis les tester ;
-6. créer la Release et joindre ces deux fichiers, avec le tag correspondant, par exemple `v1.12.0`.
+Le parcours recommandé tient dans une seule commande :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publier-Mise-A-Jour-GitHub.ps1
+```
+
+Le numéro est lu automatiquement dans `Directory.Build.props`. Le script :
+
+1. vérifie les versions, PowerShell et JavaScript ;
+2. compile et exécute les tests du Bridge et de l'extension ;
+3. construit localement le Setup et le ZIP ;
+4. vérifie que GitHub CLI et Git utilisent le même compte ;
+5. crée une copie Git neuve et une branche de publication ;
+6. ouvre une Pull Request et attend les tests GitHub ;
+7. fusionne seulement si tous les tests ont réussi ;
+8. crée le tag puis attend que le Setup et le ZIP soient disponibles.
+
+Pour contrôler le projet et la connexion GitHub sans envoyer le moindre fichier :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publier-Mise-A-Jour-GitHub.ps1 -ValidateOnly
+```
+
+Si Internet ou GitHub s'interrompt après la création du tag, relancer exactement la
+même commande reprend la vérification de la Release sans renvoyer le code.
+
+Une modification volontaire de `.github/workflows` exige l'autorisation GitHub
+supplémentaire `workflow`. Le script s'arrête avant tout envoi si elle manque et
+affiche la commande unique à exécuter.
 
 La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
 
