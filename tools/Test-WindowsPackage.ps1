@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.15.0'
+    [string]$Version = '1.16.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,6 +48,11 @@ if ($themeScript -notmatch 'SetCurrentProcessExplicitAppUserModelID' -or
     throw 'Le thème ne configure pas complètement l identité Windows moderne.'
 }
 Write-Host 'OK  Identité et icône dédiées pour la barre des tâches'
+if ($themeScript -notmatch 'New-JvbRoundedPath' -or
+    $themeScript -notmatch 'BorderSize\s*=\s*0') {
+    throw 'Les boutons et cartes n utilisent pas le nouveau rendu arrondi sans bordure parasite.'
+}
+Write-Host 'OK  Coins arrondis propres pour les cartes et boutons'
 
 function Read-Exactly([IO.Stream]$stream, [byte[]]$buffer) {
     $offset = 0
@@ -111,6 +116,21 @@ if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
     throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
 }
 Write-Host 'OK  Centre de controle compatible avec l application sans console'
+if ($controlScript -notmatch 'Show-ChangeServerDialog' -or
+    $controlScript -notmatch 'setup --server' -or
+    $controlScript -notmatch 'RequestQuickConnect' -or
+    $controlScript -notmatch '\$changeServerButton') {
+    throw 'Le changement de serveur Quick Connect est absent du centre de controle.'
+}
+$programSource = Get-Content -LiteralPath (
+    Join-Path $projectDirectory 'src\JellyfinVlcBridge.Cli\Program.cs') -Raw
+if ($programSource -notmatch 'VlcPath\s*=\s*existing\?\.VlcPath' -or
+    $programSource -notmatch 'PlaybackMode\s*=\s*existing\?\.PlaybackMode' -or
+    $programSource -notmatch 'PathMappings\s*=\s*existing\?\.PathMappings' -or
+    $programSource -notmatch 'ProgressSyncEnabled\s*=\s*existing\?\.ProgressSyncEnabled') {
+    throw 'Quick Connect ne conserve pas tous les reglages de lecture lors du changement de serveur.'
+}
+Write-Host 'OK  Changement de serveur Quick Connect avec réglages conservés'
 
 $uninstallerScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Desinstaller-GUI.ps1') -Raw
 if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or

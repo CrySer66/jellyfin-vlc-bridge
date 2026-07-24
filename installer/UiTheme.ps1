@@ -79,25 +79,34 @@ function Get-JvbApplicationIcon([string[]]$candidatePaths) {
     return $null
 }
 
+function New-JvbRoundedPath(
+    [single]$width,
+    [single]$height,
+    [single]$radius = 14,
+    [single]$inset = 0
+) {
+    $path = New-Object Drawing.Drawing2D.GraphicsPath
+    $innerWidth = [Math]::Max(1, $width - ($inset * 2))
+    $innerHeight = [Math]::Max(1, $height - ($inset * 2))
+    $diameter = [Math]::Min(
+        [Math]::Max(2, $radius * 2),
+        [Math]::Min($innerWidth, $innerHeight))
+    $right = $inset + $innerWidth
+    $bottom = $inset + $innerHeight
+    $path.AddArc($inset, $inset, $diameter, $diameter, 180, 90)
+    $path.AddArc($right - $diameter, $inset, $diameter, $diameter, 270, 90)
+    $path.AddArc($right - $diameter, $bottom - $diameter, $diameter, $diameter, 0, 90)
+    $path.AddArc($inset, $bottom - $diameter, $diameter, $diameter, 90, 90)
+    $path.CloseFigure()
+    return $path
+}
+
 function Set-JvbRoundedRegion(
     [Windows.Forms.Control]$control,
     [int]$radius = 14
 ) {
     if ($control.Width -le 0 -or $control.Height -le 0) { return }
-    $diameter = [Math]::Max(2, $radius * 2)
-    $bounds = New-Object Drawing.Rectangle(0, 0, $control.Width, $control.Height)
-    $path = New-Object Drawing.Drawing2D.GraphicsPath
-    $path.AddArc($bounds.Left, $bounds.Top, $diameter, $diameter, 180, 90)
-    $path.AddArc($bounds.Right - $diameter, $bounds.Top, $diameter, $diameter, 270, 90)
-    $path.AddArc(
-        $bounds.Right - $diameter,
-        $bounds.Bottom - $diameter,
-        $diameter,
-        $diameter,
-        0,
-        90)
-    $path.AddArc($bounds.Left, $bounds.Bottom - $diameter, $diameter, $diameter, 90, 90)
-    $path.CloseFigure()
+    $path = New-JvbRoundedPath $control.Width $control.Height $radius
     $oldRegion = $control.Region
     $control.Region = New-Object Drawing.Region($path)
     if ($oldRegion) { $oldRegion.Dispose() }
@@ -152,17 +161,6 @@ function New-JvbCard(
     $panel.Size = New-Object Drawing.Size($width, $height)
     $panel.BackColor = $backColor
     $panel.ForeColor = $script:JvbPalette.Text
-    $panel.Add_Paint({
-        param($sender, $eventArgs)
-        $pen = New-Object Drawing.Pen($script:JvbPalette.Border, 1)
-        try {
-            $eventArgs.Graphics.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::AntiAlias
-            $eventArgs.Graphics.DrawRectangle(
-                $pen, 0, 0, [Math]::Max(0, $sender.Width - 1), [Math]::Max(0, $sender.Height - 1))
-        } finally {
-            $pen.Dispose()
-        }
-    })
     Enable-JvbRoundedControl $panel $radius
     $parent.Controls.Add($panel)
     return $panel
@@ -171,7 +169,8 @@ function New-JvbCard(
 function Set-JvbButtonStyle(
     [Windows.Forms.Button]$button,
     [ValidateSet('Primary', 'Success', 'Secondary', 'Danger', 'Ghost')]
-    [string]$variant = 'Secondary'
+    [string]$variant = 'Secondary',
+    [int]$radius = 10
 ) {
     $normal = $script:JvbPalette.SurfaceAlt
     $hover = [Drawing.Color]::FromArgb(34, 54, 78)
@@ -194,21 +193,21 @@ function Set-JvbButtonStyle(
             $border = $script:JvbPalette.Danger
         }
         'Ghost' {
-            $normal = $script:JvbPalette.Surface
-            $hover = $script:JvbPalette.SurfaceAlt
+            $normal = $script:JvbPalette.SurfaceAlt
+            $hover = [Drawing.Color]::FromArgb(34, 54, 78)
         }
     }
     $button.BackColor = $normal
     $button.ForeColor = $text
     $button.FlatStyle = [Windows.Forms.FlatStyle]::Flat
-    $button.FlatAppearance.BorderSize = 1
+    $button.FlatAppearance.BorderSize = 0
     $button.FlatAppearance.BorderColor = $border
     $button.FlatAppearance.MouseOverBackColor = $hover
     $button.FlatAppearance.MouseDownBackColor = $hover
     $button.Cursor = [Windows.Forms.Cursors]::Hand
     $button.Font = New-JvbFont 9.5 ([Drawing.FontStyle]::Bold)
     $button.UseVisualStyleBackColor = $false
-    Enable-JvbRoundedControl $button 8
+    Enable-JvbRoundedControl $button $radius
 }
 
 function Set-JvbInputStyle([Windows.Forms.TextBox]$textBox) {

@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:installDirectory 'Localization.ps1')
 . (Join-Path $script:installDirectory 'UiTheme.ps1')
-$script:bridgeVersion = '1.15.0'
+$script:bridgeVersion = '1.16.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null
@@ -111,6 +111,166 @@ function Invoke-Bridge([string[]]$arguments) {
     } finally {
         $process.Dispose()
     }
+}
+
+function Show-ChangeServerDialog {
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = T 'ChangeServer'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.ClientSize = New-Object Drawing.Size(620, 450)
+    $dialog.FormBorderStyle = 'FixedDialog'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    $dialog.ShowInTaskbar = $false
+    Enable-JvbModernWindow $dialog $applicationIcon
+
+    $title = New-JvbLabel $dialog (T 'ChangeServer') 28 22 560 34 18 `
+        ([Drawing.FontStyle]::Bold)
+    $description = New-JvbLabel $dialog (T 'ChangeServerControlDescription') 28 62 560 48 9.5 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
+
+    $addressLabel = New-JvbLabel $dialog (T 'NewServerAddress') 28 122 560 24 9 `
+        ([Drawing.FontStyle]::Bold)
+    $addressBox = New-Object Windows.Forms.TextBox
+    $addressBox.Location = New-Object Drawing.Point(28, 150)
+    $addressBox.Size = New-Object Drawing.Size(564, 32)
+    $addressBox.Text = if ($script:health.serverUrl) {
+        $script:health.serverUrl
+    } else {
+        'http://192.168.1.25:8096'
+    }
+    Set-JvbInputStyle $addressBox
+    $dialog.Controls.Add($addressBox)
+
+    $codeCard = New-JvbCard $dialog 28 202 564 104 $script:JvbPalette.SurfaceAlt 14
+    $codeTitle = New-JvbLabel $codeCard (T 'QuickConnectCode') 18 10 528 24 9 `
+        ([Drawing.FontStyle]::Bold) $script:JvbPalette.TextMuted
+    $codeValue = New-JvbLabel $codeCard '------' 18 35 528 54 25 `
+        ([Drawing.FontStyle]::Bold) $script:JvbPalette.Accent
+    $codeValue.TextAlign = 'MiddleCenter'
+    $codeCard.Visible = $false
+
+    $status = New-JvbLabel $dialog (T 'ChangeServerReady') 28 320 564 44 9.5 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
+
+    $cancelButton = New-Object Windows.Forms.Button
+    $cancelButton.Text = T 'Cancel'
+    $cancelButton.Location = New-Object Drawing.Point(324, 382)
+    $cancelButton.Size = New-Object Drawing.Size(118, 40)
+    Set-JvbButtonStyle $cancelButton 'Secondary' 12
+    $dialog.Controls.Add($cancelButton)
+
+    $connectButton = New-Object Windows.Forms.Button
+    $connectButton.Text = T 'RequestQuickConnect'
+    $connectButton.Location = New-Object Drawing.Point(452, 382)
+    $connectButton.Size = New-Object Drawing.Size(140, 40)
+    Set-JvbButtonStyle $connectButton 'Primary' 12
+    $dialog.Controls.Add($connectButton)
+
+    $codeFile = Join-Path $env:TEMP ('jellyfin-vlc-server-' + [Guid]::NewGuid().ToString('N') + '.txt')
+    $setupState = @{
+        Process = $null
+        Completed = $false
+    }
+    $timer = New-Object Windows.Forms.Timer
+    $timer.Interval = 400
+
+    $cancelButton.Add_Click({ $dialog.Close() })
+    $connectButton.Add_Click({
+        if ($setupState.Completed) {
+            $dialog.DialogResult = [Windows.Forms.DialogResult]::OK
+            $dialog.Close()
+            return
+        }
+        try {
+            $uri = $null
+            if (-not [Uri]::TryCreate($addressBox.Text.Trim(), [UriKind]::Absolute, [ref]$uri) -or
+                $uri.Scheme -notin @('http', 'https') -or
+                -not [string]::IsNullOrEmpty($uri.UserInfo) -or
+                -not [string]::IsNullOrEmpty($uri.Query) -or
+                -not [string]::IsNullOrEmpty($uri.Fragment)) {
+                throw (T 'InvalidJellyfinAddress')
+            }
+            $addressBox.Enabled = $false
+            $connectButton.Enabled = $false
+            $status.Text = T 'RequestingCode'
+            $status.ForeColor = $script:JvbPalette.TextMuted
+            [Windows.Forms.Application]::DoEvents()
+
+            $processInfo = New-Object Diagnostics.ProcessStartInfo
+            $processInfo.FileName = $script:executable
+            $processInfo.Arguments = 'setup --server "' + $addressBox.Text.Trim() +
+                '" --code-path "' + $codeFile + '"'
+            $processInfo.WorkingDirectory = $script:installDirectory
+            $processInfo.UseShellExecute = $false
+            $processInfo.CreateNoWindow = $true
+            $processInfo.RedirectStandardOutput = $true
+            $processInfo.RedirectStandardError = $true
+            $setupState.Process = [Diagnostics.Process]::Start($processInfo)
+            if (-not $setupState.Process) { throw (T 'ProgramStartFailed') }
+            $timer.Start()
+        } catch {
+            $addressBox.Enabled = $true
+            $connectButton.Enabled = $true
+            $status.Text = $_.Exception.Message
+            $status.ForeColor = $script:JvbPalette.Danger
+        }
+    }.GetNewClosure())
+
+    $timer.Add_Tick({
+        try {
+            if (-not $codeCard.Visible -and (Test-Path -LiteralPath $codeFile)) {
+                $codeValue.Text = (Get-Content -LiteralPath $codeFile -Raw).Trim()
+                $codeCard.Visible = $true
+                $status.Text = T 'QuickConnectInstructions'
+                $status.ForeColor = $script:JvbPalette.Text
+            }
+            if (-not $setupState.Process -or -not $setupState.Process.HasExited) { return }
+            $timer.Stop()
+            $output = $setupState.Process.StandardOutput.ReadToEnd()
+            $errorOutput = $setupState.Process.StandardError.ReadToEnd()
+            if ($setupState.Process.ExitCode -ne 0) {
+                $message = if ($errorOutput) { $errorOutput.Trim() } else { $output.Trim() }
+                if ([string]::IsNullOrWhiteSpace($message)) { $message = T 'ServerChangeFailed' }
+                throw $message
+            }
+            $setupState.Process.Dispose()
+            $setupState.Process = $null
+            $setupState.Completed = $true
+            $codeCard.Visible = $false
+            $status.Text = T 'ServerChanged'
+            $status.ForeColor = $script:JvbPalette.Success
+            $connectButton.Text = T 'Close'
+            $connectButton.Enabled = $true
+            $cancelButton.Visible = $false
+        } catch {
+            $timer.Stop()
+            if ($setupState.Process) {
+                try { $setupState.Process.Dispose() } catch { }
+                $setupState.Process = $null
+            }
+            $addressBox.Enabled = $true
+            $connectButton.Enabled = $true
+            $status.Text = $_.Exception.Message
+            $status.ForeColor = $script:JvbPalette.Danger
+        }
+    }.GetNewClosure())
+
+    $dialog.Add_FormClosing({
+        $timer.Stop()
+        if ($setupState.Process -and -not $setupState.Process.HasExited) {
+            try { $setupState.Process.Kill() } catch { }
+        }
+        if ($setupState.Process) {
+            try { $setupState.Process.Dispose() } catch { }
+        }
+        if (Test-Path -LiteralPath $codeFile) {
+            Remove-Item -LiteralPath $codeFile -Force -ErrorAction SilentlyContinue
+        }
+    }.GetNewClosure())
+
+    [void]$dialog.ShowDialog($form)
+    return $setupState.Completed
 }
 
 function Start-UpdateOperation([string]$operation) {
@@ -287,8 +447,15 @@ $toolTip.ReshowDelay = 100
 
 $serverLabel = New-JvbLabel $settings (T 'JellyfinServer') 20 54 135 25 9 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
-$serverValue = New-JvbLabel $settings (T 'NotConfigured') 165 52 750 27 10 `
+$serverValue = New-JvbLabel $settings (T 'NotConfigured') 165 52 500 27 10 `
     ([Drawing.FontStyle]::Bold)
+
+$changeServerButton = New-Object Windows.Forms.Button
+$changeServerButton.Text = T 'ChangeServer'
+$changeServerButton.Location = New-Object Drawing.Point(700, 48)
+$changeServerButton.Size = New-Object Drawing.Size(220, 34)
+Set-JvbButtonStyle $changeServerButton 'Secondary' 10
+$settings.Controls.Add($changeServerButton)
 
 $modeLabel = New-JvbLabel $settings (T 'PlaybackMode') 20 96 135 25 9 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
@@ -306,23 +473,25 @@ $settings.Controls.Add($modeBox)
 $modeHelp = New-Object System.Windows.Forms.Button
 $modeHelp.Text = '?'
 $modeHelp.Location = New-Object System.Drawing.Point(405, 90)
-$modeHelp.Size = New-Object System.Drawing.Size(30, 30)
-Set-JvbButtonStyle $modeHelp 'Ghost'
+$modeHelp.Size = New-Object System.Drawing.Size(28, 28)
+Set-JvbButtonStyle $modeHelp 'Ghost' 14
 $settings.Controls.Add($modeHelp)
+$modeHelp.BringToFront()
 $toolTip.SetToolTip($modeHelp, (T 'ModeHelpTip'))
 
 $modeDescription = New-JvbLabel $settings '' 455 86 465 42 9 `
     ([Drawing.FontStyle]::Regular) $script:muted
 
-$vlcLabel = New-JvbLabel $settings (T 'VlcPath') 20 144 135 25 9 `
+$vlcLabel = New-JvbLabel $settings (T 'VlcPath') 20 144 104 25 9 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
 $vlcHelp = New-Object System.Windows.Forms.Button
 $vlcHelp.Text = '?'
-$vlcHelp.Location = New-Object System.Drawing.Point(125, 138)
-$vlcHelp.Size = New-Object System.Drawing.Size(30, 30)
-Set-JvbButtonStyle $vlcHelp 'Ghost'
+$vlcHelp.Location = New-Object System.Drawing.Point(128, 139)
+$vlcHelp.Size = New-Object System.Drawing.Size(28, 28)
+Set-JvbButtonStyle $vlcHelp 'Ghost' 14
 $settings.Controls.Add($vlcHelp)
+$vlcHelp.BringToFront()
 $toolTip.SetToolTip($vlcHelp, (T 'VlcHelpTip'))
 
 $vlcBox = New-Object System.Windows.Forms.TextBox
@@ -371,8 +540,9 @@ $mappingHelp = New-Object System.Windows.Forms.Button
 $mappingHelp.Text = '?'
 $mappingHelp.Location = New-Object System.Drawing.Point(864, 28)
 $mappingHelp.Size = New-Object System.Drawing.Size(32, 32)
-Set-JvbButtonStyle $mappingHelp 'Ghost'
+Set-JvbButtonStyle $mappingHelp 'Ghost' 16
 $mappingPanel.Controls.Add($mappingHelp)
+$mappingHelp.BringToFront()
 $toolTip.SetToolTip($mappingHelp, (T 'MappingHelpTip'))
 
 $saveButton = New-Object System.Windows.Forms.Button
@@ -442,6 +612,12 @@ $footer = New-JvbLabel $form '' 28 854 944 24 8.5 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
 $refreshButton.Add_Click({ Refresh-BridgeStatus })
+$changeServerButton.Add_Click({
+    if (Show-ChangeServerDialog) {
+        Refresh-BridgeStatus
+        $footer.Text = T 'ServerChanged'
+    }
+})
 $languageBox.Add_SelectedIndexChanged({
     $preference = switch ($languageBox.SelectedIndex) { 1 { 'fr' } 2 { 'en' } default { 'auto' } }
     if ($preference -eq $script:JvbLanguagePreference) { return }

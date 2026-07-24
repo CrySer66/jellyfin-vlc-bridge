@@ -1,5 +1,14 @@
 # Historique des versions
 
+## 1.16.0 — 2026-07-25
+
+- coins des cartes et boutons redessinés avec un tracé arrondi propre, sans fragments de bordure ;
+- boutons d’aide rendus circulaires, visibles et correctement espacés dans les réglages de lecture ;
+- bouton « Changer de serveur Jellyfin » ajouté directement au centre de contrôle ;
+- nouvelle connexion guidée avec code Quick Connect, sans réinstaller le logiciel ;
+- conservation du mode HTTP/SMB, du chemin de VLC, des correspondances SMB et de la synchronisation lors d’un changement de serveur ;
+- connexion actuelle conservée tant que le nouveau serveur n’a pas été autorisé.
+
 ## 1.15.0 — 2026-07-24
 
 - refonte graphique complète de l’installateur, du centre de contrôle et du désinstallateur ;
