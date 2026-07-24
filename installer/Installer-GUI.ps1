@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.12.0'
+$script:bridgeVersion = '1.13.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -140,7 +140,7 @@ function Complete-Installation {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.12.0'
+$form.Text = 'Jellyfin VLC Bridge 1.13.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(620, 445)
 $form.FormBorderStyle = 'FixedDialog'

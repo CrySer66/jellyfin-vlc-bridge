@@ -28,7 +28,7 @@ Jellyfin VLC Bridge adds a **Play with VLC** button to Jellyfin Web. The origina
 
 | Application | Platform | Extension |
 |---|---|---|
-| **1.12.0** | **Windows 10/11 x64** | **Chrome Web Store 1.7.0** |
+| **1.13.0** | **Windows 10/11 x64** | **Chrome Web Store 1.7.0** |
 
 <p align="center">
   <img src="assets/chrome-web-store/sources/film-dialog-source.png" width="820" alt="Preparing a Jellyfin movie before launching it in VLC">
@@ -68,7 +68,10 @@ The project contains no advertising, analytics or telemetry. The Jellyfin token 
 
 ## Support
 
-Report a reproducible issue through [GitHub Issues](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose).
+The Control Center explains the likely cause of failed checks and suggests the
+next action. It can also create a redacted ZIP support package containing safe
+diagnostics and logs. Report a reproducible issue through
+[GitHub Issues](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose).
 
 This is an independent project and is not affiliated with Jellyfin, VideoLAN, Google or Microsoft.
 

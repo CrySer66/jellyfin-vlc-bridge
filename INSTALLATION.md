@@ -27,10 +27,15 @@ Pour utiliser un autre serveur, cliquez sur **Changer de serveur Jellyfin**. Apr
 
 Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. La fenêtre indique immédiatement si Jellyfin, VLC et l'intégration Chrome/Edge sont prêts.
 
-- **Réparer** réenregistre la communication locale avec l'extension ;
+- **Réparer navigateur** réenregistre la communication locale avec l'extension ;
 - **Réglages de lecture** permet de choisir HTTP Direct Play ou SMB et le chemin de VLC ;
 - **Copier un diagnostic sans secret** prépare les versions de l'application et de VLC ainsi que les informations utiles, sans jeton ni identifiant utilisateur ;
+- **Créer un paquet d’assistance** enregistre un ZIP contenant le diagnostic et les journaux récents expurgés, prêt à être joint à une Issue GitHub ;
 - **Aide et signaler un bug** ouvre les guides et formulaires officiels du projet.
+
+Lorsqu’un contrôle échoue, la carte concernée indique la cause probable et
+l’action conseillée. Le paquet d’assistance retire automatiquement les jetons,
+identifiants Jellyfin, adresses serveur et chemins Windows personnels.
 
 ## Installer l'extension Chrome
 
