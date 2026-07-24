@@ -3,11 +3,12 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.14.0'
+$script:bridgeVersion = '1.15.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:packageDirectory 'Localization.ps1')
+. (Join-Path $script:packageDirectory 'UiTheme.ps1')
 $script:rootDirectory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge'
 $script:installDirectory = Join-Path $script:rootDirectory 'App'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
@@ -38,7 +39,7 @@ $script:setupProcess = $null
 $script:installed = $false
 
 function Show-SetupError([string]$message) {
-    [System.Windows.Forms.MessageBox]::Show($message, 'Jellyfin VLC Bridge', 'OK', 'Error') | Out-Null
+    Show-JvbMessageDialog 'Jellyfin VLC Bridge' $message 'Error' $applicationIcon (T 'Close')
 }
 
 function Open-ChromeWebStore {
@@ -52,6 +53,7 @@ function Copy-ApplicationFiles {
         'jellyfin-vlc-bridge-control.exe',
         'Centre-Controle.ps1',
         'Localization.ps1',
+        'UiTheme.ps1',
         'DESINSTALLER-WINDOWS.cmd',
         'Desinstaller-JellyfinVlcBridge.ps1',
         'Desinstaller-GUI.ps1'
@@ -90,7 +92,7 @@ function Register-WindowsApplication {
     $application.TargetPath = $controlCenter
     $application.Arguments = ''
     $application.WorkingDirectory = $script:installDirectory
-    $application.IconLocation = $script:executable
+    $application.IconLocation = $controlCenter
     $application.Save()
 
     $uninstaller = Join-Path $script:installDirectory 'Desinstaller-GUI.ps1'
@@ -98,7 +100,7 @@ function Register-WindowsApplication {
     $uninstallShortcut.TargetPath = 'powershell.exe'
     $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$uninstaller`""
     $uninstallShortcut.WorkingDirectory = $env:TEMP
-    $uninstallShortcut.IconLocation = $script:executable
+    $uninstallShortcut.IconLocation = $controlCenter
     $uninstallShortcut.Save()
 
     $registry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge'
@@ -107,20 +109,37 @@ function Register-WindowsApplication {
     Set-ItemProperty -Path $registry -Name DisplayVersion -Value $script:bridgeVersion
     Set-ItemProperty -Path $registry -Name Publisher -Value 'Jellyfin VLC Bridge Project'
     Set-ItemProperty -Path $registry -Name InstallLocation -Value $script:installDirectory
-    Set-ItemProperty -Path $registry -Name DisplayIcon -Value $script:executable
+    Set-ItemProperty -Path $registry -Name DisplayIcon -Value $controlCenter
     Set-ItemProperty -Path $registry -Name UninstallString -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$uninstaller`""
     New-ItemProperty -Path $registry -Name NoModify -Value 1 -PropertyType DWord -Force | Out-Null
     New-ItemProperty -Path $registry -Name NoRepair -Value 1 -PropertyType DWord -Force | Out-Null
 }
 
+function Set-SetupStage([int]$stage) {
+    for ($index = 0; $index -lt $stepDots.Count; $index++) {
+        $active = $index -le $stage
+        $stepDots[$index].BackColor = if ($active) {
+            $script:JvbPalette.Accent
+        } else {
+            $script:JvbPalette.TextFaint
+        }
+        $stepLabels[$index].ForeColor = if ($active) {
+            $script:JvbPalette.Text
+        } else {
+            $script:JvbPalette.TextMuted
+        }
+    }
+}
+
 function Complete-Installation {
     Register-WindowsApplication
     $script:installed = $true
+    Set-SetupStage 2
     $timer.Stop()
     $progress.Style = 'Continuous'
     $progress.Value = 100
     $statusLabel.Text = T 'InstallSuccess'
-    $statusLabel.ForeColor = [System.Drawing.Color]::FromArgb(34, 139, 34)
+    $statusLabel.ForeColor = $script:JvbPalette.Success
     $codeTitle.Visible = $false
     $codeLabel.Visible = $false
     if ($script:replaceExistingConfig) {
@@ -140,79 +159,99 @@ function Complete-Installation {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.14.0'
+$form.Text = 'Jellyfin VLC Bridge 1.15.0'
 $form.StartPosition = 'CenterScreen'
-$form.ClientSize = New-Object System.Drawing.Size(620, 445)
-$form.FormBorderStyle = 'FixedDialog'
+$form.ClientSize = New-Object System.Drawing.Size(760, 640)
+$form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
-$form.BackColor = [System.Drawing.Color]::FromArgb(246, 248, 250)
-$form.Font = New-Object System.Drawing.Font('Segoe UI', 10)
-try { $form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Join-Path $script:packageDirectory 'jellyfin-vlc-bridge.exe')) } catch { }
+$form.MinimumSize = New-Object Drawing.Size(776, 679)
+$controlExecutable = Join-Path $script:packageDirectory 'jellyfin-vlc-bridge-control.exe'
+$applicationIcon = Get-JvbApplicationIcon @(
+    $controlExecutable,
+    (Join-Path $script:packageDirectory 'jellyfin-vlc-bridge.exe'))
+Enable-JvbModernWindow $form $applicationIcon
 
 $header = New-Object System.Windows.Forms.Panel
 $header.Location = New-Object System.Drawing.Point(0, 0)
-$header.Size = New-Object System.Drawing.Size(620, 96)
-$header.BackColor = [System.Drawing.Color]::FromArgb(8, 91, 126)
+$header.Size = New-Object System.Drawing.Size(760, 118)
+$header.BackColor = $script:JvbPalette.Header
 $form.Controls.Add($header)
 
+$accentLine = New-Object Windows.Forms.Panel
+$accentLine.Location = New-Object Drawing.Point(0, 114)
+$accentLine.Size = New-Object Drawing.Size(760, 4)
+$accentLine.BackColor = $script:JvbPalette.Accent
+$header.Controls.Add($accentLine)
+
 $logo = New-Object System.Windows.Forms.PictureBox
-$logo.Location = New-Object System.Drawing.Point(28, 18)
-$logo.Size = New-Object System.Drawing.Size(60, 60)
-$logo.SizeMode = 'StretchImage'
-try { $logo.Image = $form.Icon.ToBitmap() } catch { }
+$logo.Location = New-Object System.Drawing.Point(28, 22)
+$logo.Size = New-Object System.Drawing.Size(72, 72)
+$logo.SizeMode = 'Zoom'
+if ($applicationIcon) { $logo.Image = $applicationIcon.ToBitmap() }
 $header.Controls.Add($logo)
 
-$title = New-Object System.Windows.Forms.Label
-$title.Text = 'Jellyfin VLC Bridge'
-$title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 20)
-$title.ForeColor = [System.Drawing.Color]::White
-$title.AutoSize = $true
-$title.Location = New-Object System.Drawing.Point(104, 17)
-$header.Controls.Add($title)
+$title = New-JvbLabel $header 'Jellyfin VLC Bridge' 120 22 510 40 23 `
+    ([Drawing.FontStyle]::Bold)
+$subtitle = New-JvbLabel $header (T 'SetupSubtitle') 122 65 560 26 10 `
+    ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
-$subtitle = New-Object System.Windows.Forms.Label
-$subtitle.Text = T 'SetupSubtitle'
-$subtitle.AutoSize = $true
-$subtitle.ForeColor = [System.Drawing.Color]::FromArgb(214, 238, 247)
-$subtitle.Location = New-Object System.Drawing.Point(107, 58)
-$header.Controls.Add($subtitle)
+$versionPill = New-JvbCard $header 628 20 104 34 $script:JvbPalette.SurfaceAlt 17
+$versionText = New-JvbLabel $versionPill '1.15.0' 8 7 88 22 9 `
+    ([Drawing.FontStyle]::Bold)
+$versionText.TextAlign = 'MiddleCenter'
 
-$serverLabel = New-Object System.Windows.Forms.Label
-$serverLabel.Text = T 'ServerAddress'
-$serverLabel.AutoSize = $true
-$serverLabel.Location = New-Object System.Drawing.Point(31, 116)
-$form.Controls.Add($serverLabel)
+$stepsCard = New-JvbCard $form 26 136 708 60 $script:JvbPalette.Surface 14
+$stepDots = @()
+$stepLabels = @()
+$stepNames = @((T 'StepConnect'), (T 'StepAuthorize'), (T 'StepReady'))
+foreach ($stepIndex in 0..2) {
+    $stepX = 42 + ($stepIndex * 225)
+    $stepDots += New-JvbDot $stepsCard $stepX 25 $script:JvbPalette.TextFaint
+    $stepLabels += New-JvbLabel $stepsCard $stepNames[$stepIndex] ($stepX + 20) 17 180 28 `
+        9 ([Drawing.FontStyle]::Bold) $script:JvbPalette.TextMuted
+    if ($stepIndex -lt 2) {
+        $connector = New-Object Windows.Forms.Panel
+        $connector.Location = New-Object Drawing.Point(($stepX + 152), 29)
+        $connector.Size = New-Object Drawing.Size(62, 2)
+        $connector.BackColor = $script:JvbPalette.Border
+        $stepsCard.Controls.Add($connector)
+    }
+}
+
+$contentCard = New-JvbCard $form 26 212 708 282
+$contentTitle = New-JvbLabel $contentCard (T 'ServerAddress') 22 18 470 28 12 `
+    ([Drawing.FontStyle]::Bold)
+$contentSubtitle = New-JvbLabel $contentCard (T 'ServerAddressHint') 22 50 640 38 9 `
+    ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
 $serverBox = New-Object System.Windows.Forms.TextBox
-$serverBox.Location = New-Object System.Drawing.Point(34, 141)
-$serverBox.Size = New-Object System.Drawing.Size(552, 30)
+$serverBox.Location = New-Object System.Drawing.Point(22, 92)
+$serverBox.Size = New-Object System.Drawing.Size(664, 32)
 $serverBox.Text = if ($script:existingServerUrl) { $script:existingServerUrl } else { 'http://192.168.1.25:8096' }
 $serverBox.ReadOnly = $script:hadExistingConfig
-$form.Controls.Add($serverBox)
+Set-JvbInputStyle $serverBox
+$contentCard.Controls.Add($serverBox)
 
 $changeServerButton = New-Object System.Windows.Forms.Button
 $changeServerButton.Text = T 'ChangeServer'
-$changeServerButton.Location = New-Object System.Drawing.Point(378, 180)
-$changeServerButton.Size = New-Object System.Drawing.Size(208, 34)
-$changeServerButton.FlatStyle = 'Flat'
+$changeServerButton.Location = New-Object System.Drawing.Point(478, 136)
+$changeServerButton.Size = New-Object System.Drawing.Size(208, 36)
 $changeServerButton.Visible = $script:hadExistingConfig
-$form.Controls.Add($changeServerButton)
+Set-JvbButtonStyle $changeServerButton 'Secondary'
+$contentCard.Controls.Add($changeServerButton)
 
-$codeTitle = New-Object System.Windows.Forms.Label
-$codeTitle.Text = T 'QuickConnectCode'
-$codeTitle.AutoSize = $true
-$codeTitle.Location = New-Object System.Drawing.Point(31, 187)
+$codeTitle = New-JvbLabel $contentCard (T 'QuickConnectCode') 22 143 270 24 9 `
+    ([Drawing.FontStyle]::Bold) $script:JvbPalette.TextMuted
 $codeTitle.Visible = $false
-$form.Controls.Add($codeTitle)
 
 $codeLabel = New-Object System.Windows.Forms.Label
 $codeLabel.Text = '------'
-$codeLabel.Font = New-Object System.Drawing.Font('Consolas', 23, [System.Drawing.FontStyle]::Bold)
-$codeLabel.ForeColor = [System.Drawing.Color]::FromArgb(0, 122, 204)
-$codeLabel.AutoSize = $true
-$codeLabel.Location = New-Object System.Drawing.Point(29, 211)
+$codeLabel.Font = New-Object System.Drawing.Font('Consolas', 27, [System.Drawing.FontStyle]::Bold)
+$codeLabel.ForeColor = $script:JvbPalette.Accent
+$codeLabel.Location = New-Object System.Drawing.Point(18, 168)
+$codeLabel.Size = New-Object System.Drawing.Size(270, 46)
 $codeLabel.Visible = $false
-$form.Controls.Add($codeLabel)
+$contentCard.Controls.Add($codeLabel)
 
 $instructions = New-Object System.Windows.Forms.Label
 $instructions.Text = if ($script:hadExistingConfig) {
@@ -220,53 +259,51 @@ $instructions.Text = if ($script:hadExistingConfig) {
 } else {
     T 'PerUserInstall'
 }
-$instructions.Location = New-Object System.Drawing.Point(31, 270)
-$instructions.Size = New-Object System.Drawing.Size(555, 48)
-$instructions.ForeColor = [System.Drawing.Color]::DimGray
-$form.Controls.Add($instructions)
+$instructions.Location = New-Object System.Drawing.Point(22, 220)
+$instructions.Size = New-Object System.Drawing.Size(664, 48)
+$instructions.Font = New-JvbFont 9.5
+$instructions.ForeColor = $script:JvbPalette.TextMuted
+$contentCard.Controls.Add($instructions)
 
-$statusLabel = New-Object System.Windows.Forms.Label
-$statusLabel.Text = T 'ReadyToInstall'
-$statusLabel.AutoSize = $true
-$statusLabel.Location = New-Object System.Drawing.Point(31, 326)
-$form.Controls.Add($statusLabel)
+$statusLabel = New-JvbLabel $form (T 'ReadyToInstall') 28 510 704 26 10 `
+    ([Drawing.FontStyle]::Bold)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point(34, 351)
-$progress.Size = New-Object System.Drawing.Size(552, 22)
+$progress.Location = New-Object System.Drawing.Point(28, 542)
+$progress.Size = New-Object System.Drawing.Size(704, 12)
+$progress.Style = 'Continuous'
 $form.Controls.Add($progress)
 
 $extensionButton = New-Object System.Windows.Forms.Button
 $extensionButton.Text = T 'OpenChromeStore'
-$extensionButton.Location = New-Object System.Drawing.Point(286, 390)
-$extensionButton.Size = New-Object System.Drawing.Size(198, 38)
-$extensionButton.BackColor = [System.Drawing.Color]::FromArgb(34, 139, 94)
-$extensionButton.ForeColor = [System.Drawing.Color]::White
-$extensionButton.FlatStyle = 'Flat'
+$extensionButton.Location = New-Object System.Drawing.Point(316, 578)
+$extensionButton.Size = New-Object System.Drawing.Size(216, 42)
 $extensionButton.Visible = $false
+Set-JvbButtonStyle $extensionButton 'Success'
 $form.Controls.Add($extensionButton)
 
 $installButton = New-Object System.Windows.Forms.Button
 $installButton.Text = T 'Install'
-$installButton.Location = New-Object System.Drawing.Point(496, 390)
-$installButton.Size = New-Object System.Drawing.Size(90, 38)
-$installButton.BackColor = [System.Drawing.Color]::FromArgb(8, 91, 126)
-$installButton.ForeColor = [System.Drawing.Color]::White
-$installButton.FlatStyle = 'Flat'
+$installButton.Location = New-Object System.Drawing.Point(542, 578)
+$installButton.Size = New-Object System.Drawing.Size(190, 42)
+Set-JvbButtonStyle $installButton 'Primary'
 $form.Controls.Add($installButton)
+
+$privacyNote = New-JvbLabel $form (T 'InstallerPrivacyNote') 28 611 704 22 8 `
+    ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextFaint
+$privacyNote.TextAlign = 'MiddleLeft'
+
+$extensionButton.Visible = $false
+Set-SetupStage 0
 
 $extensionButton.Add_Click({ Open-ChromeWebStore })
 
 $changeServerButton.Add_Click({
-    $choice = [System.Windows.Forms.MessageBox]::Show(
-        (T 'ChangeServerQuestion'),
-        (T 'ChangeServer'),
-        'YesNo',
-        'Question'
-    )
-    if ($choice -ne 'Yes') { return }
+    $confirmed = Show-JvbConfirmDialog (T 'ChangeServer') (T 'ChangeServerQuestion') `
+        $applicationIcon (T 'Continue') (T 'Cancel')
+    if (-not $confirmed) { return }
     $script:replaceExistingConfig = $true
-    $serverLabel.Text = T 'NewServerAddress'
+    $contentTitle.Text = T 'NewServerAddress'
     $serverBox.ReadOnly = $false
     $serverBox.SelectAll()
     $serverBox.Focus()
@@ -279,6 +316,7 @@ $timer.Interval = 500
 $timer.Add_Tick({
     try {
         if (-not $codeLabel.Visible -and (Test-Path $script:codeFile)) {
+            Set-SetupStage 1
             $codeLabel.Text = (Get-Content -LiteralPath $script:codeFile -Raw).Trim()
             $codeTitle.Visible = $true
             $codeLabel.Visible = $true

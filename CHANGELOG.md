@@ -1,5 +1,16 @@
 # Historique des versions
 
+## 1.15.0 — 2026-07-24
+
+- refonte graphique complète de l’installateur, du centre de contrôle et du désinstallateur ;
+- nouvelle interface sombre inspirée des applications Windows actuelles, avec cartes, états colorés, hiérarchie visuelle et boutons cohérents ;
+- parcours d’installation plus lisible en trois étapes : connexion, autorisation Quick Connect et confirmation ;
+- désinstallation remplacée par un choix graphique explicite entre conservation de la connexion et suppression complète ;
+- identité Windows dédiée pour les fenêtres PowerShell afin d’afficher l’icône Jellyfin VLC Bridge dans la barre des tâches ;
+- icône du centre de contrôle utilisée dans les raccourcis et la liste des applications installées ;
+- meilleure prise en charge du facteur d’échelle Windows et des coins de fenêtre Windows 11 ;
+- fonctionnement, connexion Jellyfin, lecture VLC, synchronisation, mises à jour et extension Chrome inchangés.
+
 ## 1.14.0 — 2026-07-24
 
 - choix explicite d’une version Jellyfin lorsqu’un film possède plusieurs fichiers, par exemple 1080p et 4K ;

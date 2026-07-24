@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.14.0'
+    [string]$Version = '1.15.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,6 +16,10 @@ foreach ($path in @($executable, $setup, $zip)) {
 $localizationPath = Join-Path $packageDirectory 'Localization.ps1'
 if (-not (Test-Path -LiteralPath $localizationPath)) {
     throw 'Le module de traduction est absent du paquet Windows.'
+}
+$themePath = Join-Path $packageDirectory 'UiTheme.ps1'
+if (-not (Test-Path -LiteralPath $themePath)) {
+    throw 'Le thème graphique Windows est absent du paquet.'
 }
 $packagedScripts = Get-ChildItem -LiteralPath $packageDirectory -Filter '*.ps1' -File
 foreach ($packagedScript in $packagedScripts) {
@@ -35,6 +39,15 @@ if ($localizationScript -notmatch 'LanguageAuto' -or
     throw 'Les traductions française et anglaise sont incomplètes.'
 }
 Write-Host 'OK  Traductions française et anglaise incluses'
+
+$themeScript = Get-Content -LiteralPath $themePath -Raw -Encoding UTF8
+if ($themeScript -notmatch 'SetCurrentProcessExplicitAppUserModelID' -or
+    $themeScript -notmatch 'CrySer66\.JellyfinVlcBridge' -or
+    $themeScript -notmatch 'DwmSetWindowAttribute' -or
+    $themeScript -notmatch 'Enable-JvbModernWindow') {
+    throw 'Le thème ne configure pas complètement l identité Windows moderne.'
+}
+Write-Host 'OK  Identité et icône dédiées pour la barre des tâches'
 
 function Read-Exactly([IO.Stream]$stream, [byte[]]$buffer) {
     $offset = 0
@@ -92,7 +105,9 @@ Write-Host 'OK  Diagnostic JSON redirige pour le centre de controle'
 $controlScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Centre-Controle.ps1') -Raw
 if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
     $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)' -or
-    $controlScript -notmatch 'Set-JvbLanguagePreference') {
+    $controlScript -notmatch 'Set-JvbLanguagePreference' -or
+    $controlScript -notmatch 'UiTheme\.ps1' -or
+    $controlScript -notmatch 'New-JvbCard') {
     throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
 }
 Write-Host 'OK  Centre de controle compatible avec l application sans console'
@@ -105,11 +120,15 @@ if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or
     $uninstallerScript -notmatch 'jellyfin-vlc-bridge-control' -or
     $uninstallerScript -notmatch 'JellyfinVlcBridgeUninstall-' -or
     $uninstallerScript -notmatch 'TemporaryRun' -or
-    $uninstallerScript -notmatch 'Set-Location\s+-LiteralPath\s+\$env:TEMP') {
+    $uninstallerScript -notmatch 'Set-Location\s+-LiteralPath\s+\$env:TEMP' -or
+    $uninstallerScript -notmatch 'UiTheme\.ps1' -or
+    $uninstallerScript -notmatch 'Show-UninstallChoice') {
     throw 'Le desinstallateur ne gere pas correctement application graphique ou centre de controle.'
 }
 $installerScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Installer-GUI.ps1') -Raw
-if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$env:TEMP') {
+if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$env:TEMP' -or
+    $installerScript -notmatch '\$application\.IconLocation\s*=\s*\$controlCenter' -or
+    $installerScript -notmatch 'UiTheme\.ps1') {
     throw 'Le raccourci de desinstallation conserve encore le dossier application comme repertoire de travail.'
 }
 Write-Host 'OK  Desinstallation executee hors du dossier supprime et sans faux code erreur'

@@ -5,6 +5,7 @@
 $ErrorActionPreference = 'Stop'
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localizationFile = Join-Path $scriptDirectory 'Localization.ps1'
+$themeFile = Join-Path $scriptDirectory 'UiTheme.ps1'
 if (Test-Path -LiteralPath $localizationFile) { . $localizationFile }
 
 # Le script installé se trouve dans le dossier qu'il doit supprimer. Une copie
@@ -15,6 +16,7 @@ if (-not $TemporaryRun) {
     $temporaryScript = Join-Path $temporaryDirectory 'Desinstaller-GUI.ps1'
     Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination $temporaryScript -Force
     Copy-Item -LiteralPath $localizationFile -Destination (Join-Path $temporaryDirectory 'Localization.ps1') -Force
+    Copy-Item -LiteralPath $themeFile -Destination (Join-Path $temporaryDirectory 'UiTheme.ps1') -Force
 
     $temporaryProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
     $temporaryProcessInfo.FileName = 'powershell.exe'
@@ -39,18 +41,126 @@ if ((Split-Path -Leaf $currentTemporaryDirectory) -like 'JellyfinVlcBridgeUninst
 
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
+. (Join-Path $scriptDirectory 'UiTheme.ps1')
 
-$choice = [System.Windows.Forms.MessageBox]::Show(
-    (T 'UninstallQuestion'),
-    (T 'UninstallTitle'),
-    [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
-    [System.Windows.Forms.MessageBoxIcon]::Question)
-
-if ($choice -eq [System.Windows.Forms.DialogResult]::Cancel) { exit 0 }
-$purge = $choice -eq [System.Windows.Forms.DialogResult]::Yes
 $rootDirectory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge'
 $installDirectory = Join-Path $rootDirectory 'App'
 $executable = Join-Path $installDirectory 'jellyfin-vlc-bridge.exe'
+$controlExecutable = Join-Path $installDirectory 'jellyfin-vlc-bridge-control.exe'
+$applicationIcon = Get-JvbApplicationIcon @($controlExecutable, $executable)
+
+function Show-UninstallChoice {
+    $dialog = New-Object Windows.Forms.Form
+    $dialog.Text = T 'UninstallTitle'
+    $dialog.StartPosition = 'CenterScreen'
+    $dialog.ClientSize = New-Object Drawing.Size(640, 470)
+    $dialog.FormBorderStyle = 'FixedSingle'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    Enable-JvbModernWindow $dialog $applicationIcon
+
+    $header = New-Object Windows.Forms.Panel
+    $header.Location = New-Object Drawing.Point(0, 0)
+    $header.Size = New-Object Drawing.Size(640, 104)
+    $header.BackColor = $script:JvbPalette.Header
+    $dialog.Controls.Add($header)
+
+    $accent = New-Object Windows.Forms.Panel
+    $accent.Location = New-Object Drawing.Point(0, 100)
+    $accent.Size = New-Object Drawing.Size(640, 4)
+    $accent.BackColor = $script:JvbPalette.Danger
+    $header.Controls.Add($accent)
+
+    $logo = New-Object Windows.Forms.PictureBox
+    $logo.Location = New-Object Drawing.Point(26, 19)
+    $logo.Size = New-Object Drawing.Size(64, 64)
+    $logo.SizeMode = 'Zoom'
+    if ($applicationIcon) { $logo.Image = $applicationIcon.ToBitmap() }
+    $header.Controls.Add($logo)
+
+    [void](New-JvbLabel $header (T 'UninstallTitle') 108 22 500 36 20 `
+        ([Drawing.FontStyle]::Bold))
+    [void](New-JvbLabel $header 'Jellyfin VLC Bridge' 110 61 460 24 9.5 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
+
+    [void](New-JvbLabel $dialog (T 'UninstallQuestion') 28 126 584 58 11 `
+        ([Drawing.FontStyle]::Bold))
+
+    $keepCard = New-JvbCard $dialog 28 198 584 88 $script:JvbPalette.Surface 14
+    [void](New-JvbDot $keepCard 22 20 $script:JvbPalette.Success)
+    [void](New-JvbLabel $keepCard (T 'UninstallKeep') 46 12 510 28 11 `
+        ([Drawing.FontStyle]::Bold))
+    [void](New-JvbLabel $keepCard (T 'UninstallKeepDescription') 46 42 510 34 9 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
+    $keepCard.Cursor = [Windows.Forms.Cursors]::Hand
+
+    $purgeCard = New-JvbCard $dialog 28 300 584 88 $script:JvbPalette.Surface 14
+    [void](New-JvbDot $purgeCard 22 20 $script:JvbPalette.Danger)
+    [void](New-JvbLabel $purgeCard (T 'UninstallRemoveAll') 46 12 510 28 11 `
+        ([Drawing.FontStyle]::Bold))
+    [void](New-JvbLabel $purgeCard (T 'UninstallRemoveAllDescription') 46 42 510 34 9 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
+    $purgeCard.Cursor = [Windows.Forms.Cursors]::Hand
+
+    $cancel = New-Object Windows.Forms.Button
+    $cancel.Text = T 'Cancel'
+    $cancel.Location = New-Object Drawing.Point(452, 410)
+    $cancel.Size = New-Object Drawing.Size(160, 40)
+    Set-JvbButtonStyle $cancel 'Secondary'
+    $dialog.Controls.Add($cancel)
+
+    $script:uninstallChoice = 'cancel'
+    $selectKeep = {
+        $script:uninstallChoice = 'keep'
+        $dialog.Close()
+    }
+    $selectPurge = {
+        $script:uninstallChoice = 'purge'
+        $dialog.Close()
+    }
+    $keepCard.Add_Click($selectKeep)
+    foreach ($child in $keepCard.Controls) { $child.Add_Click($selectKeep) }
+    $purgeCard.Add_Click($selectPurge)
+    foreach ($child in $purgeCard.Controls) { $child.Add_Click($selectPurge) }
+    $cancel.Add_Click({ $dialog.Close() })
+    [void]$dialog.ShowDialog()
+    return $script:uninstallChoice
+}
+
+function Show-UninstallResult(
+    [string]$title,
+    [string]$message,
+    [bool]$success
+) {
+    $dialog = New-Object Windows.Forms.Form
+    $dialog.Text = $title
+    $dialog.StartPosition = 'CenterScreen'
+    $dialog.ClientSize = New-Object Drawing.Size(560, 320)
+    $dialog.FormBorderStyle = 'FixedSingle'
+    $dialog.MaximizeBox = $false
+    $dialog.MinimizeBox = $false
+    Enable-JvbModernWindow $dialog $applicationIcon
+
+    $statusColor = if ($success) { $script:JvbPalette.Success } else { $script:JvbPalette.Danger }
+    $card = New-JvbCard $dialog 28 28 504 206
+    [void](New-JvbDot $card 24 26 $statusColor)
+    [void](New-JvbLabel $card $title 50 15 420 34 15 ([Drawing.FontStyle]::Bold))
+    [void](New-JvbLabel $card $message 24 68 456 112 10 `
+        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
+
+    $closeButton = New-Object Windows.Forms.Button
+    $closeButton.Text = T 'Close'
+    $closeButton.Location = New-Object Drawing.Point(372, 254)
+    $closeButton.Size = New-Object Drawing.Size(160, 42)
+    Set-JvbButtonStyle $closeButton $(if ($success) { 'Primary' } else { 'Danger' })
+    $closeButton.Add_Click({ $dialog.Close() })
+    $dialog.Controls.Add($closeButton)
+    [void]$dialog.ShowDialog()
+}
+
+$choice = Show-UninstallChoice
+if ($choice -eq 'cancel') { exit 0 }
+$purge = $choice -eq 'purge'
 
 function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -125,10 +235,8 @@ try {
         $completionMessage += "`r`n`r`n" + (T 'Warning' @($cleanupWarning))
         $completionIcon = 'Warning'
     }
-    [System.Windows.Forms.MessageBox]::Show(
-        $completionMessage,
-        (T 'UninstallCompleteTitle'), 'OK', $completionIcon) | Out-Null
+    Show-UninstallResult (T 'UninstallCompleteTitle') $completionMessage $true
 } catch {
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, (T 'UninstallErrorTitle'), 'OK', 'Error') | Out-Null
+    Show-UninstallResult (T 'UninstallErrorTitle') $_.Exception.Message $false
     exit 1
 }
