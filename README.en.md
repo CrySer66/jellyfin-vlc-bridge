@@ -28,7 +28,7 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 
 | Application | Platform | Extension |
 |---|---|---|
-| **1.15.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
+| **1.17.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="A media item moving from Jellyfin to VLC through the local Bridge">
@@ -56,6 +56,7 @@ Installation is per Windows user and does not require administrator rights. The 
 - Quick Connect authentication without copying an administrator API key;
 - Jellyfin token protection through Windows Credential Manager;
 - graphical diagnostics and repair in the Control Center;
+- quick access to the Control Center from a notification-area icon;
 - guided updates from GitHub Releases;
 - silent background launch without a command window or Jellyfin file changes.
 

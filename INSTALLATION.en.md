@@ -33,6 +33,13 @@ a new Quick Connect session.
 Open **Jellyfin VLC Bridge** from the Windows Start menu. It immediately checks
 Jellyfin, VLC and the Chrome/Edge integration.
 
+After installation, a Jellyfin VLC Bridge icon starts quietly in the Windows
+notification area. **Minimize** keeps the window in the taskbar, while **Close**
+hides it near the clock. Double-click the icon to reopen the Control Center; its
+menu can also refresh diagnostics or
+quit the icon until the next Windows sign-in. Playback from the extension remains
+available even when the notification icon has been closed.
+
 - **Repair browser** registers the local communication with the extension again;
 - **Playback settings** selects HTTP Direct Play or SMB and the VLC executable;
 - **Copy a diagnostic without secrets** copies useful version and status
@@ -126,8 +133,9 @@ The Quick Connect token is protected by Windows Credential Manager. It is never
 stored in the extension, repository or configuration file.
 
 The installer registers the native-messaging connection for Chrome and Edge, the
-local `jellyfin-vlc` protocol and the Windows uninstall entry for the current
-user. It does not add a desktop shortcut.
+local `jellyfin-vlc` protocol, the notification-area startup entry and the
+Windows uninstall entry for the current user. It does not add a desktop
+shortcut.
 
 ## Quick troubleshooting
 

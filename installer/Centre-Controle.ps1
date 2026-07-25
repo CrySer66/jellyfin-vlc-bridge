@@ -1,4 +1,8 @@
-﻿param([switch]$ValidateOnly)
+﻿param(
+    [switch]$ValidateOnly,
+    [switch]$StartInTray,
+    [string]$ShowEventName = ''
+)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -8,7 +12,7 @@ Add-Type -AssemblyName System.Drawing
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:installDirectory 'Localization.ps1')
 . (Join-Path $script:installDirectory 'UiTheme.ps1')
-$script:bridgeVersion = '1.15.0'
+$script:bridgeVersion = '1.17.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null
@@ -21,6 +25,41 @@ $script:green = $script:JvbPalette.Success
 $script:orange = $script:JvbPalette.Warning
 $script:red = $script:JvbPalette.Danger
 $script:muted = $script:JvbPalette.TextMuted
+$script:allowExit = $false
+$script:trayIcon = $null
+$script:showEvent = $null
+$script:showEventTimer = $null
+
+function Center-ControlCenterOnActiveScreen {
+    # Après Hide() depuis l'état minimisé, Win32 peut conserver la position
+    # native spéciale -32000,-32000 alors que Form.Bounds semble encore valide.
+    # Un placement explicite est donc nécessaire à chaque restauration.
+    $workingArea = [Windows.Forms.Screen]::FromPoint(
+        [Windows.Forms.Cursor]::Position).WorkingArea
+    $left = $workingArea.Left + [Math]::Max(
+        0,
+        [int](($workingArea.Width - $form.Width) / 2))
+    $top = $workingArea.Top + [Math]::Max(
+        0,
+        [int](($workingArea.Height - $form.Height) / 2))
+    $form.StartPosition = [Windows.Forms.FormStartPosition]::Manual
+    $form.SetDesktopLocation($left, $top)
+}
+
+function Show-ControlCenter {
+    $form.Opacity = 1
+    $form.ShowInTaskbar = $true
+    $form.Show()
+    $form.WindowState = [Windows.Forms.FormWindowState]::Normal
+    Center-ControlCenterOnActiveScreen
+    $form.Activate()
+    $form.BringToFront()
+}
+
+function Hide-ControlCenter {
+    $form.ShowInTaskbar = $false
+    $form.Hide()
+}
 
 function Show-BridgeError([string]$message) {
     Show-JvbMessageDialog 'Jellyfin VLC Bridge' $message 'Error' $applicationIcon (T 'Close')
@@ -781,6 +820,7 @@ $updateTimer.Add_Tick({
         }
         $updateStatus.Text = T 'InstallerOpening'
         Start-Process -FilePath $installerPath
+        $script:allowExit = $true
         $form.Close()
     } catch {
         $message = $_.Exception.Message
@@ -804,12 +844,111 @@ $updateTimer.Add_Tick({
 $form.Add_Shown({
     Refresh-BridgeStatus
     Start-UpdateOperation 'check'
+    if ($StartInTray) {
+        [void]$form.BeginInvoke([Action]{
+            Hide-ControlCenter
+            $form.Opacity = 1
+            $form.WindowState = [Windows.Forms.FormWindowState]::Normal
+        })
+    }
 })
 $form.Add_FormClosing({
+    # CloseMainWindow, le bouton X et certains raccourcis Windows n'utilisent pas
+    # toujours le même CloseReason. Toute fermeture ordinaire doit donc masquer
+    # le centre ; seuls Quitter, la mise à jour et l'arrêt de Windows le terminent.
+    if (-not $script:allowExit -and
+        $_.CloseReason -ne [Windows.Forms.CloseReason]::WindowsShutDown) {
+        # L'annulation d'un WM_CLOSE peut rendre la fenêtre visible pendant
+        # quelques millisecondes. La neutraliser avant Cancel supprime ce flash.
+        $form.Opacity = 0
+        $form.ShowInTaskbar = $false
+        $_.Cancel = $true
+        [void]$form.BeginInvoke([Action]{
+            try {
+                Hide-ControlCenter
+            } finally {
+                # Préparer le prochain affichage tout en restant masqué.
+                $form.Opacity = 1
+            }
+        })
+        return
+    }
     $updateTimer.Stop()
+    if ($script:showEventTimer) { $script:showEventTimer.Stop() }
     if ($script:updateProcess -and -not $script:updateProcess.HasExited) {
         try { $script:updateProcess.Kill() } catch { }
     }
 })
 if ($ValidateOnly) { exit 0 }
-[void]$form.ShowDialog()
+
+if (-not [string]::IsNullOrWhiteSpace($ShowEventName)) {
+    try {
+        $script:showEvent = [Threading.EventWaitHandle]::OpenExisting($ShowEventName)
+        $script:showEventTimer = New-Object Windows.Forms.Timer
+        $script:showEventTimer.Interval = 250
+        $script:showEventTimer.Add_Tick({
+            if ($script:showEvent -and $script:showEvent.WaitOne(0)) {
+                Show-ControlCenter
+            }
+        })
+        $script:showEventTimer.Start()
+    } catch {
+        $script:showEvent = $null
+        $script:showEventTimer = $null
+    }
+}
+
+$trayMenu = New-Object Windows.Forms.ContextMenu
+$trayOpen = New-Object Windows.Forms.MenuItem (T 'TrayOpen')
+$trayRefresh = New-Object Windows.Forms.MenuItem (T 'TrayRefresh')
+$trayExit = New-Object Windows.Forms.MenuItem (T 'TrayExit')
+$trayMenu.MenuItems.Add($trayOpen) | Out-Null
+$trayMenu.MenuItems.Add($trayRefresh) | Out-Null
+$trayMenu.MenuItems.Add('-') | Out-Null
+$trayMenu.MenuItems.Add($trayExit) | Out-Null
+
+$script:trayIcon = New-Object Windows.Forms.NotifyIcon
+$script:trayIcon.Text = T 'TrayReady'
+$script:trayIcon.Icon = if ($applicationIcon) {
+    $applicationIcon
+} else {
+    [Drawing.SystemIcons]::Application
+}
+$script:trayIcon.ContextMenu = $trayMenu
+$script:trayIcon.Visible = $true
+
+$trayOpen.Add_Click({ Show-ControlCenter })
+$trayRefresh.Add_Click({
+    Show-ControlCenter
+    Refresh-BridgeStatus
+})
+$trayExit.Add_Click({
+    $script:allowExit = $true
+    $form.Close()
+})
+$script:trayIcon.Add_DoubleClick({ Show-ControlCenter })
+
+if ($StartInTray) {
+    # Application.Run doit créer la fenêtre principale pour conserver une vraie
+    # boucle de messages. La rendre invisible avant ce premier affichage évite
+    # toutefois le flash de fenêtre à la fin de l'installation.
+    $form.ShowInTaskbar = $false
+    $form.Opacity = 0
+}
+
+try {
+    # ShowDialog quitte sa boucle modale dès que la fenêtre est masquée. Le centre
+    # et son NotifyIcon étaient donc détruits après Réduire ou Fermer.
+    [Windows.Forms.Application]::Run($form)
+} finally {
+    if ($script:showEventTimer) {
+        $script:showEventTimer.Stop()
+        $script:showEventTimer.Dispose()
+    }
+    if ($script:showEvent) { $script:showEvent.Dispose() }
+    if ($script:trayIcon) {
+        $script:trayIcon.Visible = $false
+        $script:trayIcon.Dispose()
+    }
+    $trayMenu.Dispose()
+}

@@ -25,7 +25,15 @@ Pour utiliser un autre serveur, cliquez sur **Changer de serveur Jellyfin**. Apr
 
 ## Centre de contrôle
 
-Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. La fenêtre indique immédiatement si Jellyfin, VLC et l'intégration Chrome/Edge sont prêts.
+Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. La fenêtre indique immédiatement si Jellyfin, VLC et l’intégration Chrome/Edge sont prêts.
+
+Après l’installation, une icône Jellyfin VLC Bridge démarre discrètement près de
+l’horloge Windows. Le bouton **Réduire** conserve la fenêtre dans la barre des
+tâches, tandis que la croix **Fermer** la masque près de l’horloge. Un double-clic
+sur l’icône rouvre le centre de contrôle ; son menu permet aussi
+d’actualiser le diagnostic ou de quitter l’icône jusqu’à la prochaine ouverture
+de session. La lecture depuis l’extension reste disponible même si cette icône
+est quittée.
 
 - **Réparer navigateur** réenregistre la communication locale avec l'extension ;
 - **Réglages de lecture** permet de choisir HTTP Direct Play ou SMB et le chemin de VLC ;
@@ -106,6 +114,7 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\local.jellyfin_vlc_bridge
 HKCU\Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge
 HKCU\Software\Classes\jellyfin-vlc
 HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run\JellyfinVlcBridge
 ```
 
 Le menu Démarrer contient uniquement le centre de contrôle et la désinstallation. Aucun raccourci n'est ajouté sur le Bureau.

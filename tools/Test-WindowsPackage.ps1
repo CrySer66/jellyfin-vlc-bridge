@@ -1,15 +1,16 @@
 ﻿param(
-    [string]$Version = '1.15.0'
+    [string]$Version = '1.17.0'
 )
 
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $PSScriptRoot
 $packageDirectory = Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-win-x64"
 $executable = Join-Path $packageDirectory 'jellyfin-vlc-bridge.exe'
+$controlExecutable = Join-Path $packageDirectory 'jellyfin-vlc-bridge-control.exe'
 $setup = Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-Setup.exe"
 $zip = Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-win-x64.zip"
 
-foreach ($path in @($executable, $setup, $zip)) {
+foreach ($path in @($executable, $controlExecutable, $setup, $zip)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Fichier de paquet manquant : $path" }
 }
 
@@ -116,6 +117,43 @@ if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
     throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
 }
 Write-Host 'OK  Centre de controle compatible avec l application sans console'
+if ($controlScript -notmatch 'NotifyIcon' -or
+    $controlScript -notmatch 'StartInTray' -or
+    $controlScript -notmatch 'Hide-ControlCenter' -or
+    $controlScript -notmatch 'TrayExit' -or
+    $controlScript -notmatch 'ShowEventName' -or
+    $controlScript -notmatch 'Center-ControlCenterOnActiveScreen' -or
+    $controlScript -notmatch 'SetDesktopLocation\(\$left,\s*\$top\)' -or
+    $controlScript -notmatch 'Application\]::Run\(\$form\)' -or
+    $controlScript -notmatch '\$_\.Cancel\s*=\s*\$true' -or
+    $controlScript -notmatch '(?s)Add_FormClosing.*?\$form\.Opacity\s*=\s*0.*?\$form\.ShowInTaskbar\s*=\s*\$false.*?\$_\.Cancel' -or
+    $controlScript -notmatch '(?s)Add_FormClosing.*?BeginInvoke.*?Hide-ControlCenter' -or
+    $controlScript -match '\$form\.Add_Resize\(' -or
+    $controlScript -match '\[void\]\$form\.ShowDialog\(\)') {
+    throw 'Le centre de controle ne gere pas completement la zone de notification.'
+}
+$bootstrapSource = Get-Content -LiteralPath (
+    Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs') -Raw
+if ($bootstrapSource -notmatch 'MutexName' -or
+    $bootstrapSource -notmatch 'EventWaitHandle' -or
+    $bootstrapSource -notmatch '"--tray"' -or
+    $bootstrapSource -notmatch 'ShowEventName') {
+    throw 'Le lanceur du centre de controle ne gere pas l instance unique ou sa restauration.'
+}
+$controlValidationInfo = New-Object Diagnostics.ProcessStartInfo
+$controlValidationInfo.FileName = $controlExecutable
+$controlValidationInfo.Arguments = '--validate-only'
+$controlValidationInfo.WorkingDirectory = $packageDirectory
+$controlValidationInfo.UseShellExecute = $false
+$controlValidationInfo.CreateNoWindow = $true
+$controlValidation = [Diagnostics.Process]::Start($controlValidationInfo)
+if (-not $controlValidation) { throw 'Impossible de lancer la validation du centre de controle.' }
+$controlValidation.WaitForExit()
+if ($controlValidation.ExitCode -ne 0) {
+    throw "Le centre de controle a echoue en validation : $($controlValidation.ExitCode)"
+}
+$controlValidation.Dispose()
+Write-Host 'OK  Zone de notification et instance unique du centre de controle'
 if ($controlScript -notmatch 'Show-ChangeServerDialog' -or
     $controlScript -notmatch 'setup --server' -or
     $controlScript -notmatch 'RequestQuickConnect' -or
@@ -129,6 +167,10 @@ if ($programSource -notmatch 'VlcPath\s*=\s*existing\?\.VlcPath' -or
     $programSource -notmatch 'PathMappings\s*=\s*existing\?\.PathMappings' -or
     $programSource -notmatch 'ProgressSyncEnabled\s*=\s*existing\?\.ProgressSyncEnabled') {
     throw 'Quick Connect ne conserve pas tous les reglages de lecture lors du changement de serveur.'
+}
+if ($programSource -notmatch 'CurrentVersion\\Run' -or
+    $programSource -notmatch 'DeleteValue\("JellyfinVlcBridge"') {
+    throw 'La desinstallation ne retire pas le demarrage automatique du centre de controle.'
 }
 Write-Host 'OK  Changement de serveur Quick Connect avec réglages conservés'
 
@@ -148,6 +190,8 @@ if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or
 $installerScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Installer-GUI.ps1') -Raw
 if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$env:TEMP' -or
     $installerScript -notmatch '\$application\.IconLocation\s*=\s*\$controlCenter' -or
+    $installerScript -notmatch 'CurrentVersion\\Run' -or
+    $installerScript -notmatch '" --tray' -or
     $installerScript -notmatch 'UiTheme\.ps1') {
     throw 'Le raccourci de desinstallation conserve encore le dossier application comme repertoire de travail.'
 }

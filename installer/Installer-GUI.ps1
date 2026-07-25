@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:bridgeVersion = '1.15.0'
+$script:bridgeVersion = '1.17.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -113,6 +113,11 @@ function Register-WindowsApplication {
     Set-ItemProperty -Path $registry -Name UninstallString -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$uninstaller`""
     New-ItemProperty -Path $registry -Name NoModify -Value 1 -PropertyType DWord -Force | Out-Null
     New-ItemProperty -Path $registry -Name NoRepair -Value 1 -PropertyType DWord -Force | Out-Null
+
+    $runRegistry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    New-Item -Path $runRegistry -Force | Out-Null
+    Set-ItemProperty -Path $runRegistry -Name JellyfinVlcBridge `
+        -Value ('"' + $controlCenter + '" --tray')
 }
 
 function Set-SetupStage([int]$stage) {
@@ -133,6 +138,10 @@ function Set-SetupStage([int]$stage) {
 
 function Complete-Installation {
     Register-WindowsApplication
+    $controlCenter = Join-Path $script:installDirectory 'jellyfin-vlc-bridge-control.exe'
+    try {
+        Start-Process -FilePath $controlCenter -ArgumentList '--tray' -WindowStyle Hidden
+    } catch { }
     $script:installed = $true
     Set-SetupStage 2
     $timer.Stop()
@@ -159,7 +168,7 @@ function Complete-Installation {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.15.0'
+$form.Text = 'Jellyfin VLC Bridge 1.17.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(760, 640)
 $form.FormBorderStyle = 'FixedSingle'
@@ -196,7 +205,7 @@ $subtitle = New-JvbLabel $header (T 'SetupSubtitle') 122 65 560 26 10 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
 $versionPill = New-JvbCard $header 628 20 104 34 $script:JvbPalette.SurfaceAlt 17
-$versionText = New-JvbLabel $versionPill '1.15.0' 8 7 88 22 9 `
+$versionText = New-JvbLabel $versionPill '1.17.0' 8 7 88 22 9 `
     ([Drawing.FontStyle]::Bold)
 $versionText.TextAlign = 'MiddleCenter'
 

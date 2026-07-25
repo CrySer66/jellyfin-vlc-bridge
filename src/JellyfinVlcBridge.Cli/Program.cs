@@ -767,6 +767,9 @@ static int UninstallCleanup(string[] args)
         @"Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge",
         @"Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge"
     }) Registry.CurrentUser.DeleteSubKeyTree(registryPath, false);
+    using (var runKey = Registry.CurrentUser.OpenSubKey(
+        @"Software\Microsoft\Windows\CurrentVersion\Run", writable: true))
+        runKey?.DeleteValue("JellyfinVlcBridge", throwOnMissingValue: false);
 
     var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JellyfinVlcBridge");
     var nativeManifest = Path.Combine(root, "native-messaging-host.json");
