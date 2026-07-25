@@ -1,5 +1,21 @@
 # Historique des versions
 
+## 1.17.0 — 2026-07-25
+
+- ajoute une icône Jellyfin VLC Bridge dans la zone de notification Windows ;
+- démarre discrètement le centre de contrôle à l’ouverture de session Windows ;
+- un double-clic sur l’icône restaure immédiatement le centre de contrôle ;
+- le menu de l’icône permet d’ouvrir l’application, d’actualiser son état ou de la quitter ;
+- réduire le centre conserve sa fenêtre dans la barre des tâches ;
+- fermer le centre le masque dans la zone de notification sans arrêter le Bridge ;
+- empêche l’ouverture de plusieurs centres de contrôle et réaffiche l’instance déjà active ;
+- corrige la disparition involontaire du centre après fermeture ;
+- supprime le bref réaffichage de la fenêtre pendant sa fermeture vers la zone de notification ;
+- évite le bref affichage de la fenêtre pendant le démarrage discret ;
+- corrige la restauration hors écran du centre depuis l’icône de notification ;
+- supprime proprement le démarrage automatique lors de la désinstallation ;
+- conserve l’extension Chrome 1.8.0 et toutes les fonctions de lecture existantes.
+
 ## 1.15.0 — 2026-07-25
 
 - coins des cartes et boutons redessinés avec un tracé arrondi propre, sans fragments de bordure ;
