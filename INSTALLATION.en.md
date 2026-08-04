@@ -100,6 +100,24 @@ token, configuration and playback preferences.
 The Chrome extension is updated separately and automatically by the Chrome Web
 Store.
 
+## Automated installation (advanced)
+
+The Setup accepts `/quiet` for package managers and unattended deployments:
+
+```powershell
+.\JellyfinVlcBridge-<version>-Setup.exe /quiet
+```
+
+This mode installs the files and Windows integration without opening Chrome,
+the Control Center or Quick Connect. On first use, open **Jellyfin VLC Bridge**
+from the Start menu and connect the server through Quick Connect. An existing
+connection is preserved during an update.
+
+The `/silent`, `/S`, `--quiet` and `--silent` aliases are also accepted.
+Unattended removal uses the Windows `QuietUninstallString` and keeps the
+connection by default. The uninstaller script's technical `-Silent -Purge`
+option also removes the configuration and token.
+
 ## Uninstall
 
 Open:

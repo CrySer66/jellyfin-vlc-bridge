@@ -76,6 +76,27 @@ Les fichiers du programme sont remplacés, tandis que la configuration, le jeton
 
 L'extension est mise à jour automatiquement par le Chrome Web Store.
 
+## Installation automatisée (avancé)
+
+Le Setup accepte `/quiet` pour les gestionnaires de paquets et les déploiements
+non interactifs :
+
+```powershell
+.\JellyfinVlcBridge-<version>-Setup.exe /quiet
+```
+
+Ce mode installe les fichiers et l'intégration Windows, mais n'ouvre ni Chrome,
+ni le centre de contrôle, ni Quick Connect. Lors de la première utilisation,
+ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer et connectez votre serveur
+avec Quick Connect. Une connexion déjà présente est conservée pendant une mise
+à jour.
+
+Les alias `/silent`, `/S`, `--quiet` et `--silent` sont également acceptés. La
+désinstallation non interactive utilise automatiquement la commande Windows
+`QuietUninstallString` et conserve la connexion par défaut. L'option technique
+`-Silent -Purge` du script de désinstallation supprime aussi la configuration et
+le jeton.
+
 ## Désinstallation
 
 Ouvrez :

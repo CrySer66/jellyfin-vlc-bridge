@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -11,7 +12,8 @@ public sealed record UpdateCheckResult(
     string ReleaseUrl,
     string? DownloadUrl,
     string? AssetName,
-    long? AssetSize);
+    long? AssetSize,
+    string? AssetDigest);
 
 public sealed record DownloadedUpdate(string Version, string Path, long Size);
 
@@ -20,6 +22,12 @@ public sealed class GitHubUpdateService
     private const long MaximumInstallerSize = 200L * 1024 * 1024;
     private static readonly Regex SetupName = new(
         @"^JellyfinVlcBridge-(?<version>\d+\.\d+\.\d+)-Setup\.exe$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex ReleaseTag = new(
+        @"^v(?<version>\d+\.\d+\.\d+)$",
+        RegexOptions.CultureInvariant);
+    private static readonly Regex Sha256Digest = new(
+        @"^sha256:(?<hash>[0-9a-f]{64})$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private readonly HttpClient http;
     private readonly Func<string, bool> installerValidator;
@@ -48,7 +56,10 @@ public sealed class GitHubUpdateService
         var root = document.RootElement;
         var tag = root.GetProperty("tag_name").GetString()?.Trim()
             ?? throw new InvalidDataException("La Release GitHub ne contient pas de version.");
-        var latestText = tag.TrimStart('v', 'V');
+        var tagMatch = ReleaseTag.Match(tag);
+        if (!tagMatch.Success)
+            throw new InvalidDataException($"Version GitHub non reconnue : {tag}");
+        var latestText = tagMatch.Groups["version"].Value;
         if (!Version.TryParse(latestText, out var latest) || latest.Build < 0)
             throw new InvalidDataException($"Version GitHub non reconnue : {tag}");
         if (!Version.TryParse(BridgeVersion.Current, out var current))
@@ -59,6 +70,7 @@ public sealed class GitHubUpdateService
         string? downloadUrl = null;
         string? assetName = null;
         long? assetSize = null;
+        string? assetDigest = null;
         foreach (var asset in root.GetProperty("assets").EnumerateArray())
         {
             var name = asset.GetProperty("name").GetString();
@@ -72,6 +84,12 @@ public sealed class GitHubUpdateService
             downloadUrl = candidate;
             assetName = name;
             assetSize = asset.TryGetProperty("size", out var size) ? size.GetInt64() : null;
+            if (asset.TryGetProperty("digest", out var digestElement))
+            {
+                var digest = digestElement.GetString()?.Trim();
+                var digestMatch = digest is null ? Match.Empty : Sha256Digest.Match(digest);
+                if (digestMatch.Success) assetDigest = digestMatch.Groups["hash"].Value.ToLowerInvariant();
+            }
             break;
         }
 
@@ -80,9 +98,11 @@ public sealed class GitHubUpdateService
             throw new InvalidDataException($"La Release {latestText} ne contient pas l'installateur Windows attendu.");
         if (assetSize is <= 0 or > MaximumInstallerSize)
             throw new InvalidDataException("L'installateur annoncé a une taille invalide.");
+        if (available && assetDigest is null)
+            throw new InvalidDataException("La Release ne fournit pas l'empreinte SHA-256 de l'installateur.");
         return new UpdateCheckResult(
             BridgeVersion.Current, latestText, available, releaseUrl,
-            downloadUrl, assetName, assetSize);
+            downloadUrl, assetName, assetSize, assetDigest);
     }
 
     public async Task<DownloadedUpdate> DownloadLatestAsync(
@@ -90,7 +110,7 @@ public sealed class GitHubUpdateService
         CancellationToken cancellationToken = default)
     {
         var update = await CheckAsync(cancellationToken);
-        if (!update.UpdateAvailable || update.DownloadUrl is null || update.AssetName is null)
+        if (!update.UpdateAvailable || update.DownloadUrl is null || update.AssetName is null || update.AssetDigest is null)
             throw new InvalidOperationException("Jellyfin VLC Bridge est déjà à jour.");
 
         ValidateGitHubUrl(update.DownloadUrl, allowApi: false);
@@ -136,6 +156,13 @@ public sealed class GitHubUpdateService
                 throw new InvalidDataException("Le téléchargement de l'installateur est incomplet.");
             if (total < 64 * 1024 || !installerValidator(temporary))
                 throw new InvalidDataException("Le fichier téléchargé n'est pas un installateur Windows valide.");
+            await using (var downloaded = File.OpenRead(temporary))
+            {
+                var actualDigest = Convert.ToHexString(
+                    await SHA256.HashDataAsync(downloaded, cancellationToken)).ToLowerInvariant();
+                if (!actualDigest.Equals(update.AssetDigest, StringComparison.Ordinal))
+                    throw new InvalidDataException("L'empreinte SHA-256 de l'installateur ne correspond pas à la Release GitHub.");
+            }
 
             File.Move(temporary, destination, true);
             return new DownloadedUpdate(update.LatestVersion, destination, total);

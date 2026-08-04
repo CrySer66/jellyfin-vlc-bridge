@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.17.0'
+    [string]$Version = '1.18.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,6 +55,10 @@ try {
         -p:RuntimeFrameworkVersion=$runtimeFrameworkVersion `
         -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:Deterministic=true `
+        -p:ContinuousIntegrationBuild=true `
+        -p:DebugSymbols=false `
+        ("-p:PathMap={0}=/_/" -f $projectDirectory) `
         -p:DebugType=None
     if ($LASTEXITCODE -ne 0) { throw 'La publication Windows a échoué.' }
 
@@ -76,7 +80,6 @@ try {
         'installer\UiTheme.ps1',
         'installer\INSTALLER-WINDOWS.cmd',
         'installer\Desinstaller-GUI.ps1',
-        'installer\Desinstaller-JellyfinVlcBridge.ps1',
         'installer\DESINSTALLER-WINDOWS.cmd',
         'README.md',
         'README.en.md',

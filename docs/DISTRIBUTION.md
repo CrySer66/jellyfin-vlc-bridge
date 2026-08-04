@@ -1,0 +1,60 @@
+# Distribution / Distribution roadmap
+
+Cette feuille de route décrit l'ordre envisagé pour rendre Jellyfin VLC Bridge
+plus simple à trouver, installer et vérifier. Elle ne promet ni date ni
+acceptation par un magasin tiers.
+
+Jellyfin VLC Bridge reste volontairement une application **Windows 10/11 x64**.
+Des versions Linux ou macOS ne sont pas prévues tant qu'elles ne peuvent pas
+être testées sérieusement.
+
+## Étapes prévues
+
+1. **GitHub Releases** — publier l'installateur et le ZIP avec
+   `SHA256SUMS.txt` et des attestations GitHub. C'est la source officielle du
+   programme Windows.
+2. **WinGet** — après validation publique d'une première version dont les
+   commandes silencieuses ont été testées, préparer une soumission au catalogue
+   communautaire. Aucune soumission n'est automatique.
+3. **Microsoft Edge Add-ons** — préparer la fiche de l'extension, puis la
+   soumettre une fois l'identifiant Microsoft obtenu. L'extension Chrome reste
+   distribuée par le Chrome Web Store.
+4. **MSIX / Microsoft Store** — étudier la compatibilité avec Native Messaging,
+   les clés de registre utilisateur et le processus de mise à jour. Cette piste
+   n'est pas annoncée comme disponible tant qu'un prototype complet n'a pas été
+   validé.
+5. **Signature Authenticode** — réévaluer SignPath ou une autre solution quand
+   le projet disposera de davantage d'utilisateurs et d'un historique public
+   plus solide.
+
+Les liens officiels seront ajoutés aux guides uniquement après chaque
+publication effective.
+
+---
+
+This roadmap describes the intended order for making Jellyfin VLC Bridge easier
+to discover, install and verify. It does not promise a date or acceptance by any
+third-party store.
+
+Jellyfin VLC Bridge intentionally remains a **Windows 10/11 x64** application.
+Linux and macOS builds are not planned while they cannot be tested properly.
+
+## Planned steps
+
+1. **GitHub Releases** — publish the installer and ZIP with
+   `SHA256SUMS.txt` and GitHub attestations. This is the official source for the
+   Windows application.
+2. **WinGet** — after the first public release with tested silent commands has
+   been validated, prepare a community-catalog submission. No submission is
+   automatic.
+3. **Microsoft Edge Add-ons** — prepare the extension listing, then submit it
+   once a Microsoft extension ID is available. The Chrome extension remains
+   distributed through the Chrome Web Store.
+4. **MSIX / Microsoft Store** — study compatibility with Native Messaging,
+   per-user registry entries and the update process. This route will not be
+   announced as available until a complete prototype has been validated.
+5. **Authenticode signing** — reconsider SignPath or another solution after the
+   project has gained more users and a stronger public track record.
+
+Official links will be added to the guides only after each publication is
+actually available.

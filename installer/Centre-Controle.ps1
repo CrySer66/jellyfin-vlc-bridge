@@ -12,7 +12,7 @@ Add-Type -AssemblyName System.Drawing
 $script:installDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $script:installDirectory 'Localization.ps1')
 . (Join-Path $script:installDirectory 'UiTheme.ps1')
-$script:bridgeVersion = '1.17.0'
+$script:bridgeVersion = '1.18.0'
 $script:executable = Join-Path $script:installDirectory 'jellyfin-vlc-bridge.exe'
 $script:configFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\config.json'
 $script:health = $null

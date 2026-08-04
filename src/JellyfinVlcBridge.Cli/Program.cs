@@ -101,16 +101,30 @@ static async Task<int> QuickSetupAsync(string[] args)
         PathMappings = existing?.PathMappings?.ToList() ?? [],
         ProgressSyncEnabled = existing?.ProgressSyncEnabled ?? true
     };
-    new EnvironmentOrWindowsCredentialStore().Write(
-        SecretKeys.ForServer(server),
-        authentication.AccessToken);
-    updatedConfig.Save();
-    Console.WriteLine($"Appareil autorisé pour l'utilisateur « {authentication.User.Name} ».");
+    // Les intégrations Windows ne dépendent ni du jeton ni de la configuration.
+    // Les terminer d'abord garantit qu'un échec laisse l'ancienne connexion intacte.
     if (OperatingSystem.IsWindows())
     {
         InstallProtocol();
         InstallNativeHost();
     }
+    var credentialStore = new EnvironmentOrWindowsCredentialStore();
+    var newSecretKey = SecretKeys.ForServer(server);
+    credentialStore.Write(newSecretKey, authentication.AccessToken);
+    updatedConfig.Save();
+    if (existing is not null)
+    {
+        var previousSecretKey = SecretKeys.ForServer(existing.ServerUrl);
+        if (!string.Equals(previousSecretKey, newSecretKey, StringComparison.Ordinal))
+        {
+            try { credentialStore.Delete(previousSecretKey); }
+            catch (Exception exception)
+            {
+                BridgeLog.Warning("Ancien jeton Jellyfin non supprimé après le changement de serveur : " + exception.Message);
+            }
+        }
+    }
+    Console.WriteLine($"Appareil autorisé pour l'utilisateur « {authentication.User.Name} ».");
     Console.WriteLine("Configuration terminée.");
     return 0;
 }
@@ -754,39 +768,53 @@ static int UninstallCleanup(string[] args)
 {
     if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Désinstallation automatique disponible sur Windows uniquement.");
     var purge = args.Contains("--purge");
-    BridgeConfig? config = null;
-    if (File.Exists(BridgeConfig.DefaultPath))
+    var isolatedRoot = Optional(args, "--isolated-test-root");
+    var isolatedTest = !string.IsNullOrWhiteSpace(isolatedRoot);
+    var isolatedTestRequested = Environment.GetEnvironmentVariable("JELLYFIN_VLC_BRIDGE_ISOLATED_TEST") == "1";
+    if (isolatedTest != isolatedTestRequested)
+        throw new InvalidOperationException("Le nettoyage isolé exige à la fois son indicateur et son dossier dédié.");
+
+    if (!isolatedTest)
     {
-        try { config = BridgeConfig.Load(); } catch { }
+        foreach (var registryPath in new[]
+        {
+            @"Software\Classes\jellyfin-vlc",
+            @"Software\Google\Chrome\NativeMessagingHosts\local.jellyfin_vlc_bridge",
+            @"Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge",
+            @"Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge"
+        }) Registry.CurrentUser.DeleteSubKeyTree(registryPath, false);
+        using var runKey = Registry.CurrentUser.OpenSubKey(
+            @"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+        runKey?.DeleteValue("JellyfinVlcBridge", throwOnMissingValue: false);
     }
 
-    foreach (var registryPath in new[]
-    {
-        @"Software\Classes\jellyfin-vlc",
-        @"Software\Google\Chrome\NativeMessagingHosts\local.jellyfin_vlc_bridge",
-        @"Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge",
-        @"Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge"
-    }) Registry.CurrentUser.DeleteSubKeyTree(registryPath, false);
-    using (var runKey = Registry.CurrentUser.OpenSubKey(
-        @"Software\Microsoft\Windows\CurrentVersion\Run", writable: true))
-        runKey?.DeleteValue("JellyfinVlcBridge", throwOnMissingValue: false);
-
-    var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JellyfinVlcBridge");
+    var root = isolatedTest
+        ? Path.GetFullPath(isolatedRoot!)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JellyfinVlcBridge");
+    if (isolatedTest && !File.Exists(Path.Combine(root, ".jvb-isolated-test")))
+        throw new InvalidOperationException("Le dossier de test isolé ne contient pas son marqueur de sécurité.");
     var nativeManifest = Path.Combine(root, "native-messaging-host.json");
     if (File.Exists(nativeManifest)) File.Delete(nativeManifest);
-    if (File.Exists(ExtensionHeartbeat.FilePath)) File.Delete(ExtensionHeartbeat.FilePath);
-    var shortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Jellyfin VLC Bridge - Diagnostic.lnk");
-    if (File.Exists(shortcut)) File.Delete(shortcut);
-    var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Jellyfin VLC Bridge");
-    if (Directory.Exists(startMenu)) Directory.Delete(startMenu, true);
+    var heartbeat = Path.Combine(root, "extension-heartbeat.json");
+    if (File.Exists(heartbeat)) File.Delete(heartbeat);
+    if (!isolatedTest)
+    {
+        var shortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Jellyfin VLC Bridge - Diagnostic.lnk");
+        if (File.Exists(shortcut)) File.Delete(shortcut);
+        var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Jellyfin VLC Bridge");
+        if (Directory.Exists(startMenu)) Directory.Delete(startMenu, true);
+    }
 
     if (purge)
     {
-        if (config is not null)
-            new EnvironmentOrWindowsCredentialStore().Delete(SecretKeys.ForServer(config.ServerUrl));
-        if (File.Exists(BridgeConfig.DefaultPath)) File.Delete(BridgeConfig.DefaultPath);
-        if (File.Exists(PlaybackPreferencesStore.DefaultPath)) File.Delete(PlaybackPreferencesStore.DefaultPath);
-        Console.WriteLine("Associations, configuration et jeton supprimés.");
+        var deletedSecrets = isolatedTest
+            ? 0
+            : new EnvironmentOrWindowsCredentialStore().DeleteByPrefix(SecretKeys.Prefix);
+        var configPath = Path.Combine(root, "config.json");
+        var preferencesPath = Path.Combine(root, "playback-preferences.json");
+        if (File.Exists(configPath)) File.Delete(configPath);
+        if (File.Exists(preferencesPath)) File.Delete(preferencesPath);
+        Console.WriteLine($"Associations, configuration et secrets supprimés ({deletedSecrets} secret(s)).");
     }
     else Console.WriteLine("Application retirée ; configuration et jeton conservés pour une réinstallation.");
     return 0;

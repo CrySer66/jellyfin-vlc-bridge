@@ -1,5 +1,8 @@
 ﻿param(
-    [switch]$TemporaryRun
+    [switch]$TemporaryRun,
+    [switch]$Silent,
+    [switch]$Purge,
+    [switch]$IsolatedTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,6 +10,22 @@ $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localizationFile = Join-Path $scriptDirectory 'Localization.ps1'
 $themeFile = Join-Path $scriptDirectory 'UiTheme.ps1'
 if (Test-Path -LiteralPath $localizationFile) { . $localizationFile }
+$uninstallerLog = Join-Path $env:TEMP 'JellyfinVlcBridge-uninstall.log'
+
+function Write-UninstallerLog([string]$level, [string]$message) {
+    try {
+        $line = '{0:o} [{1}] {2}' -f [DateTimeOffset]::Now, $level.ToUpperInvariant(), $message
+        Add-Content -LiteralPath $uninstallerLog -Value $line -Encoding UTF8
+    } catch { }
+}
+
+$isolatedTestRequested = $env:JELLYFIN_VLC_BRIDGE_ISOLATED_TEST -eq '1'
+if ([bool]$IsolatedTest -ne $isolatedTestRequested) {
+    throw 'Le mode de test isolé exige à la fois son indicateur et son environnement dédié.'
+}
+if ($IsolatedTest -and -not $Silent) {
+    throw 'Le mode de test isolé est réservé aux validations silencieuses du paquet.'
+}
 
 # Le script installé se trouve dans le dossier qu'il doit supprimer. Une copie
 # temporaire évite que PowerShell ou son dossier de travail garde App verrouillé.
@@ -18,14 +37,33 @@ if (-not $TemporaryRun) {
     Copy-Item -LiteralPath $localizationFile -Destination (Join-Path $temporaryDirectory 'Localization.ps1') -Force
     Copy-Item -LiteralPath $themeFile -Destination (Join-Path $temporaryDirectory 'UiTheme.ps1') -Force
 
+    # Le processus parent ne doit pas conserver App comme dossier de travail
+    # pendant que la copie temporaire le supprime.
+    Set-Location -LiteralPath $env:TEMP
+    $temporaryArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$temporaryScript`" -TemporaryRun"
+    if ($Silent) { $temporaryArguments += ' -Silent' }
+    if ($Purge) { $temporaryArguments += ' -Purge' }
+    if ($IsolatedTest) { $temporaryArguments += ' -IsolatedTest' }
     $temporaryProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
     $temporaryProcessInfo.FileName = 'powershell.exe'
-    $temporaryProcessInfo.Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$temporaryScript`" -TemporaryRun"
+    $temporaryProcessInfo.Arguments = $temporaryArguments
     $temporaryProcessInfo.WorkingDirectory = $temporaryDirectory
     $temporaryProcessInfo.UseShellExecute = $false
     $temporaryProcessInfo.CreateNoWindow = $true
     $temporaryProcess = [System.Diagnostics.Process]::Start($temporaryProcessInfo)
     if ($null -eq $temporaryProcess) { throw (T 'CleanupStartFailed') }
+    if ($Silent) {
+        if (-not $temporaryProcess.WaitForExit(90000)) {
+            try { $temporaryProcess.Kill() } catch { }
+            [void]$temporaryProcess.WaitForExit(5000)
+            Write-UninstallerLog 'ERROR' 'La désinstallation a dépassé le délai de 90 secondes.'
+            $temporaryProcess.Dispose()
+            exit 1
+        }
+        $temporaryExitCode = $temporaryProcess.ExitCode
+        $temporaryProcess.Dispose()
+        exit $temporaryExitCode
+    }
     $temporaryProcess.Dispose()
     exit 0
 }
@@ -33,21 +71,75 @@ if (-not $TemporaryRun) {
 # La copie est déjà chargée en mémoire ; elle peut se retirer immédiatement.
 $currentTemporaryScript = $MyInvocation.MyCommand.Path
 $currentTemporaryDirectory = Split-Path -Parent $currentTemporaryScript
+$isTemporaryDirectory = (Split-Path -Leaf $currentTemporaryDirectory) -like 'JellyfinVlcBridgeUninstall-*'
 Set-Location -LiteralPath $env:TEMP
 Remove-Item -LiteralPath $currentTemporaryScript -Force -ErrorAction SilentlyContinue
-if ((Split-Path -Leaf $currentTemporaryDirectory) -like 'JellyfinVlcBridgeUninstall-*') {
-    Remove-Item -LiteralPath $currentTemporaryDirectory -Force -ErrorAction SilentlyContinue
+
+function Remove-TemporaryUninstallFiles {
+    if ($isTemporaryDirectory -and (Test-Path -LiteralPath $currentTemporaryDirectory)) {
+        Set-Location -LiteralPath $env:TEMP
+        Remove-Item -LiteralPath $currentTemporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
-Add-Type -AssemblyName System.Windows.Forms
-[System.Windows.Forms.Application]::EnableVisualStyles()
-. (Join-Path $scriptDirectory 'UiTheme.ps1')
-
 $rootDirectory = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge'
+$isolatedTestMarker = Join-Path $rootDirectory '.jvb-isolated-test'
+if ($IsolatedTest -and -not (Test-Path -LiteralPath $isolatedTestMarker -PathType Leaf)) {
+    throw 'Le dossier de test isolé ne contient pas son marqueur de sécurité.'
+}
 $installDirectory = Join-Path $rootDirectory 'App'
 $executable = Join-Path $installDirectory 'jellyfin-vlc-bridge.exe'
 $controlExecutable = Join-Path $installDirectory 'jellyfin-vlc-bridge-control.exe'
-$applicationIcon = Get-JvbApplicationIcon @($controlExecutable, $executable)
+$applicationIcon = $null
+$maintenanceMutex = $null
+if (-not $Silent) {
+    Add-Type -AssemblyName System.Windows.Forms
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    . (Join-Path $scriptDirectory 'UiTheme.ps1')
+    $applicationIcon = Get-JvbApplicationIcon @($controlExecutable, $executable)
+}
+
+function Enter-MaintenanceLock {
+    $mutex = New-Object System.Threading.Mutex($false, 'Local\CrySer66.JellyfinVlcBridge.Maintenance')
+    $acquired = $false
+    try {
+        try { $acquired = $mutex.WaitOne(0, $false) }
+        catch [System.Threading.AbandonedMutexException] { $acquired = $true }
+        if (-not $acquired) { throw 'Une installation ou désinstallation de Jellyfin VLC Bridge est déjà en cours.' }
+        $script:maintenanceMutex = $mutex
+        Write-UninstallerLog 'INFO' 'Verrou de maintenance acquis.'
+    } catch {
+        if (-not $acquired) { $mutex.Dispose() }
+        throw
+    }
+}
+
+function Exit-MaintenanceLock {
+    if (-not $script:maintenanceMutex) { return }
+    try { $script:maintenanceMutex.ReleaseMutex() } catch { }
+    $script:maintenanceMutex.Dispose()
+    $script:maintenanceMutex = $null
+}
+
+function Remove-StaleApplicationTransactions {
+    if (-not (Test-Path -LiteralPath $rootDirectory -PathType Container)) { return }
+    $expectedRoot = [IO.Path]::GetFullPath($rootDirectory).TrimEnd('\') + '\'
+    foreach ($directory in Get-ChildItem -LiteralPath $rootDirectory -Directory -Force -ErrorAction SilentlyContinue) {
+        if ($directory.Name -notmatch '^App\.(?:backup|staging|failed)-[0-9a-f]{32}$') { continue }
+        $resolved = [IO.Path]::GetFullPath($directory.FullName)
+        if (-not $resolved.StartsWith($expectedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            (Split-Path -Parent $resolved) -ne $expectedRoot.TrimEnd('\')) {
+            throw "Chemin de transaction inattendu : $resolved"
+        }
+        for ($attempt = 1; $attempt -le 10 -and (Test-Path -LiteralPath $resolved); $attempt++) {
+            try { Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction Stop }
+            catch {
+                if ($attempt -eq 10) { throw }
+                Start-Sleep -Milliseconds 250
+            }
+        }
+    }
+}
 
 function Show-UninstallChoice {
     $dialog = New-Object Windows.Forms.Form
@@ -158,7 +250,11 @@ function Show-UninstallResult(
     [void]$dialog.ShowDialog()
 }
 
-$choice = Show-UninstallChoice
+$choice = if ($Silent) {
+    if ($Purge) { 'purge' } else { 'keep' }
+} else {
+    Show-UninstallChoice
+}
 if ($choice -eq 'cancel') { exit 0 }
 $purge = $choice -eq 'purge'
 
@@ -173,21 +269,72 @@ function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $processInfo
-    if (-not $process.Start()) { throw (T 'CleanupStartFailed') }
-    $outputTask = $process.StandardOutput.ReadToEndAsync()
-    $errorTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
-    $output = $outputTask.GetAwaiter().GetResult().Trim()
-    $errorOutput = $errorTask.GetAwaiter().GetResult().Trim()
-    return [PSCustomObject]@{
-        ExitCode = $process.ExitCode
-        Output = $output
-        Error = $errorOutput
+    try {
+        if (-not $process.Start()) { throw (T 'CleanupStartFailed') }
+        $outputTask = $process.StandardOutput.ReadToEndAsync()
+        $errorTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(30000)) {
+            try { $process.Kill() } catch { }
+            [void]$process.WaitForExit(5000)
+            throw 'Le nettoyage du Bridge a dépassé le délai de 30 secondes.'
+        }
+        $output = $outputTask.GetAwaiter().GetResult().Trim()
+        $errorOutput = $errorTask.GetAwaiter().GetResult().Trim()
+        return [PSCustomObject]@{
+            ExitCode = $process.ExitCode
+            Output = $output
+            Error = $errorOutput
+        }
+    } finally {
+        $process.Dispose()
     }
 }
 
+function Remove-BridgeRegistrationFallback {
+    if ($IsolatedTest) { return }
+    foreach ($registryPath in @(
+        'HKCU:\Software\Classes\jellyfin-vlc',
+        'HKCU:\Software\Google\Chrome\NativeMessagingHosts\local.jellyfin_vlc_bridge',
+        'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge'
+    )) {
+        if (Test-Path -LiteralPath $registryPath) {
+            Remove-Item -LiteralPath $registryPath -Recurse -Force -ErrorAction Stop
+        }
+    }
+    $runRegistry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    Remove-ItemProperty -LiteralPath $runRegistry -Name JellyfinVlcBridge -Force -ErrorAction SilentlyContinue
+    foreach ($path in @(
+        (Join-Path $rootDirectory 'native-messaging-host.json'),
+        (Join-Path $rootDirectory 'extension-heartbeat.json'),
+        (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Jellyfin VLC Bridge - Diagnostic.lnk'),
+        (Join-Path ([Environment]::GetFolderPath('Programs')) 'Jellyfin VLC Bridge')
+    )) {
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+        }
+    }
+}
+
+function Assert-BridgeRegistrationRemoved {
+    if ($IsolatedTest) { return }
+    foreach ($registryPath in @(
+        'HKCU:\Software\Classes\jellyfin-vlc',
+        'HKCU:\Software\Google\Chrome\NativeMessagingHosts\local.jellyfin_vlc_bridge',
+        'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\local.jellyfin_vlc_bridge',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\JellyfinVlcBridge'
+    )) {
+        if (Test-Path -LiteralPath $registryPath) { throw "Enregistrement Windows encore présent : $registryPath" }
+    }
+    $runValue = Get-ItemPropertyValue -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
+        -Name JellyfinVlcBridge -ErrorAction SilentlyContinue
+    if ($null -ne $runValue) { throw 'Le démarrage automatique du Bridge est encore enregistré.' }
+}
+
 try {
-    $cleanupWarning = $null
+    Enter-MaintenanceLock
+    Write-UninstallerLog 'INFO' "Désinstallation démarrée (silencieuse=$Silent, purge=$purge)."
+    $cleanupWarnings = New-Object System.Collections.Generic.List[string]
     if (Test-Path $executable) {
         try {
             $cleanupResult = Invoke-BridgeCleanup $executable $purge
@@ -197,11 +344,19 @@ try {
                 } else {
                     $cleanupResult.Error
                 }
-                $cleanupWarning = T 'CleanupIncomplete' @($detail)
+                $cleanupWarnings.Add((T 'CleanupIncomplete' @($detail)))
             }
         } catch {
-            $cleanupWarning = T 'CleanupIncomplete' @($_.Exception.Message)
+            $cleanupWarnings.Add((T 'CleanupIncomplete' @($_.Exception.Message)))
         }
+    } elseif ($purge) {
+        $cleanupWarnings.Add((T 'CleanupIncomplete' @("exécutable absent ; les secrets Windows n’ont pas pu être vérifiés")))
+    }
+    try {
+        Remove-BridgeRegistrationFallback
+        Assert-BridgeRegistrationRemoved
+    } catch {
+        $cleanupWarnings.Add((T 'CleanupIncomplete' @($_.Exception.Message)))
     }
 
     $expected = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\App'))
@@ -225,18 +380,38 @@ try {
             }
         }
     }
+    if (Test-Path -LiteralPath $actual) { throw "Le dossier application existe encore : $actual" }
+    Remove-StaleApplicationTransactions
 
     if ($purge -and (Test-Path $rootDirectory)) {
-        Remove-Item -LiteralPath $rootDirectory -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $rootDirectory -Recurse -Force -ErrorAction Stop
+    }
+    if ($purge -and (Test-Path -LiteralPath $rootDirectory)) {
+        throw "Les données locales existent encore : $rootDirectory"
     }
     $completionMessage = T 'UninstallComplete'
     $completionIcon = 'Information'
-    if (-not [string]::IsNullOrWhiteSpace($cleanupWarning)) {
+    if ($cleanupWarnings.Count -gt 0) {
+        $cleanupWarning = $cleanupWarnings -join ' | '
+        Write-UninstallerLog 'WARN' $cleanupWarning
+        if ($Silent) { throw $cleanupWarning }
         $completionMessage += "`r`n`r`n" + (T 'Warning' @($cleanupWarning))
         $completionIcon = 'Warning'
     }
-    Show-UninstallResult (T 'UninstallCompleteTitle') $completionMessage $true
+    if (-not $Silent) {
+        Show-UninstallResult (T 'UninstallCompleteTitle') $completionMessage $true
+    }
+    Write-UninstallerLog 'INFO' 'Désinstallation terminée avec succès.'
+    Remove-TemporaryUninstallFiles
 } catch {
-    Show-UninstallResult (T 'UninstallErrorTitle') $_.Exception.Message $false
+    Write-UninstallerLog 'ERROR' $_.Exception.ToString()
+    if ($Silent) {
+        [Console]::Error.WriteLine($_.Exception.Message)
+    } else {
+        Show-UninstallResult (T 'UninstallErrorTitle') $_.Exception.Message $false
+    }
+    Remove-TemporaryUninstallFiles
     exit 1
+} finally {
+    Exit-MaintenanceLock
 }
