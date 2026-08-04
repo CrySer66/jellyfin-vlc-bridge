@@ -158,6 +158,11 @@ var tests = new (string Name, Func<Task> Run)[]
         using var http = new HttpClient(new ReleaseHandler(true));
         await ThrowsAsync<InvalidDataException>(() => new GitHubUpdateService(http).CheckAsync());
     }),
+    ("Un tag GitHub mal forme est refuse", async () =>
+    {
+        using var http = new HttpClient(new ReleaseHandler(false, "vv9.9.9"));
+        await ThrowsAsync<InvalidDataException>(() => new GitHubUpdateService(http).CheckAsync());
+    }),
     ("L'installateur officiel est téléchargé et validé", async () =>
     {
         var directory = Path.Combine(Path.GetTempPath(), "JvbUpdateTest-" + Guid.NewGuid().ToString("N"));
@@ -180,6 +185,22 @@ var tests = new (string Name, Func<Task> Run)[]
         try
         {
             using var http = new HttpClient(new DownloadReleaseHandler(70001));
+            await ThrowsAsync<InvalidDataException>(() =>
+                new GitHubUpdateService(http, _ => true).DownloadLatestAsync(directory));
+            Equal(0, Directory.GetFiles(directory, "*.partial-*").Length);
+            Equal(0, Directory.GetFiles(directory, "*.exe").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }),
+    ("Une empreinte de mise a jour incorrecte est refusee", async () =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "JvbUpdateDigestTest-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var http = new HttpClient(new DownloadReleaseHandler(invalidDigest: true));
             await ThrowsAsync<InvalidDataException>(() =>
                 new GitHubUpdateService(http, _ => true).DownloadLatestAsync(directory));
             Equal(0, Directory.GetFiles(directory, "*.partial-*").Length);
@@ -406,7 +427,7 @@ sealed class CollectionQueueHandler : HttpMessageHandler
     }
 }
 
-sealed class ReleaseHandler(bool evil) : HttpMessageHandler
+sealed class ReleaseHandler(bool evil, string tag = "v9.9.9") : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -415,12 +436,13 @@ sealed class ReleaseHandler(bool evil) : HttpMessageHandler
             : "https://github.com/cryser66/jellyfin-vlc-bridge/releases/download/v9.9.9/JellyfinVlcBridge-9.9.9-Setup.exe";
         var json = $$"""
         {
-          "tag_name": "v9.9.9",
+          "tag_name": "{{tag}}",
           "html_url": "https://github.com/cryser66/jellyfin-vlc-bridge/releases/tag/v9.9.9",
           "assets": [{
             "name": "JellyfinVlcBridge-9.9.9-Setup.exe",
             "browser_download_url": "{{download}}",
-            "size": 200000
+            "size": 200000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           }]
         }
         """;
@@ -431,7 +453,7 @@ sealed class ReleaseHandler(bool evil) : HttpMessageHandler
     }
 }
 
-sealed class DownloadReleaseHandler(long declaredSize = 70000) : HttpMessageHandler
+sealed class DownloadReleaseHandler(long declaredSize = 70000, bool invalidDigest = false) : HttpMessageHandler
 {
     private int requestNumber;
 
@@ -440,6 +462,9 @@ sealed class DownloadReleaseHandler(long declaredSize = 70000) : HttpMessageHand
         requestNumber++;
         if (requestNumber == 1)
         {
+            var expectedDigest = invalidDigest
+                ? new string('a', 64)
+                : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(new byte[70000])).ToLowerInvariant();
             var json = $$"""
             {
               "tag_name": "v9.9.9",
@@ -447,7 +472,8 @@ sealed class DownloadReleaseHandler(long declaredSize = 70000) : HttpMessageHand
               "assets": [{
                 "name": "JellyfinVlcBridge-9.9.9-Setup.exe",
                 "browser_download_url": "https://github.com/cryser66/jellyfin-vlc-bridge/releases/download/v9.9.9/JellyfinVlcBridge-9.9.9-Setup.exe",
-                "size": {{declaredSize}}
+                "size": {{declaredSize}},
+                "digest": "sha256:{{expectedDigest}}"
               }]
             }
             """;
