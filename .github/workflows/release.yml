@@ -13,9 +13,11 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
-  group: release-${{ github.ref }}-${{ inputs.version }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -26,29 +28,103 @@ jobs:
 
     steps:
       - name: Récupérer les sources
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Vérifier l’origine de la publication
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            if ($env:REQUESTED_VERSION -notmatch '^\d+\.\d+\.\d+$') {
+              throw 'Le numéro de version manuel est invalide.'
+            }
+            $expectedTagRef = "refs/tags/v$($env:REQUESTED_VERSION)"
+            if ($env:SOURCE_REF -ne 'refs/heads/main' -and $env:SOURCE_REF -ne $expectedTagRef) {
+              throw 'Une publication manuelle doit partir de main ou du tag exact à reprendre.'
+            }
+          }
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          if ($LASTEXITCODE -ne 0) { throw 'La branche main distante est introuvable.' }
+          git merge-base --is-ancestor $env:SOURCE_SHA 'refs/remotes/origin/main'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Le commit à publier n’appartient pas à la branche main protégée.'
+          }
 
       - name: Installer .NET 8
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Installer Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
 
       - name: Déterminer la version
         id: version
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          SOURCE_TAG: ${{ github.ref_name }}
         run: |
-          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            '${{ inputs.version }}'
+          if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            $version = $env:REQUESTED_VERSION
+            if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version invalide : $version" }
+            $tag = "v$version"
           } else {
-            '${{ github.ref_name }}'.TrimStart('v')
+            $tag = $env:SOURCE_TAG
+            if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
+              throw "Tag invalide : $tag. Le format exact attendu est v1.2.3."
+            }
+            $version = $Matches.version
           }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version invalide : $version" }
           "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Garantir une version immuable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $headCommit = (git rev-parse 'HEAD^{commit}').Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($headCommit)) {
+            throw 'Impossible de déterminer le commit construit.'
+          }
+
+          git fetch --force --tags origin
+          if ($LASTEXITCODE -ne 0) { throw 'Impossible de vérifier les tags distants.' }
+          $tagCommit = git rev-parse "refs/tags/$tag^{commit}" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $tagCommit = ([string]$tagCommit).Trim()
+            if ($tagCommit -ne $headCommit) {
+              throw "Le tag $tag pointe vers $tagCommit au lieu du commit construit $headCommit."
+            }
+          } elseif ($env:EVENT_NAME -ne 'workflow_dispatch') {
+            throw "Le tag déclencheur $tag est introuvable."
+          }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "La Release $tag existe déjà et reste immuable. Créez un nouveau numéro de version."
+          }
 
       - name: Vérifier les versions
         shell: pwsh
-        run: ./tools/Test-VersionConsistency.ps1 -ExpectedVersion '${{ steps.version.outputs.version }}'
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./tools/Test-VersionConsistency.ps1 -ExpectedVersion $env:RELEASE_VERSION
 
       - name: Vérifier les scripts PowerShell
         shell: pwsh
@@ -64,23 +140,45 @@ jobs:
 
       - name: Construire l’installateur et le ZIP
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ./tools/Build-WindowsRelease.ps1 -Version '${{ steps.version.outputs.version }}'
-          ./tools/Test-WindowsPackage.ps1 -Version '${{ steps.version.outputs.version }}'
+          ./tools/Build-WindowsRelease.ps1 -Version $env:RELEASE_VERSION
+          ./tools/Test-WindowsPackage.ps1 -Version $env:RELEASE_VERSION
+
+      - name: Préparer et vérifier les métadonnées de la Release
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./tools/New-ReleaseChecksums.ps1 -Version $env:RELEASE_VERSION
+          ./tools/New-ReleaseNotes.ps1 -Version $env:RELEASE_VERSION
+          ./tools/Test-ReleaseMetadata.ps1 -Version $env:RELEASE_VERSION
+
+      - name: Attester la provenance de l’installateur
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        with:
+          subject-path: outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-Setup.exe
+
+      - name: Attester la provenance du ZIP autonome
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        with:
+          subject-path: outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-win-x64.zip
 
       - name: Publier les téléchargements
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
-          $version = '${{ steps.version.outputs.version }}'
-          $tag = '${{ steps.version.outputs.tag }}'
+          $version = $env:RELEASE_VERSION
+          $tag = $env:RELEASE_TAG
           $setup = "outputs/JellyfinVlcBridge-$version-Setup.exe"
           $portable = "outputs/JellyfinVlcBridge-$version-win-x64.zip"
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $setup $portable --clobber
-          } else {
-            gh release create $tag $setup $portable --target '${{ github.sha }}' --title "Jellyfin VLC Bridge $version" --generate-notes
-          }
+          $checksums = 'outputs/SHA256SUMS.txt'
+          $notes = 'outputs/RELEASE_NOTES.md'
+          gh release create $tag $setup $portable $checksums --target $env:SOURCE_SHA --title "Jellyfin VLC Bridge $version" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { throw 'La création de la Release a échoué.' }
 
