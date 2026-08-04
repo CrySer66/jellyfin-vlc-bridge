@@ -53,7 +53,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'La branche main distante est introuvable.' }
           git merge-base --is-ancestor $env:SOURCE_SHA 'refs/remotes/origin/main'
           if ($LASTEXITCODE -ne 0) {
-            throw 'Le commit à publier n’appartient pas à la branche main protégée.'
+            throw "Le commit à publier n’appartient pas à la branche main protégée."
           }
 
       - name: Installer .NET 8
