@@ -116,7 +116,9 @@ jobs:
           }
 
           gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExists = $LASTEXITCODE -eq 0
+          $global:LASTEXITCODE = 0
+          if ($releaseExists) {
             throw "La Release $tag existe déjà et reste immuable. Créez un nouveau numéro de version."
           }
 
