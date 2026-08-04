@@ -78,9 +78,15 @@ function Invoke-LocalValidation {
         throw 'La construction a modifie la session Windows. La valeur APPDATA a ete restauree par securite.'
     }
 
+    & (Join-Path $PSScriptRoot 'New-ReleaseChecksums.ps1') -Version $Version | Out-Null
+    & (Join-Path $PSScriptRoot 'New-ReleaseNotes.ps1') -Version $Version | Out-Null
+    & (Join-Path $PSScriptRoot 'Test-ReleaseMetadata.ps1') -Version $Version
+
     foreach ($asset in @(
         (Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-Setup.exe"),
-        (Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-win-x64.zip")
+        (Join-Path $projectDirectory "outputs\JellyfinVlcBridge-$Version-win-x64.zip"),
+        (Join-Path $projectDirectory 'outputs\SHA256SUMS.txt'),
+        (Join-Path $projectDirectory 'outputs\RELEASE_NOTES.md')
     )) {
         if (-not (Test-Path -LiteralPath $asset -PathType Leaf) -or (Get-Item -LiteralPath $asset).Length -le 0) {
             throw "Le fichier attendu n a pas ete cree : $asset"
@@ -126,7 +132,8 @@ function Test-ReleaseComplete($release) {
     $assetNames = @($release.assets | ForEach-Object { $_.name })
     return (
         $assetNames -contains "JellyfinVlcBridge-$Version-Setup.exe" -and
-        $assetNames -contains "JellyfinVlcBridge-$Version-win-x64.zip"
+        $assetNames -contains "JellyfinVlcBridge-$Version-win-x64.zip" -and
+        $assetNames -contains 'SHA256SUMS.txt'
     )
 }
 
@@ -139,10 +146,11 @@ function Wait-ForRelease {
         $release = Get-ReleaseState
         if (Test-ReleaseComplete $release) {
             Write-Host ''
-            Write-Host 'Publication confirmee : le Setup et le ZIP sont disponibles.' -ForegroundColor Green
+            Write-Host 'Publication confirmee : le Setup, le ZIP et leurs empreintes sont disponibles.' -ForegroundColor Green
             Write-Host $release.url
             Write-Host "https://github.com/$Repository/releases/download/$tag/JellyfinVlcBridge-$Version-Setup.exe"
             Write-Host "https://github.com/$Repository/releases/download/$tag/JellyfinVlcBridge-$Version-win-x64.zip"
+            Write-Host "https://github.com/$Repository/releases/download/$tag/SHA256SUMS.txt"
             return
         }
 
@@ -153,7 +161,11 @@ function Wait-ForRelease {
         Start-Sleep -Seconds 10
     }
 
-    throw "GitHub n a pas termine dans les $TimeoutMinutes minutes. Relancez le meme script : il reprendra la verification sans republier le code."
+    $incompleteRelease = Get-ReleaseState
+    if ($null -ne $incompleteRelease) {
+        throw "La Release $tag existe mais reste incomplete. Consultez le workflow GitHub : elle ne sera jamais ecrasee automatiquement."
+    }
+    throw "GitHub n a pas termine dans les $TimeoutMinutes minutes. Relancez le script pour reprendre la verification du tag existant."
 }
 
 function Get-PullRequestState([int]$number) {
@@ -203,25 +215,79 @@ function Wait-ForPullRequestChecks([int]$number) {
     throw "Les tests GitHub n ont pas termine dans les $TimeoutMinutes minutes. La Pull Request reste ouverte et rien n a ete publie."
 }
 
+function Update-PullRequestBranchIfNeeded([int]$number) {
+    $pr = Get-PullRequestState $number
+    if ($pr.mergeStateStatus -ne 'BEHIND') { return }
+    Write-Host 'Mise a jour de la branche avec la version actuelle de main...' -ForegroundColor Yellow
+    Invoke-Checked {
+        gh pr update-branch $number --repo $Repository
+    } "La branche de la Pull Request #$number ne peut pas etre mise a jour automatiquement."
+}
+
 function Copy-PublicSources([string]$destinationRoot) {
     Invoke-Checked { git rm -r --ignore-unmatch . } 'Impossible de preparer la copie publique.'
 
-    $excludedDirectories = @(
-        '.git', '.agents', '.codex', '.vs', '.vscode', '.idea',
-        'bin', 'obj', 'outputs', 'publish', 'TestResults', 'work'
+    $allowedDirectories = @(
+        '.github', 'assets', 'browser-extension', 'docs', 'installer',
+        'packaging', 'src', 'tests', 'tools'
     )
-    $excludedNames = @('config.json', 'native-messaging-host.json')
-    $sourceFiles = Get-ChildItem -LiteralPath $projectDirectory -Recurse -File -Force | Where-Object {
-        $relative = $_.FullName.Substring($projectDirectory.Length).TrimStart('\')
-        $parts = $relative -split '\\'
-        -not ($parts | Where-Object { $excludedDirectories -contains $_ }) -and
-        $excludedNames -notcontains $_.Name -and
-        $_.Extension -notin @('.exe', '.dll', '.pdb', '.zip', '.crx', '.log', '.token', '.secret')
+    $allowedRootFiles = @(
+        '.gitignore', 'CHANGELOG.md', 'CODE_SIGNING.md', 'CONTRIBUTING.md',
+        'Directory.Build.props', 'global.json', 'INSTALLATION.en.md',
+        'INSTALLATION.md', 'JellyfinVlcBridge.slnx', 'LICENSE', 'NuGet.Config',
+        'PRIVACY.md', 'README.en.md', 'README.md', 'SECURITY.md'
+    )
+    $blockedNamePattern = '(?i)(^|/)(\.env(?:\..*)?|credentials?(?:\..*)?|secrets?(?:\..*)?|config\.json|native-messaging-host\.json|extension-heartbeat\.json|playback-preferences\.json|language\.json|[^/]+\.log|\.npmrc|\.pypirc|id_rsa|id_ed25519|[^/]+\.(?:pfx|p12|pem|key|token|secret))$'
+    $secretContentPattern = '(?i)(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{16,}|sk_live_[A-Za-z0-9]{16,})'
+
+    $relativeFiles = @(git -C $projectDirectory ls-files --cached --others --exclude-standard)
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de dresser la liste sure des sources publiques.' }
+    $relativeFiles = @($relativeFiles | ForEach-Object { ([string]$_).Replace('\', '/').Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    if ($relativeFiles.Count -eq 0) { throw 'Aucune source publique n a ete trouvee.' }
+
+    $sourceFiles = foreach ($relative in $relativeFiles) {
+        if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|/)\.\.(/|$)' -or $relative -match ':') {
+            throw "Chemin source refuse : $relative"
+        }
+        $topLevel = ($relative -split '/', 2)[0]
+        $allowed = if ($relative.Contains('/')) {
+            $allowedDirectories -contains $topLevel
+        } else {
+            $allowedRootFiles -contains $relative
+        }
+        if (-not $allowed) {
+            throw "Fichier non autorise dans la copie publique : $relative"
+        }
+        if ($relative -match $blockedNamePattern) {
+            throw "Fichier potentiellement sensible refuse : $relative"
+        }
+
+        $joinedPath = Join-Path $projectDirectory ($relative.Replace('/', '\'))
+        $fullPath = [IO.Path]::GetFullPath($joinedPath)
+        $sourceRoot = [IO.Path]::GetFullPath($projectDirectory).TrimEnd('\') + '\'
+        if (-not $fullPath.StartsWith($sourceRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Source publique hors du projet : $relative"
+        }
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Source publique introuvable : $relative"
+        }
+        $sourceItem = Get-Item -LiteralPath $fullPath -Force
+        if (($sourceItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Lien ou point de reanalyse refuse dans la copie publique : $relative"
+        }
+        $extension = [IO.Path]::GetExtension($fullPath).ToLowerInvariant()
+        if ($extension -notin @('.png', '.ico')) {
+            $content = Get-Content -LiteralPath $fullPath -Raw -Encoding UTF8
+            if ($content -match $secretContentPattern) {
+                throw "Secret potentiel detecte dans $relative. Publication interrompue."
+            }
+        }
+        [PSCustomObject]@{ Relative = $relative; FullName = $fullPath }
     }
 
     foreach ($file in $sourceFiles) {
-        $relative = $file.FullName.Substring($projectDirectory.Length).TrimStart('\')
-        $destination = Join-Path $destinationRoot $relative
+        $destination = Join-Path $destinationRoot ($file.Relative.Replace('/', '\'))
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
     }
@@ -286,11 +352,29 @@ try {
     $remoteTag = & git ls-remote --tags "https://github.com/$Repository.git" "refs/tags/$tag"
     if ($LASTEXITCODE -ne 0) { throw 'Impossible de verifier les tags du depot.' }
     if (-not [string]::IsNullOrWhiteSpace(($remoteTag | Out-String))) {
-        Write-Host "Le tag $tag existe deja. Reprise de la verification de la Release." -ForegroundColor Yellow
+        if ($null -ne $existingRelease) {
+            throw "La Release $tag existe mais reste incomplete. Consultez son workflow avant de choisir un nouveau numero de version."
+        }
+        Write-Host "Le tag $tag existe deja, mais aucune Release n a ete creee." -ForegroundColor Yellow
+        $retryConfirmation = Read-Host "Relancer le workflow GitHub pour $tag ? O/N"
+        if ($retryConfirmation -notmatch '^[OoYy]$') {
+            Write-Host 'Relance annulee. Aucun workflow n a ete demarre.' -ForegroundColor Yellow
+            $publicationSucceeded = $true
+            Complete-Script 0
+        }
+        Invoke-Checked {
+            gh workflow run release.yml --repo $Repository --ref $tag -f "version=$Version"
+        } "Le workflow de Release n a pas pu etre relance pour $tag."
         Wait-ForRelease
         $publicationSucceeded = $true
         Complete-Script 0
     }
+
+    $branchName = "release/v$Version"
+    $repositoryOwner = ($Repository -split '/', 2)[0]
+    $remoteBranch = & git ls-remote --heads "https://github.com/$Repository.git" "refs/heads/$branchName"
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de verifier la branche de publication distante.' }
+    $remoteBranchExists = -not [string]::IsNullOrWhiteSpace(($remoteBranch | Out-String))
 
     Write-Host '[3/6] Preparation d une copie Git neuve...' -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $workDirectory -Force | Out-Null
@@ -302,13 +386,27 @@ try {
 
     Push-Location $stagingDirectory
     try {
-        $branchName = "release/v$Version"
-        Invoke-Checked { git switch -c $branchName } 'Impossible de creer la branche de publication.'
+        Invoke-Checked { git config user.name $repositoryOwner } 'Impossible de configurer le nom Git.'
+        Invoke-Checked { git config user.email "$repositoryOwner@users.noreply.github.com" } 'Impossible de configurer l adresse Git.'
+        if ($remoteBranchExists) {
+            Invoke-Checked {
+                git fetch origin "refs/heads/${branchName}:refs/remotes/origin/${branchName}"
+            } 'Impossible de recuperer la branche de publication existante.'
+            Invoke-Checked {
+                git switch -c $branchName --track "origin/$branchName"
+            } 'Impossible de reprendre la branche de publication existante.'
+            Write-Host "Branche existante reprise : $branchName" -ForegroundColor Yellow
+        } else {
+            Invoke-Checked { git switch -c $branchName } 'Impossible de creer la branche de publication.'
+        }
         Copy-PublicSources $stagingDirectory
 
         & git diff --cached --quiet
-        if ($LASTEXITCODE -eq 0) { throw 'Aucune modification source n est presente pour cette nouvelle version.' }
-        if ($LASTEXITCODE -ne 1) { throw 'Impossible de comparer les sources.' }
+        $hasSourceChanges = $LASTEXITCODE -eq 1
+        if ($LASTEXITCODE -notin @(0, 1)) { throw 'Impossible de comparer les sources.' }
+        if (-not $hasSourceChanges -and -not $remoteBranchExists) {
+            throw 'Aucune modification source n est presente pour cette nouvelle version.'
+        }
 
         $workflowChanges = @(& git diff --cached --name-only -- '.github/workflows')
         if ($workflowChanges.Count -gt 0) {
@@ -331,24 +429,28 @@ Puis relancez avec l option -AllowWorkflowChanges.
         }
 
         Write-Host ''
-        & git diff --cached --stat
+        if ($hasSourceChanges) { & git diff --cached --stat }
+        else { Write-Host 'La branche distante contient deja exactement les sources validees.' -ForegroundColor Green }
         Write-Host ''
         Write-Host "Depot   : https://github.com/$Repository" -ForegroundColor White
         Write-Host "Version : $Version" -ForegroundColor White
         Write-Host 'Parcours : branche temporaire > tests GitHub > fusion > tag > Release'
         Write-Host ''
-        $confirmation = Read-Host "Publier la version $Version ? O/N"
+        $confirmation = Read-Host "Publier ou reprendre la version $Version ? O/N"
         if ($confirmation -notmatch '^[OoYy]$') {
             Write-Host 'Publication annulee. Aucun fichier n a ete envoye.' -ForegroundColor Yellow
             $publicationSucceeded = $true
             Complete-Script 0
         }
 
-        $repositoryOwner = ($Repository -split '/', 2)[0]
-        Invoke-Checked { git config user.name $repositoryOwner } 'Impossible de configurer le nom Git.'
-        Invoke-Checked { git config user.email "$repositoryOwner@users.noreply.github.com" } 'Impossible de configurer l adresse Git.'
-        Invoke-Checked { git commit -m "Preparer la version $Version" } 'Impossible de creer le commit.'
-        Invoke-Checked { git push --set-upstream origin $branchName } 'La branche de publication n a pas pu etre envoyee.'
+        if ($hasSourceChanges) {
+            Invoke-Checked { git commit -m "Preparer la version $Version" } 'Impossible de creer le commit.'
+            if ($remoteBranchExists) {
+                Invoke-Checked { git push origin $branchName } 'La branche de publication existante n a pas pu etre mise a jour.'
+            } else {
+                Invoke-Checked { git push --set-upstream origin $branchName } 'La branche de publication n a pas pu etre envoyee.'
+            }
+        }
 
         $prBodyPath = Join-Path $stagingDirectory '.release-pr-body.md'
         @"
@@ -357,18 +459,30 @@ Puis relancez avec l option -AllowWorkflowChanges.
 - verification locale complete ;
 - compilation et tests du Bridge reussis ;
 - tests de l extension Chrome reussis ;
-- Setup et ZIP Windows construits localement.
+- Setup et ZIP Windows construits localement ;
+- empreintes SHA-256 et notes lisibles verifiees.
 
 La fusion et le tag sont effectues uniquement apres la reussite des controles GitHub.
 "@ | Set-Content -LiteralPath $prBodyPath -Encoding UTF8
 
-        $prUrl = & gh pr create --repo $Repository --base main --head $branchName --title "Preparer la version $Version" --body-file $prBodyPath
-        if ($LASTEXITCODE -ne 0 -or ($prUrl | Out-String) -notmatch '/pull/(\d+)') {
-            throw "La Pull Request n a pas pu etre creee. La branche $branchName est conservee sur GitHub pour reprendre sans perdre le travail."
+        $openPrJson = & gh pr list --repo $Repository --base main --head $branchName --state open --limit 2 --json number,url
+        if ($LASTEXITCODE -ne 0) { throw 'Impossible de rechercher une Pull Request existante.' }
+        $openPullRequests = @(($openPrJson | Out-String) | ConvertFrom-Json)
+        if ($openPullRequests.Count -gt 1) { throw "Plusieurs Pull Requests utilisent la branche $branchName." }
+        if ($openPullRequests.Count -eq 1) {
+            $prNumber = [int]$openPullRequests[0].number
+            $prUrl = [string]$openPullRequests[0].url
+            Write-Host "Pull Request existante reprise : $prUrl" -ForegroundColor Yellow
+        } else {
+            $prUrl = & gh pr create --repo $Repository --base main --head $branchName --title "Preparer la version $Version" --body-file $prBodyPath
+            if ($LASTEXITCODE -ne 0 -or ($prUrl | Out-String) -notmatch '/pull/(\d+)') {
+                throw "La Pull Request n a pas pu etre creee. La branche $branchName reste disponible sur GitHub."
+            }
+            $prNumber = [int]$Matches[1]
+            Write-Host "Pull Request creee : $($prUrl | Out-String)" -ForegroundColor Green
         }
-        $prNumber = [int]$Matches[1]
-        Write-Host "Pull Request creee : $($prUrl | Out-String)" -ForegroundColor Green
 
+        Update-PullRequestBranchIfNeeded $prNumber
         Wait-ForPullRequestChecks $prNumber
 
         Write-Host '[5/6] Fusion et creation de la version...' -ForegroundColor Yellow
