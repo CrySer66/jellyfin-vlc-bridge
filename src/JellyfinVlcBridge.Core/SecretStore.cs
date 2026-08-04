@@ -64,6 +64,42 @@ public sealed class EnvironmentOrWindowsCredentialStore : ISecretStore
         }
     }
 
+    public int DeleteByPrefix(string prefix)
+    {
+        if (!string.Equals(prefix, SecretKeys.Prefix, StringComparison.Ordinal))
+            throw new ArgumentException("Seuls les secrets appartenant à Jellyfin VLC Bridge peuvent être supprimés.", nameof(prefix));
+        if (!OperatingSystem.IsWindows()) return 0;
+
+        if (!CredEnumerate(prefix + "*", 0, out var count, out var credentials))
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (error == 1168) return 0; // ERROR_NOT_FOUND
+            throw new Win32Exception(error);
+        }
+
+        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var credentialPointer = Marshal.ReadIntPtr(credentials, checked((int)index * IntPtr.Size));
+                if (credentialPointer == IntPtr.Zero) continue;
+                var credential = Marshal.PtrToStructure<CREDENTIAL>(credentialPointer);
+                if (credential.Type == 1 &&
+                    !string.IsNullOrWhiteSpace(credential.TargetName) &&
+                    credential.TargetName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    targets.Add(credential.TargetName);
+            }
+        }
+        finally
+        {
+            CredFree(credentials);
+        }
+
+        foreach (var target in targets) Delete(target);
+        return targets.Count;
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CREDENTIAL
     {
@@ -91,11 +127,15 @@ public sealed class EnvironmentOrWindowsCredentialStore : ISecretStore
     [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredDelete(string target, uint type, uint flags);
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("advapi32.dll", EntryPoint = "CredEnumerateW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CredEnumerate(string filter, uint flags, out uint count, out IntPtr credentials);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern void CredFree(IntPtr buffer);
 }
 
 public static class SecretKeys
 {
-    public static string ForServer(string serverUrl) => "JellyfinVlcBridge:" + new Uri(serverUrl).Authority.ToLowerInvariant();
+    public const string Prefix = "JellyfinVlcBridge:";
+    public static string ForServer(string serverUrl) => Prefix + new Uri(serverUrl).Authority.ToLowerInvariant();
 }
