@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.17.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.18.0
 ```
 
 Le script :
@@ -40,9 +40,21 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.17.0-Setup.exe
-outputs\JellyfinVlcBridge-1.17.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.18.0-Setup.exe
+outputs\JellyfinVlcBridge-1.18.0-win-x64.zip
 ```
+
+Pour préparer localement les métadonnées qui accompagneront la Release :
+
+```powershell
+.\tools\New-ReleaseChecksums.ps1 -Version 1.18.0
+.\tools\New-ReleaseNotes.ps1 -Version 1.18.0
+.\tools\Test-ReleaseMetadata.ps1 -Version 1.18.0
+```
+
+Le workflow public atteste séparément le Setup et le ZIP exacts qu'il joint à
+la Release. Une attestation GitHub établit la provenance de la compilation ;
+elle ne remplace pas une signature Authenticode Windows.
 
 ## Construire l'extension Chrome
 
@@ -121,6 +133,22 @@ affiche la commande unique à exécuter.
 La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
 
 L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google. Les textes, captures d’écran et autres éléments promotionnels sont gérés dans le tableau de bord du magasin et ne font pas partie des sources nécessaires à la compilation.
+
+## Préparer WinGet
+
+Une soumission WinGet nécessite l'URL et l'empreinte du Setup déjà publié. Après
+validation d'une Release publique, générez les quatre manifestes avec :
+
+```powershell
+.\tools\New-WinGetManifests.ps1 `
+  -Version 1.18.0 `
+  -InstallerSha256 EMPREINTE_SHA256_PUBLIEE
+```
+
+Validez ensuite l'installation `/quiet`, la première connexion Quick Connect,
+la mise à niveau et la désinstallation dans un environnement propre. Le dossier
+[`packaging/winget`](../packaging/winget/README.md) décrit le parcours. Aucun
+script du projet ne soumet automatiquement un paquet à Microsoft.
 
 ## Publication du code
 
