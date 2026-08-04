@@ -1,0 +1,24 @@
+PackageIdentifier: CrySer66.JellyfinVlcBridge
+PackageVersion: "{{VERSION}}"
+InstallerType: exe
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+InstallerSwitches:
+  Silent: /quiet
+UpgradeBehavior: install
+ReleaseDate: "{{RELEASE_DATE}}"
+Dependencies:
+  PackageDependencies:
+    - PackageIdentifier: VideoLAN.VLC
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/CrySer66/jellyfin-vlc-bridge/releases/download/v{{VERSION}}/JellyfinVlcBridge-{{VERSION}}-Setup.exe
+    InstallerSha256: "{{INSTALLER_SHA256}}"
+    AppsAndFeaturesEntries:
+      - DisplayName: Jellyfin VLC Bridge
+        Publisher: Jellyfin VLC Bridge Project
+        DisplayVersion: "{{VERSION}}"
+ManifestType: installer
+ManifestVersion: 1.12.0
