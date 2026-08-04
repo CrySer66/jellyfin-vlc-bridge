@@ -27,8 +27,17 @@ Ne joignez jamais un vrai jeton, mot de passe ou fichier du Gestionnaire
 d'identifiants Windows. Un accusé de réception sera donné dès que possible, puis le
 correctif sera préparé avant toute divulgation publique.
 
-Les règles protégeant la construction et la future signature des exécutables
-sont décrites dans la [politique de signature du code](CODE_SIGNING.md).
+## Vérifier un téléchargement
+
+Les exécutables Windows sont actuellement non signés. Téléchargez-les uniquement
+depuis les [Releases officielles](https://github.com/CrySer66/jellyfin-vlc-bridge/releases)
+et vérifiez leur empreinte SHA-256 ou leur attestation GitHub avant de décider
+quoi faire face à un avertissement SmartScreen. Le
+[guide de vérification](docs/VERIFY_DOWNLOADS.md) fournit les commandes et
+explique ce que chaque contrôle garantit.
+
+Les règles protégeant la construction, la provenance et une future signature
+des exécutables sont décrites dans la [politique de signature du code](CODE_SIGNING.md).
 
 ---
 
@@ -55,5 +64,14 @@ Never include a real token, password or Windows Credential Manager export. The
 report will be acknowledged as soon as possible and a fix will be prepared before
 public disclosure.
 
-The controls protecting builds and future executable signatures are documented
-in the [code signing policy](CODE_SIGNING.md).
+## Verifying a download
+
+Windows executables are currently unsigned. Download them only from the
+[official Releases](https://github.com/CrySer66/jellyfin-vlc-bridge/releases)
+and verify their SHA-256 digest or GitHub attestation before deciding how to
+respond to a SmartScreen warning. The
+[download verification guide](docs/VERIFY_DOWNLOADS.md) provides the commands
+and explains what each check guarantees.
+
+The controls protecting builds, provenance and any future executable signature
+are documented in the [code-signing policy](CODE_SIGNING.md).

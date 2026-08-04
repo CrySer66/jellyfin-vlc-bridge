@@ -1,5 +1,23 @@
 # Historique des versions
 
+## 1.18.0 — 2026-08-04
+
+- ajoute une empreinte SHA-256 publique pour chaque téléchargement Windows ;
+- vérifie automatiquement l’empreinte SHA-256 avant d’exécuter une mise à jour téléchargée ;
+- ajoute une attestation GitHub vérifiable pour l’installateur et le ZIP produits par le workflow officiel ;
+- rend chaque Release immuable et fige les actions de compilation par leur empreinte Git ;
+- limite la copie publique à une liste de sources autorisées et bloque les fichiers ou secrets suspects ;
+- remplace les notes automatiques peu lisibles par une présentation claire des changements et des téléchargements ;
+- prépare l’installation et la désinstallation silencieuses nécessaires à une future diffusion avec WinGet ;
+- retire l’ancien désinstallateur console et nettoie les sauvegardes de mise à jour abandonnées ;
+- conserve Quick Connect sous le contrôle de l’utilisateur lors de la première connexion ;
+- conserve l’ancienne connexion jusqu’à la réussite complète d’un changement de serveur ;
+- documente honnêtement l’absence actuelle de signature Authenticode et les limites de SmartScreen ;
+- ajoute un guide bilingue pour vérifier l’intégrité et la provenance d’un téléchargement ;
+- prépare les prochaines étapes WinGet et Microsoft Edge sans soumission automatique à un service tiers ;
+- retire les chemins personnels de compilation des binaires distribués ;
+- conserve l’extension Chrome 1.8.0 et toutes les fonctions de lecture existantes.
+
 ## 1.17.0 — 2026-07-25
 
 - ajoute une icône Jellyfin VLC Bridge dans la zone de notification Windows ;

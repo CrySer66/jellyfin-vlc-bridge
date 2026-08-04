@@ -28,7 +28,7 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 | Application | Plateforme | Extension |
 |---|---|---|
-| **1.17.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
+| **1.18.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Un média passe de Jellyfin vers VLC grâce au Bridge local">
@@ -36,14 +36,24 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 ## Installation
 
-1. Installez [VLC Media Player](https://www.videolan.org/vlc/).
-2. Téléchargez `JellyfinVlcBridge-<version>-Setup.exe` depuis la [dernière version GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest).
-3. Lancez l’installateur et indiquez l’adresse de votre serveur Jellyfin.
-4. Autorisez le code dans **Jellyfin → Paramètres → Quick Connect**.
-5. Installez l’[extension Chrome officielle](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp).
-6. Rechargez Jellyfin, ouvrez un média et sélectionnez **Lire avec VLC**.
+1. **Préparez VLC** — installez [VLC Media Player](https://www.videolan.org/vlc/).
+2. **Installez le Bridge** — téléchargez `JellyfinVlcBridge-<version>-Setup.exe` depuis la [dernière version GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest), lancez-le, puis autorisez son code dans **Jellyfin → Paramètres → Quick Connect**.
+3. **Ajoutez le bouton** — installez l’[extension Chrome officielle](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp), rechargez Jellyfin, ouvrez un média et sélectionnez **Lire avec VLC**.
 
 L’installation se fait pour l’utilisateur Windows actuel et ne demande pas de droits administrateur. Le [guide détaillé](INSTALLATION.md) explique aussi HTTP Direct Play, SMB, les mises à jour et la désinstallation.
+
+## Télécharger en confiance
+
+Les exécutables Windows ne possèdent actuellement **pas de signature Authenticode**. La première candidature au programme open source de SignPath Foundation n’a pas été acceptée, le projet n’ayant pas encore assez de visibilité et de réputation. Windows SmartScreen peut donc afficher un avertissement, même pour un fichier officiel intact.
+
+Téléchargez toujours le Bridge depuis la page [Releases de ce dépôt](https://github.com/CrySer66/jellyfin-vlc-bridge/releases). À partir de la version 1.18.0, les versions fournissent :
+
+- une empreinte SHA-256 dans `SHA256SUMS.txt` ;
+- une attestation GitHub pour l’installateur et le ZIP, qui permet de confirmer qu’ils proviennent du workflow public de ce dépôt.
+
+Le centre de contrôle compare aussi automatiquement l’empreinte SHA-256 annoncée par GitHub avant d’ouvrir un installateur de mise à jour.
+
+Consultez le [guide de vérification des téléchargements](docs/VERIFY_DOWNLOADS.md) avant de prendre une décision face à un avertissement Windows. Une attestation de provenance ne remplace pas une signature Windows et ne supprime pas SmartScreen.
 
 ## Ce que le Bridge sait faire
 
@@ -64,9 +74,7 @@ L’installation se fait pour l’utilisateur Windows actuel et ne demande pas d
 
 Le projet ne contient ni publicité, ni télémétrie, ni outil d’analyse. L’extension transmet au programme installé sur le même PC uniquement l’identifiant technique du média et les choix de lecture. Le relais local écoute exclusivement sur `127.0.0.1`.
 
-Le diagnostic et le paquet d’assistance générés par l’application excluent le jeton Jellyfin et les identifiants personnels. Consultez la [politique de confidentialité](PRIVACY.md), la [politique de sécurité](SECURITY.md) et la [politique de signature](CODE_SIGNING.md).
-
-La candidature au programme gratuit de signature open source de SignPath Foundation a été envoyée et reste en attente d’examen. Les téléchargements sont donc encore non signés et Windows SmartScreen peut afficher un avertissement.
+Le diagnostic et le paquet d’assistance générés par l’application excluent le jeton Jellyfin et les identifiants personnels. Consultez la [politique de confidentialité](PRIVACY.md), la [politique de sécurité](SECURITY.md), la [politique de signature](CODE_SIGNING.md) et le [guide de vérification](docs/VERIFY_DOWNLOADS.md).
 
 ## Langues
 
@@ -77,6 +85,8 @@ L’application Windows et l’extension Chrome sont disponibles en français et
 - [Installation détaillée](INSTALLATION.md)
 - [Compilation et développement](docs/DEVELOPMENT.md)
 - [Compatibilité et environnements pris en charge](docs/COMPATIBILITY.md)
+- [Vérifier un téléchargement](docs/VERIFY_DOWNLOADS.md)
+- [Feuille de route de distribution](docs/DISTRIBUTION.md)
 - [Proposer une correction](CONTRIBUTING.md)
 - [Historique des versions](CHANGELOG.md)
 - [Signaler un problème](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose)
