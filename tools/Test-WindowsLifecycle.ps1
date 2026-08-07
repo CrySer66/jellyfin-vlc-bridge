@@ -18,6 +18,12 @@ function Assert-True([bool]$condition, [string]$message) {
     if (-not $condition) { throw $message }
 }
 
+function Test-RegistryValue([string]$path, [string]$name) {
+    if (-not (Test-Path -LiteralPath $path)) { return $false }
+    $values = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
+    return $null -ne $values.PSObject.Properties[$name]
+}
+
 function Invoke-WaitingProcess([string]$filePath, [string[]]$arguments, [int]$timeoutSeconds = 150) {
     $process = Start-Process -FilePath $filePath -ArgumentList $arguments -PassThru
     try {
@@ -68,8 +74,7 @@ $existingMarkers = @(
     $chromeHostRegistry,
     $edgeHostRegistry
 ) | Where-Object { Test-Path -LiteralPath $_ }
-$existingRunValue = Get-ItemPropertyValue -LiteralPath $runRegistry -Name JellyfinVlcBridge -ErrorAction SilentlyContinue
-if ($existingMarkers.Count -gt 0 -or $null -ne $existingRunValue) {
+if ($existingMarkers.Count -gt 0 -or (Test-RegistryValue $runRegistry 'JellyfinVlcBridge')) {
     throw 'Le test de cycle complet exige une session Windows sans Jellyfin VLC Bridge deja installe.'
 }
 
@@ -133,8 +138,7 @@ try {
     foreach ($registryPath in @($uninstallRegistry, $protocolRegistry, $chromeHostRegistry, $edgeHostRegistry)) {
         Assert-True (-not (Test-Path -LiteralPath $registryPath)) "Enregistrement encore present apres desinstallation : $registryPath"
     }
-    $remainingRunValue = Get-ItemPropertyValue -LiteralPath $runRegistry -Name JellyfinVlcBridge -ErrorAction SilentlyContinue
-    Assert-True ($null -eq $remainingRunValue) 'Le demarrage automatique existe encore apres desinstallation.'
+    Assert-True (-not (Test-RegistryValue $runRegistry 'JellyfinVlcBridge')) 'Le demarrage automatique existe encore apres desinstallation.'
     Assert-True (-not (Test-Path -LiteralPath $startMenuDirectory)) 'Le dossier du menu Demarrer existe encore apres desinstallation.'
 
     Write-Host 'OK  Cycle reel Setup, enregistrements Windows, reinstallation et desinstallation'
