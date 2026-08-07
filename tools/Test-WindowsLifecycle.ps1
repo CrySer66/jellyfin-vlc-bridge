@@ -95,7 +95,7 @@ try {
 
     $versionOutput = (& $bridgeExecutable version 2>&1 | Out-String).Trim()
     Assert-True ($LASTEXITCODE -eq 0) 'La commande version de l application installee a echoue.'
-    Assert-True ($versionOutput -eq $Version) "Version installee inattendue : '$versionOutput'."
+    Assert-True ($versionOutput -eq "Jellyfin VLC Bridge $Version") "Version installee inattendue : '$versionOutput'."
     Invoke-WaitingProcess $controlCenter @('--validate-only') 60
 
     $uninstallEntry = Get-ItemProperty -LiteralPath $uninstallRegistry -ErrorAction Stop
@@ -122,7 +122,7 @@ try {
     Write-Host 'Reinstallation silencieuse pour valider le chemin de mise a niveau/reparation...'
     Invoke-WaitingProcess $SetupPath @('/quiet')
     $secondVersionOutput = (& $bridgeExecutable version 2>&1 | Out-String).Trim()
-    Assert-True ($LASTEXITCODE -eq 0 -and $secondVersionOutput -eq $Version) 'La reinstallation n a pas conserve la bonne version.'
+    Assert-True ($LASTEXITCODE -eq 0 -and $secondVersionOutput -eq "Jellyfin VLC Bridge $Version") 'La reinstallation n a pas conserve la bonne version.'
 
     Write-Host 'Desinstallation reelle avec la commande silencieuse enregistree...'
     & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File $uninstaller -Silent
