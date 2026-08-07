@@ -132,22 +132,35 @@ jobs:
         shell: pwsh
         run: ./tools/Test-PowerShellSyntax.ps1
 
-      - name: Compiler et tester
+      - name: Compiler
         shell: pwsh
         run: |
           dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
           dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
-          dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
-          node tests/extension-tests.js
 
       - name: Construire l’installateur et le ZIP
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./tools/Build-WindowsRelease.ps1 -Version $env:RELEASE_VERSION
+
+      - name: Tester le cycle réel du Setup Windows
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./tools/Test-WindowsLifecycle.ps1 -Version $env:RELEASE_VERSION
+
+      - name: Exécuter les tests
+        shell: pwsh
         run: |
-          ./tools/Build-WindowsRelease.ps1 -Version $env:RELEASE_VERSION
-          ./tools/Test-WindowsPackage.ps1 -Version $env:RELEASE_VERSION
-          ./tools/Test-WindowsLifecycle.ps1 -Version $env:RELEASE_VERSION
+          dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
+          node tests/extension-tests.js
+
+      - name: Vérifier les paquets Windows
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./tools/Test-WindowsPackage.ps1 -Version $env:RELEASE_VERSION
 
       - name: Préparer et vérifier les métadonnées de la Release
         shell: pwsh
