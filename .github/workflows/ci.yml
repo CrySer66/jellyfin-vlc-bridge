@@ -76,3 +76,7 @@ jobs:
           ./tools/New-ReleaseChecksums.ps1
           ./tools/Test-ReleaseMetadata.ps1
 
+      - name: Tester le cycle réel du Setup Windows
+        shell: pwsh
+        run: ./tools/Test-WindowsLifecycle.ps1
+

@@ -147,6 +147,7 @@ jobs:
         run: |
           ./tools/Build-WindowsRelease.ps1 -Version $env:RELEASE_VERSION
           ./tools/Test-WindowsPackage.ps1 -Version $env:RELEASE_VERSION
+          ./tools/Test-WindowsLifecycle.ps1 -Version $env:RELEASE_VERSION
 
       - name: Préparer et vérifier les métadonnées de la Release
         shell: pwsh

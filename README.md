@@ -40,20 +40,9 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 2. **Installez le Bridge** — téléchargez `JellyfinVlcBridge-<version>-Setup.exe` depuis la [dernière version GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest), lancez-le, puis autorisez son code dans **Jellyfin → Paramètres → Quick Connect**.
 3. **Ajoutez le bouton** — installez l’[extension Chrome officielle](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp), rechargez Jellyfin, ouvrez un média et sélectionnez **Lire avec VLC**.
 
+**Vérification rapide :** ouvrez la fiche d’un film ou d’un épisode dans Jellyfin. Le bouton **Lire avec VLC** doit apparaître dans la barre d’actions.
+
 L’installation se fait pour l’utilisateur Windows actuel et ne demande pas de droits administrateur. Le [guide détaillé](INSTALLATION.md) explique aussi HTTP Direct Play, SMB, les mises à jour et la désinstallation.
-
-## Télécharger en confiance
-
-Les exécutables Windows ne possèdent actuellement **pas de signature Authenticode**. La première candidature au programme open source de SignPath Foundation n’a pas été acceptée, le projet n’ayant pas encore assez de visibilité et de réputation. Windows SmartScreen peut donc afficher un avertissement, même pour un fichier officiel intact.
-
-Téléchargez toujours le Bridge depuis la page [Releases de ce dépôt](https://github.com/CrySer66/jellyfin-vlc-bridge/releases). À partir de la version 1.18.0, les versions fournissent :
-
-- une empreinte SHA-256 dans `SHA256SUMS.txt` ;
-- une attestation GitHub pour l’installateur et le ZIP, qui permet de confirmer qu’ils proviennent du workflow public de ce dépôt.
-
-Le centre de contrôle compare aussi automatiquement l’empreinte SHA-256 annoncée par GitHub avant d’ouvrir un installateur de mise à jour.
-
-Consultez le [guide de vérification des téléchargements](docs/VERIFY_DOWNLOADS.md) avant de prendre une décision face à un avertissement Windows. Une attestation de provenance ne remplace pas une signature Windows et ne supprime pas SmartScreen.
 
 ## Ce que le Bridge sait faire
 
@@ -75,6 +64,19 @@ Consultez le [guide de vérification des téléchargements](docs/VERIFY_DOWNLOAD
 Le projet ne contient ni publicité, ni télémétrie, ni outil d’analyse. L’extension transmet au programme installé sur le même PC uniquement l’identifiant technique du média et les choix de lecture. Le relais local écoute exclusivement sur `127.0.0.1`.
 
 Le diagnostic et le paquet d’assistance générés par l’application excluent le jeton Jellyfin et les identifiants personnels. Consultez la [politique de confidentialité](PRIVACY.md), la [politique de sécurité](SECURITY.md), la [politique de signature](CODE_SIGNING.md) et le [guide de vérification](docs/VERIFY_DOWNLOADS.md).
+
+## Télécharger en confiance
+
+Les exécutables Windows ne possèdent actuellement **pas de signature Authenticode**. La première candidature au programme open source de SignPath Foundation n’a pas été acceptée, le projet n’ayant pas encore assez de visibilité et de réputation. Windows SmartScreen peut donc afficher un avertissement, même pour un fichier officiel intact.
+
+Téléchargez toujours le Bridge depuis la page [Releases de ce dépôt](https://github.com/CrySer66/jellyfin-vlc-bridge/releases). À partir de la version 1.18.0, les versions fournissent :
+
+- une empreinte SHA-256 dans `SHA256SUMS.txt` ;
+- une attestation GitHub pour l’installateur et le ZIP, qui permet de confirmer qu’ils proviennent du workflow public de ce dépôt.
+
+Le centre de contrôle compare aussi automatiquement l’empreinte SHA-256 annoncée par GitHub avant d’ouvrir un installateur de mise à jour.
+
+Consultez le [guide de vérification des téléchargements](docs/VERIFY_DOWNLOADS.md) avant de prendre une décision face à un avertissement Windows. Une attestation de provenance ne remplace pas une signature Windows et ne supprime pas SmartScreen.
 
 ## Langues
 

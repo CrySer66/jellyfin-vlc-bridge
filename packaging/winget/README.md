@@ -17,14 +17,19 @@ Après publication et validation d’une Release GitHub :
    ```powershell
    .\tools\New-WinGetManifests.ps1 `
      -Version 1.18.0 `
-     -InstallerSha256 EMPREINTE_SHA256_PUBLIEE
+     -InstallerSha256 EMPREINTE_SHA256_PUBLIEE `
+     -ReleaseDate AAAA-MM-JJ
    ```
 
-3. tester les fichiers produits dans `outputs\winget` avec WinGetCreate et une
-   installation propre ;
-4. vérifier l’installation avec `/quiet`, la première connexion Quick Connect,
+   La date doit être celle de la Release GitHub, pas la date de génération des
+   manifestes.
+
+3. valider les fichiers produits dans `outputs\winget` avec `winget validate` ;
+4. tester les manifestes dans Windows Sandbox avec le script `SandboxTest.ps1`
+   du dépôt `microsoft/winget-pkgs` ;
+5. vérifier l’installation avec `/quiet`, la première connexion Quick Connect,
    la mise à niveau et la désinstallation silencieuse ;
-5. seulement ensuite, ouvrir manuellement une Pull Request vers
+6. seulement ensuite, ouvrir manuellement une Pull Request vers
    `microsoft/winget-pkgs`.
 
 Le commutateur WinGet retenu est `/quiet`. Il installe les fichiers et
