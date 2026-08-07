@@ -205,6 +205,7 @@ if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or
     $uninstallerScript -notmatch '\$temporaryProcess\.WaitForExit\(90000\)' -or
     $uninstallerScript -notmatch 'exit\s+\$temporaryExitCode' -or
     $uninstallerScript -notmatch 'CrySer66\.JellyfinVlcBridge\.Maintenance' -or
+    $uninstallerScript -notmatch 'Test-BridgeRunRegistration' -or
     $uninstallerScript -notmatch 'Assert-BridgeRegistrationRemoved' -or
     $uninstallerScript -notmatch 'if\s*\(\$Silent\)\s*\{\s*throw\s+\$cleanupWarning' -or
     $uninstallerScript -notmatch 'if\s*\(\$Purge\)\s*\{\s*''purge''\s*\}\s*else\s*\{\s*''keep''\s*\}') {

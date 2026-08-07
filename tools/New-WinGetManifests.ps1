@@ -7,8 +7,9 @@ param(
     [ValidatePattern('^[0-9A-Fa-f]{64}$')]
     [string]$InstallerSha256,
 
+    [Parameter(Mandatory = $true)]
     [ValidatePattern('^\d{4}-\d{2}-\d{2}$')]
-    [string]$ReleaseDate = [DateTime]::UtcNow.ToString('yyyy-MM-dd'),
+    [string]$ReleaseDate,
 
     [string]$OutputDirectory = ''
 )

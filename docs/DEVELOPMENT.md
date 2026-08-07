@@ -142,13 +142,32 @@ validation d'une Release publique, générez les quatre manifestes avec :
 ```powershell
 .\tools\New-WinGetManifests.ps1 `
   -Version 1.18.0 `
-  -InstallerSha256 EMPREINTE_SHA256_PUBLIEE
+  -InstallerSha256 EMPREINTE_SHA256_PUBLIEE `
+  -ReleaseDate AAAA-MM-JJ
 ```
 
-Validez ensuite l'installation `/quiet`, la première connexion Quick Connect,
-la mise à niveau et la désinstallation dans un environnement propre. Le dossier
+La date doit correspondre à la publication de la Release GitHub. Validez ensuite
+les manifestes avec `winget validate`, puis l'installation `/quiet`, la première
+connexion Quick Connect, la mise à niveau et la désinstallation dans un
+environnement propre. Le dossier
 [`packaging/winget`](../packaging/winget/README.md) décrit le parcours. Aucun
 script du projet ne soumet automatiquement un paquet à Microsoft.
+
+## Tester le vrai cycle Windows
+
+La CI construit le véritable Setup auto-extractible sur une machine Windows
+éphémère, l'installe deux fois silencieusement, vérifie les fichiers, raccourcis,
+clés HKCU, protocole et hôtes natifs, puis exécute la désinstallation silencieuse
+enregistrée par Windows :
+
+```powershell
+.\tools\Test-WindowsLifecycle.ps1
+```
+
+Le script refuse de démarrer lorsqu'une installation du Bridge existe déjà. Il
+est destiné à une VM propre ou au runner GitHub, sans serveur Jellyfin, jeton,
+navigateur ou VLC réel. Les interactions visuelles et Quick Connect restent des
+vérifications manuelles avant publication.
 
 ## Publication du code
 

@@ -33,6 +33,9 @@ foreach ($workflowSource in @($workflow, $ciWorkflow)) {
     if ($workflowSource -notmatch '(?ms)dotnet-version:\s*\|\s*\r?\n\s+8\.0\.x\s*\r?\n\s+10\.0\.x') {
         throw 'Le workflow n installe pas les SDK .NET 8 et 10 requis par le projet.'
     }
+    if (-not $workflowSource.Contains('Test-WindowsLifecycle.ps1')) {
+        throw 'Le workflow ne teste pas le cycle reel du Setup Windows.'
+    }
 }
 
 foreach ($workflowSource in @($workflow, $ciWorkflow)) {
@@ -205,6 +208,9 @@ try {
     }
     if ($manifestText -match 'silentWithProgress|SilentWithProgress') {
         throw 'Le manifeste ne doit pas annoncer une progression inexistante en mode silencieux.'
+    }
+    if ($manifestText -match '(?ms)AppsAndFeaturesEntries:.*?DisplayVersion:') {
+        throw 'DisplayVersion doit etre omis quand il est identique a PackageVersion.'
     }
 } finally {
     Remove-Item -LiteralPath $wingetOutput -Recurse -Force -ErrorAction SilentlyContinue

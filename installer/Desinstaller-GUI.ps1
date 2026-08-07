@@ -290,6 +290,13 @@ function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
     }
 }
 
+function Test-BridgeRunRegistration {
+    $runRegistry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    if (-not (Test-Path -LiteralPath $runRegistry)) { return $false }
+    $runValues = Get-ItemProperty -LiteralPath $runRegistry -ErrorAction Stop
+    return $null -ne $runValues.PSObject.Properties['JellyfinVlcBridge']
+}
+
 function Remove-BridgeRegistrationFallback {
     if ($IsolatedTest) { return }
     foreach ($registryPath in @(
@@ -303,7 +310,9 @@ function Remove-BridgeRegistrationFallback {
         }
     }
     $runRegistry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    Remove-ItemProperty -LiteralPath $runRegistry -Name JellyfinVlcBridge -Force -ErrorAction SilentlyContinue
+    if (Test-BridgeRunRegistration) {
+        Remove-ItemProperty -LiteralPath $runRegistry -Name JellyfinVlcBridge -Force -ErrorAction Stop
+    }
     foreach ($path in @(
         (Join-Path $rootDirectory 'native-messaging-host.json'),
         (Join-Path $rootDirectory 'extension-heartbeat.json'),
@@ -326,9 +335,7 @@ function Assert-BridgeRegistrationRemoved {
     )) {
         if (Test-Path -LiteralPath $registryPath) { throw "Enregistrement Windows encore présent : $registryPath" }
     }
-    $runValue = Get-ItemPropertyValue -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
-        -Name JellyfinVlcBridge -ErrorAction SilentlyContinue
-    if ($null -ne $runValue) { throw 'Le démarrage automatique du Bridge est encore enregistré.' }
+    if (Test-BridgeRunRegistration) { throw 'Le démarrage automatique du Bridge est encore enregistré.' }
 }
 
 try {

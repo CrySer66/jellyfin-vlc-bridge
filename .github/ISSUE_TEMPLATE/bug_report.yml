@@ -1,5 +1,5 @@
-name: Signaler un problème
-description: Signaler un dysfonctionnement reproductible du Bridge, de VLC ou de l’extension.
+name: Signaler un problème / Report a bug
+description: Signaler un problème reproductible / Report a reproducible Bridge, VLC or extension problem.
 title: "[Bug] "
 labels: [bug]
 body:
@@ -8,64 +8,91 @@ body:
       value: |
         Merci de ne jamais publier de mot de passe, jeton Jellyfin, clé API ou contenu du Gestionnaire d’identifiants Windows.
 
+        Never publish a password, Jellyfin token, API key or Windows Credential Manager content.
+
   - type: input
     id: bridge-version
     attributes:
-      label: Version de Jellyfin VLC Bridge
-      placeholder: Exemple : 1.14.0
+      label: Version de Jellyfin VLC Bridge / Bridge version
+      placeholder: Exemple / Example: 1.18.0
     validations:
       required: true
 
   - type: input
     id: extension-version
     attributes:
-      label: Version de l’extension
-      placeholder: Exemple : 1.8.0
+      label: Version de l’extension / Extension version
+      placeholder: Exemple / Example: 1.8.0
     validations:
       required: true
 
   - type: input
     id: environment
     attributes:
-      label: Versions de Windows, Jellyfin, Chrome et VLC
+      label: Versions de Windows, Jellyfin, Chrome et VLC / Environment
       placeholder: Windows 11, Jellyfin 10.x, Chrome 1xx, VLC 3.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: content-type
+    attributes:
+      label: Type de contenu / Content type
+      options:
+        - Film / Movie
+        - Épisode / Episode
+        - Saison ou série / Season or show
+        - Collection
+        - Installation, mise à jour ou interface / Setup, update or user interface
+        - Autre / Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: playback-mode
+    attributes:
+      label: Mode de lecture / Playback mode
+      options:
+        - HTTP Direct Play
+        - SMB
+        - Non applicable ou inconnu / Not applicable or unknown
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Étapes pour reproduire le problème
-      description: Indiquez précisément ce que vous ouvrez et ce sur quoi vous cliquez.
+      label: Étapes pour reproduire / Steps to reproduce
+      description: Indiquez précisément ce que vous ouvrez et ce sur quoi vous cliquez. / Describe exactly what you open and click.
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Résultat attendu et résultat obtenu
+      label: Résultat attendu et obtenu / Expected and actual result
     validations:
       required: true
 
   - type: textarea
     id: diagnostic
     attributes:
-      label: Diagnostic sans secret
-      description: Collez ici le résultat du bouton « Copier un diagnostic sans secret », si vous n’avez pas créé de paquet d’assistance.
+      label: Diagnostic sans secret / Redacted diagnostic
+      description: Collez le résultat de « Copier un diagnostic sans secret », si vous n’avez pas créé de paquet d’assistance. / Paste the redacted diagnostic when no support package is attached.
       render: text
 
   - type: textarea
     id: support-package
     attributes:
-      label: Paquet d’assistance facultatif
-      description: Dans le Centre de contrôle 1.13 ou plus récent, cliquez sur « Créer un paquet d’assistance », puis glissez le ZIP obtenu dans cette zone.
+      label: Paquet d’assistance facultatif / Optional support package
+      description: Cliquez sur « Créer un paquet d’assistance », puis glissez le ZIP ici. / Create a support package in the Control Center and attach its ZIP here.
 
   - type: checkboxes
     id: checks
     attributes:
-      label: Vérifications
+      label: Vérifications / Checks
       options:
-        - label: J’ai vérifié que le problème existe encore avec la dernière version publiée.
+        - label: J’ai vérifié le problème avec la dernière version publiée. / I reproduced this with the latest release.
           required: true
-        - label: Le contenu ci-dessus ne contient aucun secret ni jeton.
+        - label: Le contenu ne contient aucun secret ni jeton. / This report contains no secret or token.
           required: true
