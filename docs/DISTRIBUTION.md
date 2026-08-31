@@ -13,9 +13,13 @@ Des versions Linux ou macOS ne sont pas prévues tant qu'elles ne peuvent pas
 1. **GitHub Releases** — publier l'installateur et le ZIP avec
    `SHA256SUMS.txt` et des attestations GitHub. C'est la source officielle du
    programme Windows.
-2. **WinGet** — après validation publique d'une première version dont les
-   commandes silencieuses ont été testées, préparer une soumission au catalogue
-   communautaire. Aucune soumission n'est automatique.
+2. **WinGet** — la version 1.18.0 a été acceptée et fusionnée le 31 août 2026
+   ([demande nº 413912](https://github.com/microsoft/winget-pkgs/pull/413912)).
+   La disponibilité dans le catalogue restait à confirmer lors de notre
+   vérification du même jour. Le [guide WinGet](../INSTALLATION.md#installer-avec-winget-facultatif)
+   distingue la vérification, l'installation et la première connexion.
+   Chaque future version nécessite une nouvelle soumission ; une Release
+   GitHub ne met pas automatiquement WinGet à jour.
 3. **Microsoft Edge Add-ons** — préparer la fiche de l'extension, puis la
    soumettre une fois l'identifiant Microsoft obtenu. L'extension Chrome reste
    distribuée par le Chrome Web Store.
@@ -44,9 +48,13 @@ Linux and macOS builds are not planned while they cannot be tested properly.
 1. **GitHub Releases** — publish the installer and ZIP with
    `SHA256SUMS.txt` and GitHub attestations. This is the official source for the
    Windows application.
-2. **WinGet** — after the first public release with tested silent commands has
-   been validated, prepare a community-catalog submission. No submission is
-   automatic.
+2. **WinGet** — version 1.18.0 was accepted and merged on August 31, 2026
+   ([pull request #413912](https://github.com/microsoft/winget-pkgs/pull/413912)).
+   Catalog availability still needed confirmation during our check that day.
+   The [WinGet guide](../INSTALLATION.en.md#install-with-winget-optional)
+   separates availability checks, installation and first connection.
+   Each future version requires a new submission; publishing a GitHub Release
+   does not automatically update WinGet.
 3. **Microsoft Edge Add-ons** — prepare the extension listing, then submit it
    once a Microsoft extension ID is available. The Chrome extension remains
    distributed through the Chrome Web Store.

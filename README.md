@@ -44,6 +44,8 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 L’installation se fait pour l’utilisateur Windows actuel et ne demande pas de droits administrateur. Le [guide détaillé](INSTALLATION.md) explique aussi HTTP Direct Play, SMB, les mises à jour et la désinstallation.
 
+**WinGet (facultatif) :** la version 1.18.0 a été [acceptée le 31 août 2026](https://github.com/microsoft/winget-pkgs/pull/413912). Sa disponibilité dans le catalogue n’était pas encore confirmée lors de notre vérification du même jour. Le [guide WinGet](INSTALLATION.md#installer-avec-winget-facultatif) explique comment la vérifier, puis installer et mettre à jour le Bridge. Le téléchargement GitHub reste disponible.
+
 ## Ce que le Bridge sait faire
 
 - lire des films, épisodes, saisons, séries et collections ;

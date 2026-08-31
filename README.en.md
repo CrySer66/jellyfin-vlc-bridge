@@ -44,6 +44,8 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 
 Installation is per Windows user and does not require administrator rights. The [detailed guide](INSTALLATION.en.md) also covers HTTP Direct Play, SMB, updates and uninstallation.
 
+**WinGet (optional):** version 1.18.0 was [accepted on August 31, 2026](https://github.com/microsoft/winget-pkgs/pull/413912). Catalog availability was not yet confirmed during our check that day. The [WinGet guide](INSTALLATION.en.md#install-with-winget-optional) explains how to check availability, then install and update the Bridge. The GitHub download remains available.
+
 ## Features
 
 - movies, episodes, seasons, shows and collections;

@@ -23,6 +23,45 @@ Une réinstallation par-dessus une version existante affiche l'adresse Jellyfin 
 
 Pour utiliser un autre serveur, cliquez sur **Changer de serveur Jellyfin**. Après confirmation, l'ancienne connexion est supprimée et l'assistant demande un nouveau code Quick Connect.
 
+## Installer avec WinGet (facultatif)
+
+La version 1.18.0 a été [acceptée dans le dépôt communautaire WinGet le 31 août 2026](https://github.com/microsoft/winget-pkgs/pull/413912). Lors de notre vérification du même jour, le catalogue actualisé ne la proposait pas encore. Il n'est pas nécessaire de désinstaller le Bridge ni de modifier votre configuration.
+
+Dans PowerShell ou Terminal Windows, vérifiez d'abord la disponibilité, sans rien installer :
+
+```powershell
+winget source update --name winget
+winget show --id CrySer66.JellyfinVlcBridge --exact --source winget
+```
+
+Si WinGet répond **Aucun package ne correspond aux critères sélectionnés**, réessayez plus tard ou utilisez l'installateur GitHub ci-dessus. Si la commande `winget` est introuvable, consultez le [guide Microsoft](https://learn.microsoft.com/windows/package-manager/winget/) ou utilisez l'installation classique. Ne désactivez pas les vérifications de sécurité et ne réinitialisez pas les sources pour contourner l'attente.
+
+Lorsque la fiche est disponible, vous pouvez installer le Bridge avec :
+
+```powershell
+winget install --id CrySer66.JellyfinVlcBridge --exact --source winget --silent
+```
+
+Cette commande utilise le même installateur officiel hébergé sur GitHub. WinGet vérifie son empreinte et le manifeste déclare **VideoLAN.VLC** comme dépendance. VLC peut demander une autorisation administrateur s'il doit être installé ; le Bridge reste installé pour l'utilisateur courant. Lisez les éventuelles demandes d'accord affichées par WinGet.
+
+Le mode silencieux n'ouvre ni navigateur ni fenêtre de connexion. Une fois l'installation terminée :
+
+1. Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer et connectez votre serveur avec **Quick Connect**.
+2. Installez l'[extension Chrome officielle](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp) séparément.
+3. Rechargez Jellyfin et essayez **Lire avec VLC** sur un film ou un épisode.
+
+Pour une future mise à jour disponible dans WinGet, fermez le centre de contrôle et terminez les lectures en cours, puis utilisez :
+
+```powershell
+winget upgrade --id CrySer66.JellyfinVlcBridge --exact --source winget --silent
+```
+
+Le jeton Quick Connect et les réglages sont conservés. Les versions WinGet peuvent arriver après les Releases GitHub : **aucune mise à jour disponible** n'est donc pas forcément une erreur. Les mises à jour intégrées au centre de contrôle restent utilisables ; ne lancez pas les deux méthodes simultanément.
+
+Pour désinstaller, utilisez **Paramètres Windows → Applications → Jellyfin VLC Bridge**, comme décrit plus bas. WinGet ne remplace ni la gestion de l'extension par Chrome, ni une signature Authenticode : il ne garantit pas la disparition de SmartScreen.
+
+Références Microsoft : [installation](https://learn.microsoft.com/windows/package-manager/winget/install), [mise à jour](https://learn.microsoft.com/windows/package-manager/winget/upgrade).
+
 ## Centre de contrôle
 
 Ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer. La fenêtre indique immédiatement si Jellyfin, VLC et l’intégration Chrome/Edge sont prêts.
