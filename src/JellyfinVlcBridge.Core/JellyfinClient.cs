@@ -10,8 +10,6 @@ public sealed class JellyfinClient(
     string? deviceId = null,
     TimeSpan? requestTimeout = null)
 {
-    private const string ClientName = "Jellyfin VLC Bridge";
-    private const string ClientVersion = BridgeVersion.Current;
     private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(15);
     private readonly TimeSpan _requestTimeout = ValidateTimeout(requestTimeout);
 
@@ -53,18 +51,14 @@ public sealed class JellyfinClient(
             ?? throw new InvalidDataException("Authentification Quick Connect vide.");
     }
 
-    private static void AddClientAuthorization(HttpRequestMessage request, string deviceId)
-    {
-        var deviceName = Environment.MachineName.Replace("\"", "");
-        request.Headers.TryAddWithoutValidation("Authorization",
-            $"MediaBrowser Client=\"{ClientName}\", Device=\"{deviceName}\", DeviceId=\"{deviceId}\", Version=\"{ClientVersion}\"");
-    }
+    private static void AddClientAuthorization(HttpRequestMessage request, string deviceId) =>
+        JellyfinAuthorization.Add(request, token: null, deviceId: deviceId);
 
     public async Task<IReadOnlyList<UserInfo>> GetUsersAsync(CancellationToken cancellationToken = default)
     {
         using var timeout = CreateRequestCancellation(cancellationToken);
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{serverUrl.TrimEnd('/')}/Users");
-        request.Headers.TryAddWithoutValidation("X-Emby-Token", token);
+        AddAuthenticatedHeaders(request);
         using var response = await http.SendAsync(request, timeout.Token);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<UserInfo>>(cancellationToken: timeout.Token)
@@ -196,16 +190,8 @@ public sealed class JellyfinClient(
         return value;
     }
 
-    private void AddAuthenticatedHeaders(HttpRequestMessage request)
-    {
-        request.Headers.TryAddWithoutValidation("X-Emby-Token", token);
-        if (!string.IsNullOrWhiteSpace(deviceId))
-        {
-            var machine = Environment.MachineName.Replace("\"", "");
-            request.Headers.TryAddWithoutValidation("X-Emby-Authorization",
-                $"MediaBrowser Client=\"{ClientName}\", Device=\"{machine}\", DeviceId=\"{deviceId}\", Version=\"{ClientVersion}\", Token=\"{token}\"");
-        }
-    }
+    private void AddAuthenticatedHeaders(HttpRequestMessage request) =>
+        JellyfinAuthorization.Add(request, token, deviceId);
 }
 
 public sealed record UserInfo(

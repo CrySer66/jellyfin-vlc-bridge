@@ -73,7 +73,7 @@ public sealed class AuthenticatedStreamProxy(HttpClient http, string upstreamUrl
             var method = context.Request.HttpMethod.Equals("HEAD", StringComparison.OrdinalIgnoreCase)
                 ? HttpMethod.Head : HttpMethod.Get;
             using var request = new HttpRequestMessage(method, selectedUpstream);
-            request.Headers.TryAddWithoutValidation("X-Emby-Token", jellyfinToken);
+            JellyfinAuthorization.Add(request, jellyfinToken);
             if (!string.IsNullOrWhiteSpace(context.Request.Headers["Range"]))
                 request.Headers.TryAddWithoutValidation("Range", context.Request.Headers["Range"]);
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

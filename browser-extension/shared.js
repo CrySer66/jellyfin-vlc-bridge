@@ -14,6 +14,30 @@
     return result?.ok ? 'ready' : 'missing';
   }
 
+  function supportsInspection(version) {
+    const match = /^(\d+)\.(\d+)(?:\.|$)/.exec(String(version || ''));
+    if (!match) return null;
+    return Number(match[1]) > 1 || (Number(match[1]) === 1 && Number(match[2]) >= 10);
+  }
+
+  function canPlayWithoutPreview(error, version) {
+    if (error?.errorCode === 'unsupported_request') return true;
+    // Inspection was added in Bridge 1.10. Older hosts may close the native
+    // channel for an unknown request instead of sending a structured error.
+    return supportsInspection(version) === false &&
+      (!error?.errorCode || error.errorCode === 'native_transport');
+  }
+
+  function requestErrorMessage(error) {
+    switch (error?.errorCode) {
+      case 'authentication_required': return t('jellyfinAuthenticationRequired');
+      case 'access_denied': return t('jellyfinAccessDenied');
+      case 'item_not_found': return t('jellyfinItemNotFound');
+      case 'native_transport': return t('bridgeCommunicationFailed');
+      default: return t('playbackRequestFailed');
+    }
+  }
+
   function buttonPresentation(state) {
     const presentations = {
       checking: { label: t('checking'), title: t('checkingBridgeTitle'), disabled: true },
@@ -100,6 +124,9 @@
   const api = Object.freeze({
     links,
     availabilityFromResult,
+    supportsInspection,
+    canPlayWithoutPreview,
+    requestErrorMessage,
     buttonPresentation,
     formatDuration,
     scopeChoices,

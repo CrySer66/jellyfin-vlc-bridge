@@ -161,6 +161,14 @@
   margin: 0 0 .9rem;
 }
 
+.jellyfin-vlc-dialog__status[role='alert'] {
+  color: #ffd7ae;
+}
+
+.jellyfin-vlc-dialog [hidden] {
+  display: none !important;
+}
+
 .jellyfin-vlc-dialog__section {
   border: 0;
   margin: 0 0 1rem;
@@ -314,6 +322,7 @@
 }
 
 .jellyfin-vlc-dialog__cancel,
+.jellyfin-vlc-dialog__retry,
 .jellyfin-vlc-dialog__launch {
   border: 0 !important;
   border-radius: .45rem !important;
@@ -323,7 +332,8 @@
   padding: .6rem 1rem !important;
 }
 
-.jellyfin-vlc-dialog__cancel {
+.jellyfin-vlc-dialog__cancel,
+.jellyfin-vlc-dialog__retry {
   background: rgb(255 255 255 / 9%) !important;
   color: #fff !important;
 }

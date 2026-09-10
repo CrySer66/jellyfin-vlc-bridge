@@ -214,7 +214,7 @@ static async Task<int> HandleUriAsync(string[] args)
     return await PlayAsync([.. playArgs]);
 }
 
-static async Task<int> PlayAsync(string[] args)
+static async Task<int> PlayAsync(string[] args, Func<Task>? onStarted = null)
 {
     var itemId = ValidateItemId(Required(args, "--item"));
     var scope = PlaybackQueueResolver.ParseScope(Optional(args, "--scope"));
@@ -245,7 +245,7 @@ static async Task<int> PlayAsync(string[] args)
     if (queue.Count == 1)
     {
         await PlayResolvedItemAsync(
-            vlc, config, token, http, jellyfin, queue[0], selectedMediaSourceId, dryRun, restartFirst);
+            vlc, config, token, http, jellyfin, queue[0], selectedMediaSourceId, dryRun, restartFirst, onStarted);
         return 0;
     }
 
@@ -254,7 +254,7 @@ static async Task<int> PlayAsync(string[] args)
             await PlayResolvedItemAsync(
                 vlc, config, token, http, jellyfin, queue[index], null, true, restartFirst && index == 0);
     else
-        await PlayQueueAsync(vlc, config, token, http, jellyfin, queue, restartFirst);
+        await PlayQueueAsync(vlc, config, token, http, jellyfin, queue, restartFirst, onStarted);
     return 0;
 }
 
@@ -315,7 +315,8 @@ static async Task PlayQueueAsync(
     HttpClient http,
     JellyfinClient jellyfin,
     IReadOnlyList<ItemInfo> queue,
-    bool restartFirst)
+    bool restartFirst,
+    Func<Task>? onStarted = null)
 {
     AuthenticatedStreamProxy? proxy = null;
     var playlist = new List<PlaybackMedia>();
@@ -350,7 +351,7 @@ static async Task PlayQueueAsync(
         }
 
         Console.WriteLine("Liste de lecture VLC préparée ; les médias s'enchaîneront dans la même fenêtre.");
-        await RunVlcPlaylistWithSyncAsync(vlc, playlist, jellyfin);
+        await RunVlcPlaylistWithSyncAsync(vlc, playlist, jellyfin, onStarted);
     }
     finally
     {
@@ -367,7 +368,8 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     ItemInfo item,
     string? selectedMediaSourceId,
     bool dryRun,
-    bool restart)
+    bool restart,
+    Func<Task>? onStarted = null)
 {
     var itemId = item.Id;
     var mediaSource = MediaSourceSelector.Select(item, selectedMediaSourceId);
@@ -383,7 +385,7 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
         Console.WriteLine($"VLC ouvrira le partage : {media}");
         return dryRun
             ? new PlaybackRunResult(true, resumeTicks, 0)
-            : await RunVlcWithSyncAsync(vlc, media, resumeAt, jellyfin, itemId, mediaSourceId);
+            : await RunVlcWithSyncAsync(vlc, media, resumeAt, jellyfin, itemId, mediaSourceId, onStarted);
     }
 
     var mediaSourceQuery = string.IsNullOrWhiteSpace(mediaSourceId) ? "" : $"&MediaSourceId={Uri.EscapeDataString(mediaSourceId)}";
@@ -392,7 +394,7 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     var localUrl = proxy.Start();
     Console.WriteLine("VLC ouvrira un relais local authentifié (le jeton ne figure pas dans l'URL ni la ligne de commande). ");
     if (dryRun) return new PlaybackRunResult(true, resumeTicks, 0);
-    return await RunVlcWithSyncAsync(vlc, localUrl, resumeAt, jellyfin, itemId, mediaSourceId);
+    return await RunVlcWithSyncAsync(vlc, localUrl, resumeAt, jellyfin, itemId, mediaSourceId, onStarted);
 }
 
 static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
@@ -401,11 +403,13 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
     TimeSpan? resumeAt,
     JellyfinClient jellyfin,
     string itemId,
-    string? mediaSourceId)
+    string? mediaSourceId,
+    Func<Task>? onStarted = null)
 {
     var controlOptions = VlcControlOptions.Create();
     var playSessionId = Guid.NewGuid().ToString("N");
     using var process = VlcLauncher.Start(vlc, media, resumeAt, controlOptions);
+    if (onStarted is not null) await onStarted();
     BridgeLog.Info($"Lecture démarrée item={itemId} repriseTicks={resumeAt?.Ticks ?? 0}");
     using var controller = new VlcController(controlOptions);
     long lastPositionTicks = resumeAt?.Ticks ?? 0;
@@ -475,13 +479,15 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
 static async Task RunVlcPlaylistWithSyncAsync(
     string vlc,
     IReadOnlyList<PlaybackMedia> playlist,
-    JellyfinClient jellyfin)
+    JellyfinClient jellyfin,
+    Func<Task>? onStarted = null)
 {
     var controlOptions = VlcControlOptions.Create();
     using var process = VlcLauncher.StartPlaylist(
         vlc,
         playlist.Select(item => new VlcLaunchItem(item.Media, item.ResumeAt)).ToList(),
         controlOptions);
+    if (onStarted is not null) await onStarted();
     using var controller = new VlcController(controlOptions);
     var currentIndex = 0;
     var playSessionId = Guid.NewGuid().ToString("N");
@@ -822,6 +828,40 @@ static int UninstallCleanup(string[] args)
 
 static async Task<int> NativeMessageAsync(string[] args)
 {
+    var responseSent = false;
+    async Task AcceptPlaybackAsync()
+    {
+        await WriteNativeResponseAsync(new { accepted = true });
+        responseSent = true;
+    }
+
+    try
+    {
+        return await HandleNativeMessageAsync(args, AcceptPlaybackAsync);
+    }
+    catch (Exception exception) when (!responseSent)
+    {
+        BridgeLog.Error(exception.ToString());
+        // Only send fixed, actionable text to the page. Exception messages can
+        // contain local paths or request URLs and belong in the local log.
+        var (errorCode, error) = exception switch
+        {
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized } =>
+                ("authentication_required", "Jellyfin a refusé la connexion. Vérifiez la connexion dans le centre de contrôle du Bridge."),
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } =>
+                ("access_denied", "Le compte Jellyfin ne possède pas les droits nécessaires pour ce média."),
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } =>
+                ("item_not_found", "Ce média n’est plus disponible sur le serveur Jellyfin configuré."),
+            ArgumentException => ("invalid_request", "La demande de lecture est invalide. Rechargez la fiche Jellyfin."),
+            _ => ("request_failed", "Impossible de préparer la lecture. Vérifiez Jellyfin et VLC dans le centre de contrôle du Bridge.")
+        };
+        await WriteNativeResponseAsync(new { accepted = false, errorCode, error, bridgeVersion = BridgeVersion.Current });
+        return 1;
+    }
+}
+
+static async Task<int> HandleNativeMessageAsync(string[] args, Func<Task> onStarted)
+{
     var origin = args.FirstOrDefault(x => x.StartsWith("chrome-extension://", StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidDataException("Origine de l'extension absente.");
     var extensionId = origin["chrome-extension://".Length..].TrimEnd('/');
@@ -878,7 +918,10 @@ static async Task<int> NativeMessageAsync(string[] args)
         return 0;
     }
     if (messageType is not ("play" or "inspect"))
-        throw new InvalidDataException("Type de message navigateur inconnu.");
+    {
+        await WriteNativeResponseAsync(new { accepted = false, errorCode = "unsupported_request", error = "Type de message navigateur inconnu." });
+        return 1;
+    }
     if (!document.RootElement.TryGetProperty("itemId", out var itemProperty))
         throw new InvalidDataException("itemId absent du message navigateur.");
     var itemId = ValidateItemId(itemProperty.GetString());
@@ -898,7 +941,8 @@ static async Task<int> NativeMessageAsync(string[] args)
         ? ValidateOptionalIdentifier(sourceProperty.GetString(), "version de média")
         : null;
 
-    await WriteNativeResponseAsync(new { accepted = true });
+    // Keep stdout reserved for the framed response, including while resolving
+    // the queue. Acknowledge only once VLC has actually been started.
     Console.SetOut(Console.Error);
     var playArguments = new List<string>
     {
@@ -908,7 +952,7 @@ static async Task<int> NativeMessageAsync(string[] args)
     };
     if (!string.IsNullOrWhiteSpace(selectedMediaSourceId))
         playArguments.AddRange(["--media-source", selectedMediaSourceId]);
-    return await PlayAsync([.. playArguments]);
+    return await PlayAsync([.. playArguments], onStarted);
 }
 
 static Task WritePreferencesResponseAsync(PlaybackPreferences preferences) => WriteNativeResponseAsync(new

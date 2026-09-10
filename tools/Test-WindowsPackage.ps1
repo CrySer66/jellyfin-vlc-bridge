@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.18.0'
+    [string]$Version = '1.18.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -573,7 +573,7 @@ Write-Host 'OK  Desinstallation silencieuse reelle, cleanup, conservation, purge
 
 $nativeProcess = New-HiddenProcess 'chrome-extension://hkjbodgdbjhignhlbecchiigcfigpidp/' $runtimeTestRoot
 if (-not $nativeProcess.Start()) { throw 'Impossible de lancer le canal natif.' }
-$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.8.0"}')
+$payload = [Text.Encoding]::UTF8.GetBytes('{"type":"ping","extensionVersion":"1.8.1"}')
 $nativeProcess.StandardInput.BaseStream.Write([BitConverter]::GetBytes([int]$payload.Length), 0, 4)
 $nativeProcess.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
 $nativeProcess.StandardInput.BaseStream.Flush()

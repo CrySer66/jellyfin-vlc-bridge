@@ -26,7 +26,7 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.18.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.18.1
 ```
 
 Le script :
@@ -40,16 +40,16 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.18.0-Setup.exe
-outputs\JellyfinVlcBridge-1.18.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.18.1-Setup.exe
+outputs\JellyfinVlcBridge-1.18.1-win-x64.zip
 ```
 
 Pour préparer localement les métadonnées qui accompagneront la Release :
 
 ```powershell
-.\tools\New-ReleaseChecksums.ps1 -Version 1.18.0
-.\tools\New-ReleaseNotes.ps1 -Version 1.18.0
-.\tools\Test-ReleaseMetadata.ps1 -Version 1.18.0
+.\tools\New-ReleaseChecksums.ps1 -Version 1.18.1
+.\tools\New-ReleaseNotes.ps1 -Version 1.18.1
+.\tools\Test-ReleaseMetadata.ps1 -Version 1.18.1
 ```
 
 Le workflow public atteste séparément le Setup et le ZIP exacts qu'il joint à
@@ -61,8 +61,8 @@ elle ne remplace pas une signature Authenticode Windows.
 La version du manifeste de l'extension peut évoluer indépendamment de celle du Bridge.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.8.0
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ExtensionPackage.ps1 -Version 1.8.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.8.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ExtensionPackage.ps1 -Version 1.8.1
 ```
 
 Le ZIP Chrome Web Store ne contient pas le champ de développement `key`. L'élément existant dans le tableau de bord conserve l'identifiant officiel :
@@ -141,7 +141,7 @@ validation d'une Release publique, générez les quatre manifestes avec :
 
 ```powershell
 .\tools\New-WinGetManifests.ps1 `
-  -Version 1.18.0 `
+  -Version 1.18.1 `
   -InstallerSha256 EMPREINTE_SHA256_PUBLIEE `
   -ReleaseDate AAAA-MM-JJ
 ```

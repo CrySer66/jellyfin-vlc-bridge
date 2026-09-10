@@ -43,8 +43,9 @@ if ($extensionVersion -ne $extensionBuildVersion -or $extensionVersion -ne $exte
 }
 
 $extensionDocumentationVersions = [ordered]@{
-    'README.md' = Read-MatchedVersion 'README.md' 'Chrome Web Store\s+([0-9]+\.[0-9]+\.[0-9]+)'
-    'README.en.md' = Read-MatchedVersion 'README.en.md' 'Chrome Web Store\s+([0-9]+\.[0-9]+\.[0-9]+)'
+    # The table describes the packaged source version, independently of Store availability.
+    'README.md' = Read-MatchedVersion 'README.md' '\|\s*\*\*Windows[^|]*\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*'
+    'README.en.md' = Read-MatchedVersion 'README.en.md' '\|\s*\*\*Windows[^|]*\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*'
 }
 $invalidExtensionDocumentation = $extensionDocumentationVersions.GetEnumerator() |
     Where-Object { $_.Value -ne $extensionVersion }

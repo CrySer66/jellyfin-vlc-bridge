@@ -28,7 +28,7 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 | Application | Plateforme | Extension |
 |---|---|---|
-| **1.18.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
+| **1.18.1** | **Windows 10/11 x64** | **1.8.1** (paquet préparé) |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Un média passe de Jellyfin vers VLC grâce au Bridge local">
@@ -41,6 +41,10 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 3. **Ajoutez le bouton** — installez l’[extension Chrome officielle](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp), rechargez Jellyfin, ouvrez un média et sélectionnez **Lire avec VLC**.
 
 **Vérification rapide :** ouvrez la fiche d’un film ou d’un épisode dans Jellyfin. Le bouton **Lire avec VLC** doit apparaître dans la barre d’actions.
+
+**Jellyfin 12 :** le Bridge 1.18.1 adapte l’authentification tout en conservant le même mécanisme pour Jellyfin 10.x. L’extension 1.8.1 affiche les erreurs de préparation dans la fenêtre de lecture. Consultez les [étapes de mise à jour](INSTALLATION.md#après-une-mise-à-jour-vers-jellyfin-12) et les [limites des vérifications de compatibilité](docs/COMPATIBILITY.md#jellyfin-10x-et-12).
+
+Le correctif de lecture fonctionne avec l’extension 1.8.0 déjà installée. Le paquet 1.8.1 est prêt pour une soumission séparée au Chrome Web Store ; sa présence sur GitHub ne signifie pas qu’il est déjà disponible dans la boutique.
 
 L’installation se fait pour l’utilisateur Windows actuel et ne demande pas de droits administrateur. Le [guide détaillé](INSTALLATION.md) explique aussi HTTP Direct Play, SMB, les mises à jour et la désinstallation.
 
