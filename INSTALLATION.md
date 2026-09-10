@@ -115,6 +115,14 @@ Les fichiers du programme sont remplacés, tandis que la configuration, le jeton
 
 L'extension est mise à jour automatiquement par le Chrome Web Store.
 
+### Après une mise à jour vers Jellyfin 12
+
+1. Installez le Bridge **1.18.1 ou ultérieur** par-dessus l’installation actuelle. La connexion et les réglages sont conservés.
+2. Vérifiez la version de l’extension dans `chrome://extensions` : **1.8.1 ou ultérieure** affiche les erreurs de préparation dans la fenêtre de lecture. Sa diffusion sur le Chrome Web Store est indépendante de celle du Bridge.
+3. Rechargez complètement les onglets Jellyfin avec **Ctrl+Maj+R**, puis ouvrez un film ou un épisode et cliquez sur **Lire avec VLC**.
+
+Si la fenêtre signale encore une connexion refusée, ouvrez le centre de contrôle et actualisez le diagnostic. Ne refaites Quick Connect que si le diagnostic demande de reconnecter le serveur. Les contrôles des anciennes et nouvelles versions sont détaillés dans le [guide de compatibilité](docs/COMPATIBILITY.md#jellyfin-10x-et-12).
+
 ## Installation automatisée (avancé)
 
 Le Setup accepte `/quiet` pour les gestionnaires de paquets et les déploiements

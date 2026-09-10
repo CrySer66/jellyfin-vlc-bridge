@@ -12,7 +12,14 @@ function sendNative(payload, callback) {
     { ...payload, extensionVersion: EXTENSION_VERSION },
     response => {
       const error = chrome.runtime.lastError?.message;
-      callback?.(error ? { ok: false, error } : { ok: Boolean(response?.accepted), response });
+      callback?.(error
+        ? { ok: false, error, errorCode: 'native_transport' }
+        : {
+          ok: Boolean(response?.accepted),
+          response,
+          error: response?.error,
+          errorCode: response?.errorCode
+        });
     }
   );
 }
@@ -43,7 +50,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendNative({ type: 'inspect', itemId: message.itemId, scope: message.scope || 'auto' }, result => {
       sendResponse(result?.ok
         ? { ok: true, inspection: result.response }
-        : { ok: false, error: result?.error });
+        : { ok: false, error: result?.error, errorCode: result?.errorCode });
     });
     return true;
   }
@@ -51,7 +58,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendNative({ type: 'preferences-get' }, result => {
       sendResponse(result?.ok
         ? { ok: true, preferences: result.response }
-        : { ok: false, error: result?.error });
+        : { ok: false, error: result?.error, errorCode: result?.errorCode });
     });
     return true;
   }
@@ -65,7 +72,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }, result => {
       sendResponse(result?.ok
         ? { ok: true, preferences: result.response }
-        : { ok: false, error: result?.error });
+        : { ok: false, error: result?.error, errorCode: result?.errorCode });
     });
     return true;
   }
@@ -77,7 +84,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     startMode: message.startMode || 'resume',
     mediaSourceId: message.mediaSourceId || ''
   }, result => {
-    sendResponse(result?.ok ? { ok: true } : { ok: false, error: result?.error });
+    sendResponse(result?.ok ? { ok: true } : { ok: false, error: result?.error, errorCode: result?.errorCode });
   });
   return true;
 });

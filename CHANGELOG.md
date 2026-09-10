@@ -1,5 +1,21 @@
 # Historique des versions
 
+## 1.18.1 — 2026-09-10
+
+- corrige les erreurs d’authentification après une mise à jour vers Jellyfin 12 en utilisant `Authorization: MediaBrowser` pour l’API, Quick Connect et le relais HTTP vers VLC ;
+- utilise le même mécanisme d’authentification sur Jellyfin 10.x, sans détection de version ni réactivation de l’ancienne authentification du serveur ;
+- conserve le jeton existant, les réglages de lecture et l’absence de jeton Jellyfin dans les URL données à VLC ;
+- transmet les erreurs de préparation au navigateur et confirme le lancement seulement après le démarrage du processus VLC ;
+- ajoute des tests de non-régression de l’authentification et documente séparément les contrôles hors ligne et les essais sur serveurs réels.
+
+## Extension Chrome 1.8.1 — 2026-09-10
+
+- affiche une erreur de préparation lisible dans la fenêtre **Lire avec VLC** au lieu de laisser une fenêtre presque vide ;
+- évite une tentative de lancement lorsque la préparation échoue à cause du serveur ou de la connexion ;
+- conserve le lancement simplifié avec les anciens Bridge qui ne reconnaissent pas la commande de préparation ;
+- ajoute les messages français et anglais ainsi que des tests couvrant ces erreurs et le comportement des anciens Bridge ;
+- conserve les autorisations et le format des demandes de lecture existants.
+
 ## 1.18.0 — 2026-08-04
 
 - ajoute une empreinte SHA-256 publique pour chaque téléchargement Windows ;

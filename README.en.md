@@ -28,7 +28,7 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 
 | Application | Platform | Extension |
 |---|---|---|
-| **1.18.0** | **Windows 10/11 x64** | **Chrome Web Store 1.8.0** |
+| **1.18.1** | **Windows 10/11 x64** | **1.8.1** (package ready) |
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="A media item moving from Jellyfin to VLC through the local Bridge">
@@ -41,6 +41,10 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 3. **Add the button** — install the [official Chrome extension](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp), reload Jellyfin, open a media item and select **Play with VLC**.
 
 **Quick check:** open a movie or episode page in Jellyfin. The **Play with VLC** button should appear in the action bar.
+
+**Jellyfin 12:** Bridge 1.18.1 updates authentication while keeping the same mechanism for Jellyfin 10.x. Extension 1.8.1 displays preparation errors in the playback dialog. See the [upgrade steps](INSTALLATION.en.md#after-upgrading-to-jellyfin-12) and [compatibility verification limits](docs/COMPATIBILITY.md#jellyfin-10x-and-12).
+
+The playback fix works with the already installed extension 1.8.0. The 1.8.1 package is ready for a separate Chrome Web Store submission; its presence on GitHub does not mean it is already available in the store.
 
 Installation is per Windows user and does not require administrator rights. The [detailed guide](INSTALLATION.en.md) also covers HTTP Direct Play, SMB, updates and uninstallation.
 

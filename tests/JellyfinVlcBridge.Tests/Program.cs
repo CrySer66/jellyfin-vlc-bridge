@@ -81,6 +81,31 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("media", await localHttp.GetStringAsync(localUrl));
         Equal("secret", handler.Token);
     }),
+    ("Le relais authentifie aussi les plages HTTP et les requêtes HEAD", async () =>
+    {
+        var handler = new ProxyHandler();
+        using var upstreamHttp = new HttpClient(handler);
+        await using var proxy = new AuthenticatedStreamProxy(upstreamHttp, "http://jellyfin/jellyfin/video", "secret");
+        var localUrl = proxy.Start();
+        var nextUrl = proxy.AddStream("http://jellyfin/jellyfin/next?MediaSourceId=source");
+        Equal(false, localUrl.Contains("secret", StringComparison.Ordinal));
+        Equal(false, nextUrl.Contains("secret", StringComparison.Ordinal));
+        using var localHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        using var rangeRequest = new HttpRequestMessage(HttpMethod.Get, localUrl);
+        rangeRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(1, 3);
+        using var rangeResponse = await localHttp.SendAsync(rangeRequest);
+        Equal(System.Net.HttpStatusCode.PartialContent, rangeResponse.StatusCode);
+        Equal("edi", await rangeResponse.Content.ReadAsStringAsync());
+        Equal("bytes 1-3/5", rangeResponse.Content.Headers.ContentRange?.ToString());
+        using var headRequest = new HttpRequestMessage(HttpMethod.Head, nextUrl);
+        using var headResponse = await localHttp.SendAsync(headRequest);
+        Equal(System.Net.HttpStatusCode.OK, headResponse.StatusCode);
+        Equal(5L, headResponse.Content.Headers.ContentLength);
+        Equal("", await headResponse.Content.ReadAsStringAsync());
+        Equal("GET,HEAD", string.Join(',', handler.Methods));
+        Equal("/jellyfin/video,/jellyfin/next", string.Join(',', handler.Paths));
+        Equal("secret", handler.Token);
+    }),
     ("Préférences de lecture enregistrées atomiquement", () => Completed(() =>
     {
         var directory = Path.Combine(Path.GetTempPath(), "JvbPreferencesTest-" + Guid.NewGuid().ToString("N"));
@@ -210,6 +235,49 @@ var tests = new (string Name, Func<Task> Run)[]
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
+    }),
+    ("Toutes les API protégées utilisent l'authentification commune à Jellyfin 10.x et 12", async () =>
+    {
+        var handler = new JellyfinAuthorizationHandler("device");
+        using var http = new HttpClient(handler);
+        var client = new JellyfinClient(http, "http://jellyfin/jellyfin/", "secret", "device");
+        Equal("user", (await client.GetUsersAsync()).Single().Id);
+        Equal("user", (await client.GetCurrentUserAsync()).Id);
+        Equal("item", (await client.GetItemAsync("user", "item")).Id);
+        Equal("episode", (await client.GetEpisodesAsync("user", "series", "season")).Single().Id);
+        Equal("episode", (await client.GetNextUpEpisodeAsync("user", "series"))?.Id);
+        Equal("episode", (await client.GetCollectionItemsAsync("user", "collection")).Single().Id);
+        await client.ReportPlaybackStartedAsync("item", "source", "session", 0);
+        await client.ReportPlaybackProgressAsync("item", "source", "session", 123, false, 50);
+        await client.ReportPlaybackStoppedAsync("item", "source", "session", 456, false);
+        Equal(9, handler.RequestCount);
+    }),
+    ("L'authentification sans identifiant d'appareil reste valide", async () =>
+    {
+        var handler = new JellyfinAuthorizationHandler(null);
+        using var http = new HttpClient(handler);
+        var client = new JellyfinClient(http, "http://jellyfin/jellyfin", "secret");
+        Equal("user", (await client.GetCurrentUserAsync()).Id);
+        Equal("user", (await client.GetUsersAsync()).Single().Id);
+        Equal(2, handler.RequestCount);
+    }),
+    ("Les valeurs spéciales d'identification sont encodées dans l'en-tête", async () =>
+    {
+        const string specialDevice = "PC \"Salon\",+é\r\nDevice: test";
+        var handler = new JellyfinAuthorizationHandler(specialDevice);
+        using var http = new HttpClient(handler);
+        var client = new JellyfinClient(http, "http://jellyfin/jellyfin", "secret", specialDevice);
+        Equal("user", (await client.GetCurrentUserAsync()).Id);
+    }),
+    ("Quick Connect utilise POST et transmet uniquement l'identité du client", async () =>
+    {
+        var handler = new QuickConnectHandler();
+        using var http = new HttpClient(handler);
+        var client = new JellyfinClient(http, "http://jellyfin/jellyfin/", "unused-token", "unused-device");
+        Equal("123456", (await client.InitiateQuickConnectAsync("quick-device")).Code);
+        Equal(true, (await client.GetQuickConnectStateAsync("quick-device", "quick-secret")).Authenticated);
+        Equal("new-token", (await client.AuthenticateWithQuickConnectAsync("quick-device", "quick-secret")).AccessToken);
+        Equal("POST,GET,POST", string.Join(',', handler.Methods));
     }),
     ("Les appels Jellyfin ont un délai maximal", async () =>
     {
@@ -373,14 +441,124 @@ sealed class NoRequestHandler : HttpMessageHandler
 sealed class ProxyHandler : HttpMessageHandler
 {
     public string? Token { get; private set; }
+    public List<string> Methods { get; } = [];
+    public List<string> Paths { get; } = [];
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        Token = request.Headers.TryGetValues("X-Emby-Token", out var values) ? values.Single() : null;
+        Token = AuthorizationAssertions.Read(request)["Token"];
+        Methods.Add(request.Method.Method);
+        Paths.Add(request.RequestUri!.AbsolutePath);
+        var range = request.Headers.Range?.ToString();
+        if (range is not null && range != "bytes=1-3")
+            throw new Exception("La plage HTTP a été modifiée.");
+        var response = new HttpResponseMessage(range is null
+            ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.PartialContent)
+        {
+            Content = new StringContent(range is null ? "media" : "edi", System.Text.Encoding.UTF8, "application/octet-stream")
+        };
+        if (range is not null)
+            response.Content.Headers.ContentRange = new System.Net.Http.Headers.ContentRangeHeaderValue(1, 3, 5);
+        return Task.FromResult(response);
+    }
+}
+
+static class AuthorizationAssertions
+{
+    public static Dictionary<string, string> Read(HttpRequestMessage request, bool requireToken = true)
+    {
+        if (request.Headers.Contains("X-Emby-Token") || request.Headers.Contains("X-Emby-Authorization") ||
+            request.Headers.Contains("X-MediaBrowser-Token"))
+            throw new Exception("Une méthode d'authentification désactivée dans Jellyfin 12 a été envoyée.");
+        if (request.RequestUri!.Query.Contains("ApiKey", StringComparison.OrdinalIgnoreCase) ||
+            request.RequestUri.Query.Contains("api_key", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Le jeton ne doit pas être ajouté à l'adresse HTTP.");
+        var authorization = request.Headers.Authorization;
+        if (authorization?.Scheme != "MediaBrowser" || string.IsNullOrEmpty(authorization.Parameter))
+            throw new Exception("L'en-tête Authorization MediaBrowser est absent.");
+        if (authorization.Parameter.Any(c => c is < ' ' or > '~'))
+            throw new Exception("Les valeurs de l'en-tête doivent être encodées.");
+        var result = new Dictionary<string, string>();
+        foreach (var part in authorization.Parameter.Split(','))
+        {
+            var pair = part.Trim().Split('=', 2);
+            if (pair.Length != 2 || pair[1].Length < 2 || pair[1][0] != '"' || pair[1][^1] != '"')
+                throw new Exception("Un paramètre d'authentification n'est pas entre guillemets.");
+            result.Add(pair[0], Uri.UnescapeDataString(pair[1][1..^1]));
+        }
+        if (requireToken && (!result.TryGetValue("Token", out var token) || token != "secret"))
+            throw new Exception("Le jeton de test n'est pas dans Authorization.");
+        return result;
+    }
+}
+
+sealed class JellyfinAuthorizationHandler(string? expectedDeviceId) : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var authorization = AuthorizationAssertions.Read(request);
+        if (expectedDeviceId is null)
+        {
+            if (authorization.Count != 1)
+                throw new Exception("L'authentification sans appareil doit préserver l'identité du jeton.");
+        }
+        else if (authorization.GetValueOrDefault("DeviceId") != expectedDeviceId ||
+            authorization.GetValueOrDefault("Client") != "Jellyfin VLC Bridge" ||
+            authorization.GetValueOrDefault("Device") != Environment.MachineName ||
+            authorization.GetValueOrDefault("Version") != BridgeVersion.Current)
+            throw new Exception("L'identité du client Jellyfin est incomplète ou modifiée.");
+        var path = request.RequestUri!.AbsolutePath;
+        if (!path.StartsWith("/jellyfin/", StringComparison.Ordinal))
+            throw new Exception("Le préfixe du serveur Jellyfin a été perdu.");
+        RequestCount++;
+        if (path.Contains("/Sessions/", StringComparison.Ordinal))
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NoContent));
+        var json = path switch
+        {
+            "/jellyfin/Users" => """[{"Id":"user","Name":"User"}]""",
+            "/jellyfin/Users/Me" => """{"Id":"user","Name":"User"}""",
+            "/jellyfin/Users/user/Items/item" => """{"Id":"item","Name":"Film","Type":"Movie"}""",
+            _ => """{"Items":[{"Id":"episode","Name":"Episode","Type":"Episode"}]}"""
+        };
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
-            Content = new StringContent("media", System.Text.Encoding.UTF8, "application/octet-stream")
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
         });
+    }
+}
+
+sealed class QuickConnectHandler : HttpMessageHandler
+{
+    public List<string> Methods { get; } = [];
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var authorization = AuthorizationAssertions.Read(request, requireToken: false);
+        if (authorization.ContainsKey("Token") || authorization.GetValueOrDefault("DeviceId") != "quick-device")
+            throw new Exception("Quick Connect doit utiliser son identité sans jeton enregistré.");
+        Methods.Add(request.Method.Method);
+        var path = request.RequestUri!.AbsolutePath;
+        if (path == "/jellyfin/QuickConnect/Connect" && request.RequestUri.Query != "?secret=quick-secret")
+            throw new Exception("Le secret Quick Connect attendu est absent.");
+        if (path == "/jellyfin/Users/AuthenticateWithQuickConnect")
+        {
+            using var body = System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
+            if (body.RootElement.GetProperty("secret").GetString() != "quick-secret")
+                throw new Exception("Le secret Quick Connect attendu est absent du corps JSON.");
+        }
+        var json = path switch
+        {
+            "/jellyfin/QuickConnect/Initiate" => """{"Code":"123456","Secret":"quick-secret","Authenticated":false}""",
+            "/jellyfin/QuickConnect/Connect" => """{"Code":"123456","Secret":"quick-secret","Authenticated":true}""",
+            "/jellyfin/Users/AuthenticateWithQuickConnect" => """{"AccessToken":"new-token","User":{"Id":"user","Name":"User"}}""",
+            _ => throw new Exception("Route Quick Connect inattendue.")
+        };
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        };
     }
 }
 

@@ -139,6 +139,14 @@ token, configuration and playback preferences.
 The Chrome extension is updated separately and automatically by the Chrome Web
 Store.
 
+### After upgrading to Jellyfin 12
+
+1. Install Bridge **1.18.1 or later** over the existing installation. The connection and settings are preserved.
+2. Check the extension version in `chrome://extensions`: **1.8.1 or later** displays preparation errors in the playback dialog. Its Chrome Web Store rollout is independent of the Bridge release.
+3. Fully reload existing Jellyfin tabs with **Ctrl+Shift+R**, then open a movie or episode and select **Play with VLC**.
+
+If the dialog still reports an authentication failure, open the Control Center and refresh diagnostics. Repeat Quick Connect only if diagnostics ask you to reconnect the server. See the [compatibility guide](docs/COMPATIBILITY.md#jellyfin-10x-and-12) for checks of older and newer versions.
+
 ## Automated installation (advanced)
 
 The Setup accepts `/quiet` for package managers and unattended deployments:
