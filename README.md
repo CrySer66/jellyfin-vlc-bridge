@@ -28,9 +28,9 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 
 | Application | Plateforme | Extension |
 |---|---|---|
-| **1.19.0** | **Windows 10/11 x64** | **1.8.1** (paquet préparé) |
+| **1.19.1** | **Windows 10/11 x64** | **1.8.1** (paquet préparé) |
 
-**Version locale en préparation :** la 1.19.0 apporte un centre de contrôle Windows natif WPF et des corrections internes de lecture et de diagnostic. Elle n’est pas encore publiée : les téléchargements GitHub restent ceux de la **1.18.1**. Consultez le [guide de la nouvelle interface et des vérifications](docs/DESKTOP-1.19.0.md).
+**Version locale en préparation :** la 1.19.1 harmonise l’installateur et le désinstallateur avec le centre de contrôle WPF de la 1.19.0. Elle n’est pas encore publiée : les téléchargements GitHub restent ceux de la **1.18.1**. Consultez le [guide des assistants et des vérifications](docs/MAINTENANCE-1.19.1.md).
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Un média passe de Jellyfin vers VLC grâce au Bridge local">

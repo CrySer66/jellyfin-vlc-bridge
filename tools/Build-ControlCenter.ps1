@@ -33,6 +33,7 @@ try {
         "/reference:$(Join-Path $framework 'WPF\PresentationCore.dll')" `
         "/reference:$(Join-Path $framework 'WPF\PresentationFramework.dll')" `
         "/resource:$(Join-Path $projectDirectory 'installer\ControlCenter.xaml'),ControlCenter.xaml" `
+        "/resource:$(Join-Path $projectDirectory 'installer\DesktopTheme.xaml'),DesktopTheme.xaml" `
         "/resource:$stringsPath,ControlCenter.strings.json" "/resource:$icon,ControlCenter.ico" `
         (Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs') `
         (Join-Path $projectDirectory 'installer\ControlCenterWindow.cs') `

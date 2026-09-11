@@ -49,6 +49,8 @@ internal sealed class ControlCenterWindow : IDisposable
             catch (InvalidOperationException) { }
         }
         if (languageOverride == "en" || languageOverride == "fr") preference = languageOverride;
+        Application.Current.Resources.MergedDictionaries.Add(
+            (ResourceDictionary)XamlReader.Parse(ReadResource("DesktopTheme.xaml")));
         Window = (Window)XamlReader.Parse(ReadResource("ControlCenter.xaml"));
         try
         {

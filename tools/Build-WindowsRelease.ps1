@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.19.0'
+    [string]$Version = '1.19.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,7 +64,8 @@ try {
 
     Get-ChildItem -LiteralPath $releaseDirectory -Filter '*.pdb' -File | Remove-Item -Force
 
-    $compiler = 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+    $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+    $compiler = Join-Path $framework 'csc.exe'
     if (-not (Test-Path $compiler)) { throw 'Compilateur Windows .NET Framework introuvable.' }
     & (Join-Path $PSScriptRoot 'Build-ControlCenter.ps1') -OutputDirectory $releaseDirectory
 
@@ -73,6 +74,10 @@ try {
         'installer\Centre-Controle.ps1',
         'installer\Localization.ps1',
         'installer\UiTheme.ps1',
+        'installer\DesktopTheme.xaml',
+        'installer\WpfTheme.ps1',
+        'installer\InstallWindow.xaml',
+        'installer\UninstallWindow.xaml',
         'installer\INSTALLER-WINDOWS.cmd',
         'installer\Desinstaller-GUI.ps1',
         'installer\DESINSTALLER-WINDOWS.cmd',
@@ -98,10 +103,15 @@ try {
     Compress-Archive -Path (Join-Path $releaseDirectory '*') -DestinationPath $payload -CompressionLevel Optimal -Force
     & $compiler /nologo /target:winexe /codepage:65001 "/out:$setupExe" `
         "/win32icon:$appIcon" `
-        /reference:System.Windows.Forms.dll `
+        "/win32manifest:$(Join-Path $projectDirectory 'installer\ControlCenter.manifest')" `
+        /reference:System.dll /reference:System.Core.dll /reference:System.Xaml.dll `
+        "/reference:$(Join-Path $framework 'WPF\WindowsBase.dll')" `
+        "/reference:$(Join-Path $framework 'WPF\PresentationCore.dll')" `
+        "/reference:$(Join-Path $framework 'WPF\PresentationFramework.dll')" `
         /reference:System.IO.Compression.dll `
         /reference:System.IO.Compression.FileSystem.dll `
         "/resource:$payload,payload.zip" `
+        "/resource:$(Join-Path $projectDirectory 'installer\DesktopTheme.xaml'),DesktopTheme.xaml" `
         (Join-Path $projectDirectory 'installer\SetupBootstrap.cs')
     if ($LASTEXITCODE -ne 0) { throw "La création de l’installateur EXE a échoué." }
 

@@ -1,5 +1,16 @@
 # Historique des versions
 
+## 1.19.1 — 2026-09-11 — préparation locale
+
+- harmonise l’installation, la mise à jour et la désinstallation avec le centre de contrôle : barre latérale bleu nuit, cartes claires, boutons arrondis et rendu WPF vectoriel ;
+- partage le même dictionnaire de styles entre les trois interfaces et l’erreur de démarrage du Setup ;
+- conserve le moteur d’installation PowerShell, les installations silencieuses, la connexion existante, le retour arrière et le choix de conserver ou de supprimer les données locales ;
+- inclut les ressources WPF dans le Setup, le ZIP, l’application installée et la copie temporaire du désinstallateur ;
+- ajoute des aperçus sans action et la validation des écrans français et anglais sous Windows PowerShell 5.1.
+- empêche une nouvelle tentative lorsque le retour arrière a lui-même échoué, et conserve les sauvegardes d’une ancienne transaction au lieu de les supprimer au démarrage suivant.
+
+Le nouveau Setup doit être exécuté pour mettre aussi à jour le désinstallateur enregistré dans Windows. L’extension reste en version 1.8.1. Cette préparation locale n’est pas publiée sur GitHub. Voir le [guide des assistants](docs/MAINTENANCE-1.19.1.md).
+
 ## 1.19.0 — 2026-09-11 — préparation locale
 
 - remplace le centre de contrôle PowerShell/WinForms par une application Windows native WPF, avec navigation latérale, cartes arrondies et pages **Vue d’ensemble**, **Réglages** et **Diagnostic** ;

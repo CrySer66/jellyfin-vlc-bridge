@@ -28,9 +28,9 @@ Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens th
 
 | Application | Platform | Extension |
 |---|---|---|
-| **1.19.0** | **Windows 10/11 x64** | **1.8.1** (package ready) |
+| **1.19.1** | **Windows 10/11 x64** | **1.8.1** (package ready) |
 
-**Local version in preparation:** 1.19.0 introduces a native WPF Control Center and internal playback and diagnostic fixes. It has not been published yet: GitHub downloads still provide **1.18.1**. See the [new interface and verification guide](docs/DESKTOP-1.19.0.md) (French).
+**Local version in preparation:** 1.19.1 gives the installer and uninstaller the same WPF appearance as the 1.19.0 Control Center. It has not been published yet: GitHub downloads still provide **1.18.1**. See the [maintenance interface and verification guide](docs/MAINTENANCE-1.19.1.md) (French).
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="A media item moving from Jellyfin to VLC through the local Bridge">

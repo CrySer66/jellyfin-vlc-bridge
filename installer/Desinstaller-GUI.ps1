@@ -2,15 +2,175 @@
     [switch]$TemporaryRun,
     [switch]$Silent,
     [switch]$Purge,
-    [switch]$IsolatedTest
+    [switch]$IsolatedTest,
+    [switch]$ValidateOnly,
+    [string]$RenderPreview,
+    [ValidateSet('choice', 'progress', 'success', 'error')][string]$PreviewState = 'choice',
+    [ValidateSet('auto', 'fr', 'en')][string]$Language = 'auto'
 )
 
 $ErrorActionPreference = 'Stop'
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localizationFile = Join-Path $scriptDirectory 'Localization.ps1'
-$themeFile = Join-Path $scriptDirectory 'UiTheme.ps1'
-if (Test-Path -LiteralPath $localizationFile) { . $localizationFile }
+$themeFile = Join-Path $scriptDirectory 'WpfTheme.ps1'
+$previewMode = $ValidateOnly -or -not [string]::IsNullOrWhiteSpace($RenderPreview)
+if (Test-Path -LiteralPath $localizationFile) { . $localizationFile -Preview:$previewMode }
+if ($Language -ne 'auto') { $script:JvbLanguage = $Language }
 $uninstallerLog = Join-Path $env:TEMP 'JellyfinVlcBridge-uninstall.log'
+
+# These labels belong to the uninstall flow; the visual styles are shared with
+# the native control center and the installation flow.
+$uninstallMessages = @{
+    fr = @{
+        UninstallNavigation = 'Désinstallation'
+        UninstallPageTitle = 'Désinstaller le Bridge'
+        UninstallAction = 'Désinstaller'
+        UninstallLocalOnly = 'Cette action concerne uniquement le Bridge installé sur cet ordinateur.'
+        UninstallMediaPreserved = 'Votre serveur Jellyfin, vos films et vos séries ne sont pas modifiés.'
+        UninstallWorking = 'Désinstallation en cours'
+        UninstallWorkingDetail = "Préparation du retrait de l’application…"
+        UninstallRemovingLinks = 'Retrait des connexions à Windows et aux navigateurs…'
+        UninstallRemovingFiles = "Suppression des fichiers de l’application…"
+        UninstallRemovingSettings = 'Suppression des données locales sélectionnées…'
+        UninstallFinishing = 'Vérification et finalisation…'
+        UninstallSuccessSubtitle = 'Le Bridge a été retiré de cet ordinateur.'
+        UninstallAppRemoved = 'Le logiciel a été retiré.'
+        UninstallErrorSubtitle = "La désinstallation n’a pas pu se terminer."
+        UninstallPreviewError = 'Un fichier du Bridge est encore utilisé. Fermez le centre de contrôle, puis relancez la désinstallation.'
+    }
+    en = @{
+        UninstallNavigation = 'Uninstall'
+        UninstallPageTitle = 'Uninstall the Bridge'
+        UninstallAction = 'Uninstall'
+        UninstallLocalOnly = 'This action only affects the Bridge installed on this computer.'
+        UninstallMediaPreserved = 'Your Jellyfin server, movies and series will not be changed.'
+        UninstallWorking = 'Uninstalling'
+        UninstallWorkingDetail = 'Preparing to remove the application…'
+        UninstallRemovingLinks = 'Removing Windows and browser connections…'
+        UninstallRemovingFiles = 'Removing the application files…'
+        UninstallRemovingSettings = 'Removing the selected local data…'
+        UninstallFinishing = 'Checking and finishing…'
+        UninstallSuccessSubtitle = 'The Bridge was removed from this computer.'
+        UninstallAppRemoved = 'The application was removed.'
+        UninstallErrorSubtitle = 'The uninstall could not be completed.'
+        UninstallPreviewError = 'A Bridge file is still in use. Close the control center, then run the uninstaller again.'
+    }
+}
+foreach ($locale in $uninstallMessages.Keys) {
+    foreach ($key in $uninstallMessages[$locale].Keys) {
+        $script:JvbMessages[$locale][$key] = $uninstallMessages[$locale][$key]
+    }
+}
+
+function New-UninstallWindow {
+    . $themeFile
+    Initialize-JvbWpfTheme
+    $window = New-JvbWpfWindow -Xaml (Get-Content -LiteralPath (Join-Path $scriptDirectory 'UninstallWindow.xaml') -Raw -Encoding UTF8)
+    foreach ($name in @('ChoicePanel', 'ProgressPanel', 'ResultPanel', 'KeepOption', 'PurgeOption',
+            'PageTitle', 'PageSubtitle', 'ProgressLabel', 'ProgressFill', 'ResultTitle', 'ResultMessage',
+            'ResultIcon', 'ResultIconBackground', 'SettingsResultCard', 'SettingsResult',
+            'CancelButton', 'RemoveButton', 'CloseButton')) {
+        if ($null -eq $window.FindName($name)) { throw "Missing uninstall control: $name" }
+    }
+    return $window
+}
+
+function Set-UninstallView([string]$state, [string]$message = '') {
+    $window = $script:uninstallWindow
+    foreach ($name in @('ChoicePanel', 'ProgressPanel', 'ResultPanel', 'CancelButton', 'RemoveButton', 'CloseButton')) {
+        $window.FindName($name).Visibility = 'Collapsed'
+    }
+    switch ($state) {
+        'choice' {
+            $window.FindName('ChoicePanel').Visibility = 'Visible'
+            $window.FindName('CancelButton').Visibility = 'Visible'
+            $window.FindName('RemoveButton').Visibility = 'Visible'
+            $window.FindName('PageTitle').Text = T 'UninstallPageTitle'
+            $window.FindName('PageSubtitle').Text = T 'UninstallQuestion'
+        }
+        'progress' {
+            $window.FindName('ProgressPanel').Visibility = 'Visible'
+            $window.FindName('PageTitle').Text = T 'UninstallWorking'
+            $window.FindName('PageSubtitle').Text = T 'UninstallMediaPreserved'
+            if ($message) { $window.FindName('ProgressLabel').Text = $message }
+        }
+        default {
+            $success = $state -eq 'success'
+            $window.FindName('ResultPanel').Visibility = 'Visible'
+            $window.FindName('CloseButton').Visibility = 'Visible'
+            $window.FindName('PageTitle').Text = T $(if ($success) { 'UninstallCompleteTitle' } else { 'UninstallErrorTitle' })
+            $window.FindName('PageSubtitle').Text = T $(if ($success) { 'UninstallSuccessSubtitle' } else { 'UninstallErrorSubtitle' })
+            $window.FindName('ResultTitle').Text = T $(if ($success) { 'UninstallAppRemoved' } else { 'UninstallErrorTitle' })
+            $window.FindName('ResultMessage').Text = $message
+            $window.FindName('SettingsResultCard').Visibility = if ($success) { 'Visible' } else { 'Collapsed' }
+            $window.FindName('SettingsResult').Text = T $(if ($script:uninstallPurgesSettings) { 'SettingsRemoved' } else { 'SettingsKept' })
+            $window.FindName('ResultIconBackground').Background = if ($success) { '#E2F3EC' } else { '#FBEAEA' }
+            $window.FindName('ResultIcon').Stroke = if ($success) { '#087C73' } else { '#B83232' }
+            $window.FindName('ResultIcon').Data = if ($success) { 'M 2 10 L 8 16 L 20 3' } else { 'M 3 3 L 19 19 M 19 3 L 3 19' }
+        }
+    }
+}
+
+function Show-UninstallChoice {
+    $script:uninstallWindow = New-UninstallWindow
+    $script:uninstallChoice = 'cancel'
+    Set-UninstallView 'choice'
+    $script:uninstallWindow.FindName('CancelButton').Add_Click({ $script:uninstallWindow.Close() })
+    $script:uninstallWindow.FindName('RemoveButton').Add_Click({
+        $script:uninstallChoice = if ($script:uninstallWindow.FindName('PurgeOption').IsChecked) { 'purge' } else { 'keep' }
+        $script:uninstallWindow.Close()
+    })
+    [void]$script:uninstallWindow.ShowDialog()
+    return $script:uninstallChoice
+}
+
+function Update-UninstallProgress([string]$message, [double]$fraction = 0) {
+    if ($Silent -or $null -eq $script:uninstallWindow) { return }
+    if ($message) { $script:uninstallWindow.FindName('ProgressLabel').Text = $message }
+    if ($fraction -gt 0) {
+        $fill = $script:uninstallWindow.FindName('ProgressFill')
+        $available = [Math]::Max(72, $fill.Parent.ActualWidth)
+        $fill.Width = [Math]::Max(12, $available * [Math]::Min(1, $fraction))
+    }
+    Invoke-JvbWpfRender -Window $script:uninstallWindow
+}
+
+function Show-UninstallResult([string]$title, [string]$message, [bool]$success) {
+    $script:uninstallInProgress = $false
+    if ($null -ne $script:uninstallWindow -and $script:uninstallWindow.IsVisible) {
+        $script:uninstallWindow.Close()
+    }
+    $script:uninstallWindow = New-UninstallWindow
+    $script:uninstallWindow.Title = $title
+    Set-UninstallView $(if ($success) { 'success' } else { 'error' }) $message
+    $script:uninstallWindow.FindName('CloseButton').Add_Click({ $script:uninstallWindow.Close() })
+    [void]$script:uninstallWindow.ShowDialog()
+}
+
+# Preview and validation exit before relocation, logging, configuration checks,
+# process termination, registry access or cleanup. They use only sample text.
+if ($previewMode) {
+    . $themeFile
+    $script:uninstallWindow = New-UninstallWindow
+    $sampleMessage = switch ($PreviewState) {
+        'success' { T 'RemoveExtensionLast' }
+        'error' { T 'UninstallPreviewError' }
+        default { '' }
+    }
+    Set-UninstallView $PreviewState $sampleMessage
+    if ($ValidateOnly) {
+        # Exercise layout at the minimum supported size without creating HWNDs
+        # or wiring any action capable of uninstalling the application.
+        $minimumSize = New-Object Windows.Size($script:uninstallWindow.MinWidth, $script:uninstallWindow.MinHeight)
+        $script:uninstallWindow.Content.Measure($minimumSize)
+        $script:uninstallWindow.Content.Arrange((New-Object Windows.Rect(0, 0, $minimumSize.Width, $minimumSize.Height)))
+        $script:uninstallWindow.Content.UpdateLayout()
+    }
+    if ($RenderPreview) { Save-JvbWpfPreview -Window $script:uninstallWindow -Path $RenderPreview }
+    $script:uninstallWindow.Close()
+    if ($ValidateOnly) { [Console]::WriteLine('Uninstall WPF interface validated.') }
+    return
+}
 
 function Write-UninstallerLog([string]$level, [string]$message) {
     try {
@@ -35,12 +195,16 @@ if (-not $TemporaryRun) {
     $temporaryScript = Join-Path $temporaryDirectory 'Desinstaller-GUI.ps1'
     Copy-Item -LiteralPath $MyInvocation.MyCommand.Path -Destination $temporaryScript -Force
     Copy-Item -LiteralPath $localizationFile -Destination (Join-Path $temporaryDirectory 'Localization.ps1') -Force
-    Copy-Item -LiteralPath $themeFile -Destination (Join-Path $temporaryDirectory 'UiTheme.ps1') -Force
+    Copy-Item -LiteralPath $themeFile -Destination (Join-Path $temporaryDirectory 'WpfTheme.ps1') -Force
+    foreach ($uiFile in @('DesktopTheme.xaml', 'UninstallWindow.xaml')) {
+        Copy-Item -LiteralPath (Join-Path $scriptDirectory $uiFile) -Destination (Join-Path $temporaryDirectory $uiFile) -Force
+    }
 
     # Le processus parent ne doit pas conserver App comme dossier de travail
     # pendant que la copie temporaire le supprime.
     Set-Location -LiteralPath $env:TEMP
-    $temporaryArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$temporaryScript`" -TemporaryRun"
+    $temporaryArguments = "-NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$temporaryScript`" -TemporaryRun"
+    if ($Language -ne 'auto') { $temporaryArguments += " -Language $Language" }
     if ($Silent) { $temporaryArguments += ' -Silent' }
     if ($Purge) { $temporaryArguments += ' -Purge' }
     if ($IsolatedTest) { $temporaryArguments += ' -IsolatedTest' }
@@ -90,13 +254,10 @@ if ($IsolatedTest -and -not (Test-Path -LiteralPath $isolatedTestMarker -PathTyp
 $installDirectory = Join-Path $rootDirectory 'App'
 $executable = Join-Path $installDirectory 'jellyfin-vlc-bridge.exe'
 $controlExecutable = Join-Path $installDirectory 'jellyfin-vlc-bridge-control.exe'
-$applicationIcon = $null
 $maintenanceMutex = $null
 if (-not $Silent) {
-    Add-Type -AssemblyName System.Windows.Forms
-    [System.Windows.Forms.Application]::EnableVisualStyles()
-    . (Join-Path $scriptDirectory 'UiTheme.ps1')
-    $applicationIcon = Get-JvbApplicationIcon @($controlExecutable, $executable)
+    . $themeFile
+    Initialize-JvbWpfTheme
 }
 
 function Enter-MaintenanceLock {
@@ -141,122 +302,17 @@ function Remove-StaleApplicationTransactions {
     }
 }
 
-function Show-UninstallChoice {
-    $dialog = New-Object Windows.Forms.Form
-    $dialog.Text = T 'UninstallTitle'
-    $dialog.StartPosition = 'CenterScreen'
-    $dialog.ClientSize = New-Object Drawing.Size(640, 470)
-    $dialog.FormBorderStyle = 'FixedSingle'
-    $dialog.MaximizeBox = $false
-    $dialog.MinimizeBox = $false
-    Enable-JvbModernWindow $dialog $applicationIcon
-
-    $header = New-Object Windows.Forms.Panel
-    $header.Location = New-Object Drawing.Point(0, 0)
-    $header.Size = New-Object Drawing.Size(640, 104)
-    $header.BackColor = $script:JvbPalette.Header
-    $dialog.Controls.Add($header)
-
-    $accent = New-Object Windows.Forms.Panel
-    $accent.Location = New-Object Drawing.Point(0, 100)
-    $accent.Size = New-Object Drawing.Size(640, 4)
-    $accent.BackColor = $script:JvbPalette.Danger
-    $header.Controls.Add($accent)
-
-    $logo = New-Object Windows.Forms.PictureBox
-    $logo.Location = New-Object Drawing.Point(26, 19)
-    $logo.Size = New-Object Drawing.Size(64, 64)
-    $logo.SizeMode = 'Zoom'
-    if ($applicationIcon) { $logo.Image = $applicationIcon.ToBitmap() }
-    $header.Controls.Add($logo)
-
-    [void](New-JvbLabel $header (T 'UninstallTitle') 108 22 500 36 20 `
-        ([Drawing.FontStyle]::Bold))
-    [void](New-JvbLabel $header 'Jellyfin VLC Bridge' 110 61 460 24 9.5 `
-        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
-
-    [void](New-JvbLabel $dialog (T 'UninstallQuestion') 28 126 584 58 11 `
-        ([Drawing.FontStyle]::Bold))
-
-    $keepCard = New-JvbCard $dialog 28 198 584 88 $script:JvbPalette.Surface 14
-    [void](New-JvbDot $keepCard 22 20 $script:JvbPalette.Success)
-    [void](New-JvbLabel $keepCard (T 'UninstallKeep') 46 12 510 28 11 `
-        ([Drawing.FontStyle]::Bold))
-    [void](New-JvbLabel $keepCard (T 'UninstallKeepDescription') 46 42 510 34 9 `
-        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
-    $keepCard.Cursor = [Windows.Forms.Cursors]::Hand
-
-    $purgeCard = New-JvbCard $dialog 28 300 584 88 $script:JvbPalette.Surface 14
-    [void](New-JvbDot $purgeCard 22 20 $script:JvbPalette.Danger)
-    [void](New-JvbLabel $purgeCard (T 'UninstallRemoveAll') 46 12 510 28 11 `
-        ([Drawing.FontStyle]::Bold))
-    [void](New-JvbLabel $purgeCard (T 'UninstallRemoveAllDescription') 46 42 510 34 9 `
-        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
-    $purgeCard.Cursor = [Windows.Forms.Cursors]::Hand
-
-    $cancel = New-Object Windows.Forms.Button
-    $cancel.Text = T 'Cancel'
-    $cancel.Location = New-Object Drawing.Point(452, 410)
-    $cancel.Size = New-Object Drawing.Size(160, 40)
-    Set-JvbButtonStyle $cancel 'Secondary'
-    $dialog.Controls.Add($cancel)
-
-    $script:uninstallChoice = 'cancel'
-    $selectKeep = {
-        $script:uninstallChoice = 'keep'
-        $dialog.Close()
-    }
-    $selectPurge = {
-        $script:uninstallChoice = 'purge'
-        $dialog.Close()
-    }
-    $keepCard.Add_Click($selectKeep)
-    foreach ($child in $keepCard.Controls) { $child.Add_Click($selectKeep) }
-    $purgeCard.Add_Click($selectPurge)
-    foreach ($child in $purgeCard.Controls) { $child.Add_Click($selectPurge) }
-    $cancel.Add_Click({ $dialog.Close() })
-    [void]$dialog.ShowDialog()
-    return $script:uninstallChoice
-}
-
-function Show-UninstallResult(
-    [string]$title,
-    [string]$message,
-    [bool]$success
-) {
-    $dialog = New-Object Windows.Forms.Form
-    $dialog.Text = $title
-    $dialog.StartPosition = 'CenterScreen'
-    $dialog.ClientSize = New-Object Drawing.Size(560, 320)
-    $dialog.FormBorderStyle = 'FixedSingle'
-    $dialog.MaximizeBox = $false
-    $dialog.MinimizeBox = $false
-    Enable-JvbModernWindow $dialog $applicationIcon
-
-    $statusColor = if ($success) { $script:JvbPalette.Success } else { $script:JvbPalette.Danger }
-    $card = New-JvbCard $dialog 28 28 504 206
-    [void](New-JvbDot $card 24 26 $statusColor)
-    [void](New-JvbLabel $card $title 50 15 420 34 15 ([Drawing.FontStyle]::Bold))
-    [void](New-JvbLabel $card $message 24 68 456 112 10 `
-        ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted)
-
-    $closeButton = New-Object Windows.Forms.Button
-    $closeButton.Text = T 'Close'
-    $closeButton.Location = New-Object Drawing.Point(372, 254)
-    $closeButton.Size = New-Object Drawing.Size(160, 42)
-    Set-JvbButtonStyle $closeButton $(if ($success) { 'Primary' } else { 'Danger' })
-    $closeButton.Add_Click({ $dialog.Close() })
-    $dialog.Controls.Add($closeButton)
-    [void]$dialog.ShowDialog()
-}
-
 $choice = if ($Silent) {
     if ($Purge) { 'purge' } else { 'keep' }
 } else {
     Show-UninstallChoice
 }
-if ($choice -eq 'cancel') { exit 0 }
+if ($choice -eq 'cancel') {
+    Remove-TemporaryUninstallFiles
+    exit 0
+}
 $purge = $choice -eq 'purge'
+$script:uninstallPurgesSettings = $purge
 
 function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -273,7 +329,16 @@ function Invoke-BridgeCleanup([string]$path, [bool]$removeSettings) {
         if (-not $process.Start()) { throw (T 'CleanupStartFailed') }
         $outputTask = $process.StandardOutput.ReadToEndAsync()
         $errorTask = $process.StandardError.ReadToEndAsync()
-        if (-not $process.WaitForExit(30000)) {
+        $finished = if ($Silent) {
+            $process.WaitForExit(30000)
+        } else {
+            $waitTimer = [Diagnostics.Stopwatch]::StartNew()
+            while (-not $process.WaitForExit(100) -and $waitTimer.ElapsedMilliseconds -lt 30000) {
+                Update-UninstallProgress
+            }
+            $process.HasExited
+        }
+        if (-not $finished) {
             try { $process.Kill() } catch { }
             [void]$process.WaitForExit(5000)
             throw 'Le nettoyage du Bridge a dépassé le délai de 30 secondes.'
@@ -340,6 +405,17 @@ function Assert-BridgeRegistrationRemoved {
 
 try {
     Enter-MaintenanceLock
+    if (-not $Silent) {
+        $script:uninstallWindow = New-UninstallWindow
+        $script:uninstallInProgress = $true
+        $script:uninstallWindow.Add_Closing({
+            param($sender, $eventArgs)
+            if ($script:uninstallInProgress) { $eventArgs.Cancel = $true }
+        })
+        Set-UninstallView 'progress' (T 'UninstallWorkingDetail')
+        $script:uninstallWindow.Show()
+        Update-UninstallProgress (T 'UninstallWorkingDetail') 0.08
+    }
     Write-UninstallerLog 'INFO' "Désinstallation démarrée (silencieuse=$Silent, purge=$purge)."
     $cleanupWarnings = New-Object System.Collections.Generic.List[string]
     if (Test-Path $executable) {
@@ -359,6 +435,7 @@ try {
     } elseif ($purge) {
         $cleanupWarnings.Add((T 'CleanupIncomplete' @("exécutable absent ; les secrets Windows n’ont pas pu être vérifiés")))
     }
+    Update-UninstallProgress (T 'UninstallRemovingLinks') 0.3
     try {
         Remove-BridgeRegistrationFallback
         Assert-BridgeRegistrationRemoved
@@ -370,6 +447,7 @@ try {
     $actual = [IO.Path]::GetFullPath($installDirectory)
     if ($actual -ne $expected) { throw (T 'UnsafeUninstallPath') }
 
+    Update-UninstallProgress (T 'UninstallRemovingFiles') 0.55
     if (Test-Path $actual) {
         Get-Process -Name 'jellyfin-vlc-bridge', 'jellyfin-vlc-bridge-control' -ErrorAction SilentlyContinue | ForEach-Object {
             try {
@@ -383,6 +461,7 @@ try {
             try { Remove-Item -LiteralPath $actual -Recurse -Force -ErrorAction Stop }
             catch {
                 if ($attempt -eq 10) { throw }
+                Update-UninstallProgress
                 Start-Sleep -Milliseconds 500
             }
         }
@@ -390,12 +469,14 @@ try {
     if (Test-Path -LiteralPath $actual) { throw "Le dossier application existe encore : $actual" }
     Remove-StaleApplicationTransactions
 
+    Update-UninstallProgress (T 'UninstallRemovingSettings') 0.8
     if ($purge -and (Test-Path $rootDirectory)) {
         Remove-Item -LiteralPath $rootDirectory -Recurse -Force -ErrorAction Stop
     }
     if ($purge -and (Test-Path -LiteralPath $rootDirectory)) {
         throw "Les données locales existent encore : $rootDirectory"
     }
+    Update-UninstallProgress (T 'UninstallFinishing') 1
     $completionMessage = T 'UninstallComplete'
     $completionIcon = 'Information'
     if ($cleanupWarnings.Count -gt 0) {
