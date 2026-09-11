@@ -1,9 +1,11 @@
 # Centre de contrôle 1.19.0
 
-La version 1.19.0 est préparée localement le 11 septembre 2026. Elle apporte
-une nouvelle interface Windows et des corrections internes du Bridge. Elle
-n’est pas encore publiée sur GitHub ; les téléchargements publics restent ceux
-de la version 1.18.1. L’extension reste en version 1.8.1.
+Le centre de contrôle décrit ici a été préparé localement en version 1.19.0
+le 11 septembre 2026. Cette étape de développement n’a pas eu de Release
+GitHub séparée. Sa nouvelle interface Windows et ses corrections internes
+sont incluses dans le paquet **1.19.1**, qui harmonise également les assistants
+d’installation et de désinstallation. Voir le [guide 1.19.1](MAINTENANCE-1.19.1.md).
+L’extension reste en version 1.8.1.
 
 ## Nouvelle interface
 
@@ -70,12 +72,15 @@ L’installateur et le ZIP 1.19.0 ont également passé les tests de paquet Wind
 dont installation silencieuse, retour à la version précédente après échec,
 verrouillage concurrent, désinstallation avec conservation ou purge des données
 dans des dossiers isolés, et dialogue natif Chrome. Les métadonnées et empreintes
-SHA256 sont vérifiées. La version 1.19.0 n’a pas été installée sur le compte courant.
+SHA256 ont été vérifiées. Cette validation automatisée n’a pas exécuté
+l’installation sur le compte utilisateur.
 
-Le pilotage interactif a été tenté, mais l’outil n’a pas exposé de fenêtre
-ciblable. Les captures fournies sont des rendus du vrai XAML WPF avec des données
-d’exemple ; les clics réels, Quick Connect et la zone de notification restent à
-vérifier avec cette interface avant une publication publique.
+Pendant cette validation, le pilotage interactif a été tenté, mais l’outil n’a
+pas exposé de fenêtre ciblable. Les captures sont des rendus du vrai XAML WPF
+avec des données d’exemple ; elles ne vérifient pas les clics réels, Quick Connect
+ou la zone de notification. Le cycle silencieux d’installation et de
+désinstallation exécuté par GitHub sur une machine Windows jetable avant la
+création d’une Release complète les tests locaux sans couvrir ces interactions.
 
 Références techniques : [présentation officielle de WPF](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/overview/)
 et [gestion DPI Windows](https://learn.microsoft.com/en-us/windows/win32/hidpi/setting-the-default-dpi-awareness-for-a-process).

@@ -30,7 +30,7 @@ Jellyfin VLC Bridge ajoute l’action **Lire avec VLC** dans Jellyfin Web. Le m�
 |---|---|---|
 | **1.19.1** | **Windows 10/11 x64** | **1.8.1** (paquet préparé) |
 
-**Version locale en préparation :** la 1.19.1 harmonise l’installateur et le désinstallateur avec le centre de contrôle WPF de la 1.19.0. Elle n’est pas encore publiée : les téléchargements GitHub restent ceux de la **1.18.1**. Consultez le [guide des assistants et des vérifications](docs/MAINTENANCE-1.19.1.md).
+**Nouveautés 1.19.1 :** le centre de contrôle, l’installateur et le désinstallateur partagent désormais une interface WPF avec cartes arrondies et icônes vectorielles. Cette version inclut aussi les corrections de suivi VLC, de réglages SMB et d’export d’assistance préparées en 1.19.0. Exécutez le nouveau Setup pour mettre à jour les trois interfaces en conservant votre connexion. Consultez le [guide des assistants et des vérifications](docs/MAINTENANCE-1.19.1.md).
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Un média passe de Jellyfin vers VLC grâce au Bridge local">

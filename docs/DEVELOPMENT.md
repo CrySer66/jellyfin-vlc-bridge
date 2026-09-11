@@ -26,13 +26,14 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 
 ## Centre de contrôle natif WPF
 
-La version 1.19.0, préparée localement, remplace le centre de contrôle
+La version 1.19.1 intègre le centre de contrôle préparé en 1.19.0 et remplace l’interface
 PowerShell/WinForms par `jellyfin-vlc-bridge-control.exe`, une application WPF
 ciblant .NET Framework 4.8. Ce composant Windows est disponible sur Windows
 10/11 ; il doit être installé si la machine en est dépourvue. Le centre de
 contrôle démarre directement, sans interpréteur PowerShell pour afficher son
-interface. Le Setup et les assistants d’installation conservent leurs scripts
-PowerShell.
+interface. Les assistants d’installation et de désinstallation conservent leurs
+scripts PowerShell et partagent le thème WPF `installer/DesktopTheme.xaml` avec
+le centre de contrôle.
 
 La compilation utilise le compilateur C# de .NET Framework et embarque le XAML,
 les traductions et l’icône. `Localization.ps1` et
@@ -80,7 +81,7 @@ limites des vérifications.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.19.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.19.1
 ```
 
 Le script :
@@ -95,20 +96,20 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.19.0-Setup.exe
-outputs\JellyfinVlcBridge-1.19.0-win-x64.zip
+outputs\JellyfinVlcBridge-1.19.1-Setup.exe
+outputs\JellyfinVlcBridge-1.19.1-win-x64.zip
 ```
 
 Pour préparer localement les métadonnées qui accompagneront la Release :
 
 ```powershell
-.\tools\New-ReleaseChecksums.ps1 -Version 1.19.0
-.\tools\New-ReleaseNotes.ps1 -Version 1.19.0
-.\tools\Test-ReleaseMetadata.ps1 -Version 1.19.0
+.\tools\New-ReleaseChecksums.ps1 -Version 1.19.1
+.\tools\New-ReleaseNotes.ps1 -Version 1.19.1
+.\tools\Test-ReleaseMetadata.ps1 -Version 1.19.1
 ```
 
-Ces commandes préparent des fichiers locaux ; elles ne publient pas la
-version 1.19.0. La version GitHub publiée reste la 1.18.1 à cette étape.
+Ces commandes préparent des fichiers locaux. La publication des téléchargements
+est effectuée séparément par le workflow GitHub depuis `main` ou le tag exact.
 
 Le workflow public atteste séparément le Setup et le ZIP exacts qu'il joint à
 la Release. Une attestation GitHub établit la provenance de la compilation ;

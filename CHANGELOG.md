@@ -1,15 +1,22 @@
 # Historique des versions
 
-## 1.19.1 — 2026-09-11 — préparation locale
+## 1.19.1 — 2026-09-11
 
+Cette version réunit le nouveau centre de contrôle préparé en 1.19.0 et les assistants harmonisés en 1.19.1. Elle conserve les corrections d’authentification Jellyfin 10.x/12 de la 1.18.1.
+
+- remplace le centre de contrôle PowerShell/WinForms par une application Windows native WPF, avec pages **Vue d’ensemble**, **Réglages** et **Diagnostic**, navigation latérale et opérations asynchrones ;
 - harmonise l’installation, la mise à jour et la désinstallation avec le centre de contrôle : barre latérale bleu nuit, cartes claires, boutons arrondis et rendu WPF vectoriel ;
 - partage le même dictionnaire de styles entre les trois interfaces et l’erreur de démarrage du Setup ;
 - conserve le moteur d’installation PowerShell, les installations silencieuses, la connexion existante, le retour arrière et le choix de conserver ou de supprimer les données locales ;
 - inclut les ressources WPF dans le Setup, le ZIP, l’application installée et la copie temporaire du désinstallateur ;
-- ajoute des aperçus sans action et la validation des écrans français et anglais sous Windows PowerShell 5.1.
-- empêche une nouvelle tentative lorsque le retour arrière a lui-même échoué, et conserve les sauvegardes d’une ancienne transaction au lieu de les supprimer au démarrage suivant.
+- ajoute des aperçus sans action et la validation des écrans français et anglais sous Windows PowerShell 5.1 ;
+- empêche une nouvelle tentative lorsque le retour arrière a lui-même échoué, et conserve les sauvegardes d’une ancienne transaction au lieu de les supprimer au démarrage suivant ;
+- conserve l’épisode choisi lorsqu’il est absent de la liste Jellyfin, associe les rapports de progression au média réellement lu après un saut dans VLC, et préserve la dernière position utile à l’arrêt ;
+- masque les en-têtes d’authentification dans les exports d’assistance et conserve les correspondances SMB secondaires lors d’une modification des réglages.
 
-Le nouveau Setup doit être exécuté pour mettre aussi à jour le désinstallateur enregistré dans Windows. L’extension reste en version 1.8.1. Cette préparation locale n’est pas publiée sur GitHub. Voir le [guide des assistants](docs/MAINTENANCE-1.19.1.md).
+Le nouveau Setup doit être exécuté pour mettre aussi à jour le désinstallateur enregistré dans Windows. La connexion valide et les réglages existants sont conservés. Le paquet de l’extension reste en version 1.8.1 ; cette publication Windows ne soumet pas de mise à jour au Chrome Web Store. Voir le [guide des assistants](https://github.com/CrySer66/jellyfin-vlc-bridge/blob/v1.19.1/docs/MAINTENANCE-1.19.1.md) et les [vérifications du centre de contrôle](https://github.com/CrySer66/jellyfin-vlc-bridge/blob/v1.19.1/docs/DESKTOP-1.19.0.md).
+
+Les tests automatiques du paquet couvrent les scénarios silencieux et isolés. Les rendus WPF ont été inspectés ; le nouveau parcours graphique Quick Connect et le comportement sur plusieurs moniteurs ne sont pas couverts par ces tests.
 
 ## 1.19.0 — 2026-09-11 — préparation locale
 

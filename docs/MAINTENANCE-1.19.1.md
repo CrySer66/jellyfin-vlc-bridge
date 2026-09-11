@@ -1,6 +1,7 @@
 # Installation et désinstallation 1.19.1
 
-La version 1.19.1 complète le [centre de contrôle 1.19.0](DESKTOP-1.19.0.md).
+La version 1.19.1 inclut le [centre de contrôle et les corrections internes
+préparés en 1.19.0](DESKTOP-1.19.0.md), puis complète cette évolution.
 L’installateur et le désinstallateur utilisent désormais WPF avec le même
 dictionnaire `DesktopTheme.xaml` : barre latérale bleu nuit, fond clair,
 cartes et boutons arrondis, icônes vectorielles, repères de focus clavier.
@@ -51,9 +52,15 @@ ou purge dans des dossiers isolés. Le dialogue natif Chrome et les métadonnée
 du paquet sont également vérifiés. Les rendus des états d’accueil, mise à jour,
 autorisation, succès et erreur ont été inspectés.
 
-Ces essais n’exécutent pas le cycle d’installation/désinstallation sur le compte
-utilisateur. L’essai réel de Quick Connect et du nouveau désinstallateur reste
-à faire avant une publication publique.
+Ces essais locaux n’exécutent pas le cycle d’installation/désinstallation sur
+le compte utilisateur. Le workflow GitHub exécute en complément une installation,
+une réinstallation et une désinstallation réelles en mode silencieux sur une
+machine Windows jetable avant de créer la Release. Il vérifie notamment les
+fichiers installés, les raccourcis et les enregistrements Windows.
+
+Le parcours Quick Connect avec un serveur réel et les clics dans les nouveaux
+assistants n’ont pas fait l’objet d’un nouvel essai interactif pendant cette
+validation. Les tests silencieux et les rendus ne couvrent pas ces interactions.
 
 Depuis le dépôt ou le ZIP extrait, les commandes suivantes construisent les
 vraies fenêtres WPF avec des données d’exemple et quittent avant toute action
@@ -73,5 +80,6 @@ Les écrans d’installation disponibles sont l’accueil (sans `-PreviewState`)
 
 Les captures livrées sont des rendus du vrai XAML avec des données d’exemple.
 Elles ne prouvent pas une autorisation Quick Connect sur un serveur réel ni
-un essai sur plusieurs moniteurs. Cette préparation ne publie ni Release
-GitHub ni nouvelle version sur le Chrome Web Store.
+un essai sur plusieurs moniteurs. La publication de l’application Windows sur
+GitHub est distincte de celle de l’extension : la version 1.19.1 ne modifie pas
+le paquet Chrome 1.8.1 et ne soumet aucune mise à jour au Chrome Web Store.
