@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.18.1'
+    [string]$Version = '1.19.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,12 +66,7 @@ try {
 
     $compiler = 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
     if (-not (Test-Path $compiler)) { throw 'Compilateur Windows .NET Framework introuvable.' }
-    $controlCenterExe = Join-Path $releaseDirectory 'jellyfin-vlc-bridge-control.exe'
-    & $compiler /nologo /target:winexe /codepage:65001 "/out:$controlCenterExe" `
-        "/win32icon:$appIcon" `
-        /reference:System.Windows.Forms.dll `
-        (Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs')
-    if ($LASTEXITCODE -ne 0) { throw 'La creation du centre de controle graphique a echoue.' }
+    & (Join-Path $PSScriptRoot 'Build-ControlCenter.ps1') -OutputDirectory $releaseDirectory
 
     foreach ($file in @(
         'installer\Installer-GUI.ps1',

@@ -68,8 +68,9 @@ public sealed record BridgeConfig
         var mappings = PathMappings ?? [];
         if (playbackMode == "smb" && mappings.Count == 0)
             throw new InvalidDataException("Le mode SMB exige au moins une correspondance de dossiers.");
-        if (mappings.Any(mapping => string.IsNullOrWhiteSpace(mapping.ServerPrefix) || string.IsNullOrWhiteSpace(mapping.ClientPrefix)))
-            throw new InvalidDataException("Une correspondance SMB contient un chemin vide.");
+        if (mappings.Any(mapping => mapping is null ||
+            string.IsNullOrWhiteSpace(mapping.ServerPrefix) || string.IsNullOrWhiteSpace(mapping.ClientPrefix)))
+            throw new InvalidDataException("Une correspondance SMB est absente ou contient un chemin vide.");
 
         return this with
         {

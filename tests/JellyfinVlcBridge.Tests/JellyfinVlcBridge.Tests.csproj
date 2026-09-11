@@ -5,5 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../src/JellyfinVlcBridge.Core/JellyfinVlcBridge.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/JellyfinVlcBridge.Core/JellyfinVlcBridge.Core.csproj" />
+    <ProjectReference Include="../../src/JellyfinVlcBridge.Cli/JellyfinVlcBridge.Cli.csproj" />
+  </ItemGroup>
 </Project>

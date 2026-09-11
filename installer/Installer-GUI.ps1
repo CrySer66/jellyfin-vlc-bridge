@@ -26,7 +26,7 @@ if ($script:isolatedTestMode -and -not (Test-Path -LiteralPath $script:isolatedT
 }
 $script:skipWindowsRegistration = $script:isolatedTestMode
 
-$script:bridgeVersion = '1.18.1'
+$script:bridgeVersion = '1.19.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -114,6 +114,7 @@ function Get-RequiredApplicationFiles {
     return @(
         'jellyfin-vlc-bridge.exe',
         'jellyfin-vlc-bridge-control.exe',
+        'jellyfin-vlc-bridge-control.exe.config',
         'Centre-Controle.ps1',
         'Localization.ps1',
         'UiTheme.ps1',
@@ -453,7 +454,7 @@ function Complete-Installation {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Jellyfin VLC Bridge 1.18.1'
+$form.Text = 'Jellyfin VLC Bridge 1.19.0'
 $form.StartPosition = 'CenterScreen'
 $form.ClientSize = New-Object System.Drawing.Size(760, 640)
 $form.FormBorderStyle = 'FixedSingle'
@@ -490,7 +491,7 @@ $subtitle = New-JvbLabel $header (T 'SetupSubtitle') 122 65 560 26 10 `
     ([Drawing.FontStyle]::Regular) $script:JvbPalette.TextMuted
 
 $versionPill = New-JvbCard $header 628 20 104 34 $script:JvbPalette.SurfaceAlt 17
-$versionText = New-JvbLabel $versionPill '1.18.1' 8 7 88 22 9 `
+$versionText = New-JvbLabel $versionPill '1.19.0' 8 7 88 22 9 `
     ([Drawing.FontStyle]::Bold)
 $versionText.TextAlign = 'MiddleCenter'
 

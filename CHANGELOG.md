@@ -1,5 +1,20 @@
 # Historique des versions
 
+## 1.19.0 — 2026-09-11 — préparation locale
+
+- remplace le centre de contrôle PowerShell/WinForms par une application Windows native WPF, avec navigation latérale, cartes arrondies et pages **Vue d’ensemble**, **Réglages** et **Diagnostic** ;
+- utilise des textes et icônes vectoriels, une mise en page redimensionnable et un défilement vertical pour améliorer la netteté et la lisibilité ;
+- embarque l’interface, les traductions françaises et anglaises et l’icône dans l’exécutable ; l’assistant d’installation reste en PowerShell ;
+- garde l’interface réactive pendant les opérations et borne les processus enfants avec gestion des délais, annulations et erreurs ;
+- conserve l’épisode explicitement choisi lorsqu’il est absent de la liste renvoyée par Jellyfin, au lieu de lancer un autre épisode ;
+- associe la progression au média réellement lu dans VLC après un saut ou un retour dans la liste, et conserve la dernière position utile lorsque VLC signale un arrêt à zéro ;
+- masque l’intégralité de l’en-tête `Authorization: MediaBrowser` dans les exports d’assistance, même sans jeton enregistré disponible pour le filtrage ;
+- rejette clairement une correspondance SMB nulle dans la configuration ;
+- conserve les correspondances SMB secondaires lors de l’enregistrement des réglages du centre de contrôle ;
+- ajoute des tests du suivi de lecture et des services du centre de contrôle, ainsi que des modes d’aperçu et de rendu sans action sur la connexion installée.
+
+Cette version est préparée localement et n’est pas encore publiée sur GitHub. L’extension reste en version 1.8.1. Les contrôles réalisés et leurs limites sont décrits dans le [guide du centre de contrôle 1.19.0](docs/DESKTOP-1.19.0.md).
+
 ## 1.18.1 — 2026-09-10
 
 - corrige les erreurs d’authentification après une mise à jour vers Jellyfin 12 en utilisant `Authorization: MediaBrowser` pour l’API, Quick Connect et le relais HTTP vers VLC ;

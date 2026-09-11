@@ -6,6 +6,7 @@ Ce document concerne les personnes qui souhaitent examiner, compiler ou contribu
 
 - Windows 10/11 x64 pour construire l'installateur ;
 - SDK .NET 8 ou plus récent ;
+- .NET Framework 4.8 pour le centre de contrôle WPF sur Windows 10/11 ;
 - PowerShell 5.1 ou plus récent ;
 - VLC pour les tests de lecture réels.
 
@@ -23,34 +24,91 @@ Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
 
 À chaque envoi sur `main` et pour chaque Pull Request, GitHub Actions vérifie automatiquement les versions, la syntaxe PowerShell et JavaScript, la compilation et les tests Windows.
 
+## Centre de contrôle natif WPF
+
+La version 1.19.0, préparée localement, remplace le centre de contrôle
+PowerShell/WinForms par `jellyfin-vlc-bridge-control.exe`, une application WPF
+ciblant .NET Framework 4.8. Ce composant Windows est disponible sur Windows
+10/11 ; il doit être installé si la machine en est dépourvue. Le centre de
+contrôle démarre directement, sans interpréteur PowerShell pour afficher son
+interface. Le Setup et les assistants d’installation conservent leurs scripts
+PowerShell.
+
+La compilation utilise le compilateur C# de .NET Framework et embarque le XAML,
+les traductions et l’icône. `Localization.ps1` et
+`installer/ControlCenter.strings.json` sont fusionnés à la compilation : ils ne
+sont pas chargés depuis le disque pour afficher le centre installé.
+
+```powershell
+.\tools\Build-ControlCenter.ps1 -OutputDirectory .\work\desktop-preview
+.\tools\Test-DesktopControl.ps1
+```
+
+Le dossier produit contient `jellyfin-vlc-bridge-control.exe` et son fichier
+`.config`, à conserver ensemble. Pour parcourir l’interface avec des données
+d’exemple :
+
+```powershell
+.\work\desktop-preview\jellyfin-vlc-bridge-control.exe --preview --language fr
+```
+
+Le mode `--preview` ne lit ni ne modifie la connexion installée, n’exécute pas
+ses commandes de lecture ou de maintenance et ne crée pas d’icône de
+notification. Il ne prend pas la place de l’instance installée. Les actions de
+lecture et de maintenance affichent seulement une indication d’aperçu.
+
+Pour produire un PNG sans ouvrir de fenêtre interactive :
+
+```powershell
+.\work\desktop-preview\jellyfin-vlc-bridge-control.exe --render-preview .\work\desktop-overview-fr.png --language fr --page overview --scale 1
+.\work\desktop-preview\jellyfin-vlc-bridge-control.exe --render-preview .\work\desktop-settings-fr.png --language fr --page settings --scale 1.5
+.\work\desktop-preview\jellyfin-vlc-bridge-control.exe --render-preview .\work\desktop-diagnostics-en.png --language en --page diagnostics --scale 2
+```
+
+`--page` accepte `overview`, `settings` ou `diagnostics`, et `--language` accepte
+`fr` ou `en`. Les facteurs `--scale 1`, `1.5` et `2` permettent de vérifier le
+rendu à 100 %, 150 % et 200 %. Ce rendu utilise les mêmes données d’exemple et
+protections que `--preview` ; il ne remplace pas un essai de déplacement réel
+entre écrans ayant des facteurs d’échelle différents.
+
+`Test-DesktopControl.ps1` teste les services avec des processus simulés et des
+fichiers temporaires isolés : transmission des arguments Windows, UTF-8,
+lecture simultanée des sorties, erreurs, délais, annulation et conservation des
+réglages. Le [guide 1.19.0](DESKTOP-1.19.0.md) détaille les corrections et les
+limites des vérifications.
+
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.18.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.19.0
 ```
 
 Le script :
 
 1. génère l'icône Windows depuis les icônes de l'extension ;
 2. restaure et publie l'application Windows autonome en un seul fichier, avec .NET 8 intégré ;
-3. retire les symboles de débogage du paquet public ;
-4. construit le ZIP Windows ;
-5. intègre le même contenu dans l'installateur graphique `.exe`.
+3. compile le centre de contrôle natif WPF avec ses ressources embarquées ;
+4. retire les symboles de débogage du paquet public ;
+5. construit le ZIP Windows ;
+6. intègre le même contenu dans l'installateur graphique `.exe`.
 
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.18.1-Setup.exe
-outputs\JellyfinVlcBridge-1.18.1-win-x64.zip
+outputs\JellyfinVlcBridge-1.19.0-Setup.exe
+outputs\JellyfinVlcBridge-1.19.0-win-x64.zip
 ```
 
 Pour préparer localement les métadonnées qui accompagneront la Release :
 
 ```powershell
-.\tools\New-ReleaseChecksums.ps1 -Version 1.18.1
-.\tools\New-ReleaseNotes.ps1 -Version 1.18.1
-.\tools\Test-ReleaseMetadata.ps1 -Version 1.18.1
+.\tools\New-ReleaseChecksums.ps1 -Version 1.19.0
+.\tools\New-ReleaseNotes.ps1 -Version 1.19.0
+.\tools\Test-ReleaseMetadata.ps1 -Version 1.19.0
 ```
+
+Ces commandes préparent des fichiers locaux ; elles ne publient pas la
+version 1.19.0. La version GitHub publiée reste la 1.18.1 à cette étape.
 
 Le workflow public atteste séparément le Setup et le ZIP exacts qu'il joint à
 la Release. Une attestation GitHub établit la provenance de la compilation ;
@@ -84,7 +142,7 @@ version du manifeste, l’autorisation `nativeMessaging` et l’absence du champ
 - `src/JellyfinVlcBridge.Core` : API Jellyfin, configuration, secrets, proxy HTTP, VLC et synchronisation ;
 - `src/JellyfinVlcBridge.Cli` : commandes, Quick Connect et intégration Windows ;
 - `browser-extension` : manifeste, service worker, injection du bouton et styles ;
-- `installer` : assistant, désinstallation et bootstrap du Setup ;
+- `installer` : assistant, désinstallation, bootstrap du Setup et centre de contrôle natif WPF (`ControlCenter*.cs`, XAML, traductions et manifeste) ;
 - `tests` : tests fonctionnels hors ligne ;
 - `tools` : construction des icônes et paquets.
 

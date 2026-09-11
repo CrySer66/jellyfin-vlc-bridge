@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.18.1'
+    [string]$Version = '1.19.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,36 +114,11 @@ if ($status.version -ne $Version) { throw "Version de diagnostic inattendue : $(
 Write-Host 'OK  Diagnostic JSON redirige pour le centre de controle'
 
 $controlScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Centre-Controle.ps1') -Raw
-if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
-    $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)' -or
-    $controlScript -notmatch 'Set-JvbLanguagePreference' -or
-    $controlScript -notmatch 'UiTheme\.ps1' -or
-    $controlScript -notmatch 'New-JvbCard') {
-    throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
+if ($controlScript -notmatch 'jellyfin-vlc-bridge-control.exe' -or $controlScript -match 'Windows.Forms') {
+    throw 'Le raccourci historique doit lancer le centre natif sans dessiner une interface PowerShell.'
 }
-Write-Host 'OK  Centre de controle compatible avec l application sans console'
-if ($controlScript -notmatch 'NotifyIcon' -or
-    $controlScript -notmatch 'StartInTray' -or
-    $controlScript -notmatch 'Hide-ControlCenter' -or
-    $controlScript -notmatch 'TrayExit' -or
-    $controlScript -notmatch 'ShowEventName' -or
-    $controlScript -notmatch 'Center-ControlCenterOnActiveScreen' -or
-    $controlScript -notmatch 'SetDesktopLocation\(\$left,\s*\$top\)' -or
-    $controlScript -notmatch 'Application\]::Run\(\$form\)' -or
-    $controlScript -notmatch '\$_\.Cancel\s*=\s*\$true' -or
-    $controlScript -notmatch '(?s)Add_FormClosing.*?\$form\.Opacity\s*=\s*0.*?\$form\.ShowInTaskbar\s*=\s*\$false.*?\$_\.Cancel' -or
-    $controlScript -notmatch '(?s)Add_FormClosing.*?BeginInvoke.*?Hide-ControlCenter' -or
-    $controlScript -match '\$form\.Add_Resize\(' -or
-    $controlScript -match '\[void\]\$form\.ShowDialog\(\)') {
-    throw 'Le centre de controle ne gere pas completement la zone de notification.'
-}
-$bootstrapSource = Get-Content -LiteralPath (
-    Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs') -Raw
-if ($bootstrapSource -notmatch 'MutexName' -or
-    $bootstrapSource -notmatch 'EventWaitHandle' -or
-    $bootstrapSource -notmatch '"--tray"' -or
-    $bootstrapSource -notmatch 'ShowEventName') {
-    throw 'Le lanceur du centre de controle ne gere pas l instance unique ou sa restauration.'
+if (-not (Test-Path -LiteralPath ($controlExecutable + '.config'))) {
+    throw 'La configuration .NET du centre natif est absente.'
 }
 $controlValidationInfo = New-Object Diagnostics.ProcessStartInfo
 $controlValidationInfo.FileName = $controlExecutable
@@ -153,18 +128,16 @@ $controlValidationInfo.UseShellExecute = $false
 $controlValidationInfo.CreateNoWindow = $true
 $controlValidation = [Diagnostics.Process]::Start($controlValidationInfo)
 if (-not $controlValidation) { throw 'Impossible de lancer la validation du centre de controle.' }
-$controlValidation.WaitForExit()
-if ($controlValidation.ExitCode -ne 0) {
-    throw "Le centre de controle a echoue en validation : $($controlValidation.ExitCode)"
-}
-$controlValidation.Dispose()
-Write-Host 'OK  Zone de notification et instance unique du centre de controle'
-if ($controlScript -notmatch 'Show-ChangeServerDialog' -or
-    $controlScript -notmatch 'setup --server' -or
-    $controlScript -notmatch 'RequestQuickConnect' -or
-    $controlScript -notmatch '\$changeServerButton') {
-    throw 'Le changement de serveur Quick Connect est absent du centre de controle.'
-}
+try {
+    if (-not $controlValidation.WaitForExit(30000)) {
+        $controlValidation.Kill()
+        throw 'La validation du centre natif a dépassé 30 secondes.'
+    }
+    if ($controlValidation.ExitCode -ne 0) { throw "Centre natif invalide : $($controlValidation.ExitCode)" }
+} finally { $controlValidation.Dispose() }
+Write-Host 'OK  Interface WPF native, ressources FR/EN et vues chargées sans PowerShell'
+& (Join-Path $PSScriptRoot 'Test-DesktopControl.ps1')
+
 $programSource = Get-Content -LiteralPath (
     Join-Path $projectDirectory 'src\JellyfinVlcBridge.Cli\Program.cs') -Raw
 if ($programSource -notmatch 'VlcPath\s*=\s*existing\?\.VlcPath' -or

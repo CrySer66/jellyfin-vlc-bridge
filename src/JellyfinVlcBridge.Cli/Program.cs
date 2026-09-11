@@ -489,28 +489,70 @@ static async Task RunVlcPlaylistWithSyncAsync(
         controlOptions);
     if (onStarted is not null) await onStarted();
     using var controller = new VlcController(controlOptions);
-    var currentIndex = 0;
+    var media = playlist.Select(item => item.Media).ToArray();
+    VlcPlaylistSnapshot? snapshot = null;
+    var currentIndex = -1;
     var playSessionId = Guid.NewGuid().ToString("N");
     var lastPlaylistId = -1;
-    long lastPositionTicks = playlist[0].ResumeAt?.Ticks ?? 0;
+    long lastPositionTicks = 0;
     var reportingStarted = false;
     var failed = false;
     var nextProgressReport = DateTime.UtcNow;
     BridgeLog.Info($"Liste VLC démarrée count={playlist.Count} premierItem={playlist[0].Item.Id}");
 
+    async Task UpdatePlaybackAsync(VlcStatus status)
+    {
+        // Between two entries VLC briefly reports stopped/time=0. Keep the last
+        // known position instead of clearing the resume point of the old item.
+        if (status.CurrentPlaylistId < 0 || status.State is "stopped" or "ended" or "error") return;
+        if (status.CurrentPlaylistId != lastPlaylistId || currentIndex < 0)
+        {
+            if (reportingStarted && currentIndex >= 0)
+                await TryReportPlaybackStoppedAsync(
+                    jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
+                    playSessionId, lastPositionTicks, false);
+            reportingStarted = false;
+            currentIndex = -1;
+            lastPlaylistId = status.CurrentPlaylistId;
+            var resolvedIndex = snapshot?.FindMediaIndex(lastPlaylistId, media) ?? -1;
+            if (resolvedIndex < 0)
+            {
+                // Refresh when entries were added or VLC had not finished
+                // building its playlist. Never infer identity from play order.
+                try { snapshot = await controller.GetPlaylistAsync(); }
+                catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+                {
+                    return;
+                }
+                resolvedIndex = snapshot.FindMediaIndex(lastPlaylistId, media);
+            }
+            if (resolvedIndex < 0) return;
+            currentIndex = resolvedIndex;
+            playSessionId = Guid.NewGuid().ToString("N");
+            lastPositionTicks = status.PositionTicks;
+            nextProgressReport = DateTime.MinValue;
+            Console.WriteLine($"Lecture : {EpisodeLabel(playlist[currentIndex].Item)}");
+            BridgeLog.Info($"Média VLC identifié item={playlist[currentIndex].Item.Id} session={playSessionId}");
+        }
+
+        lastPositionTicks = status.PositionTicks;
+        if (DateTime.UtcNow < nextProgressReport) return;
+        var volume = Math.Clamp((int)Math.Round(status.Volume / 2.56), 0, 100);
+        if (!reportingStarted)
+            reportingStarted = await TryReportPlaybackStartedAsync(
+                jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
+                playSessionId, lastPositionTicks);
+        if (reportingStarted)
+            await TryReportPlaybackProgressAsync(
+                jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
+                playSessionId, lastPositionTicks, status.IsPaused, volume);
+        nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+    }
+
     try
     {
         var initial = await WaitForActiveMediaAsync(controller, process, TimeSpan.FromSeconds(20));
-        lastPlaylistId = initial.CurrentPlaylistId;
-        lastPositionTicks = Math.Max(lastPositionTicks, initial.PositionTicks);
-        reportingStarted = await TryReportPlaybackStartedAsync(
-            jellyfin, playlist[0].Item.Id, playlist[0].MediaSourceId, playSessionId, lastPositionTicks);
-        nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-        Console.WriteLine(playlist[0].ResumeAt is { TotalSeconds: > 0 }
-            ? $"Reprise Jellyfin à {playlist[0].ResumeAt.GetValueOrDefault():hh\\:mm\\:ss} ; synchronisation de la liste active."
-            : "Synchronisation de la liste Jellyfin active.");
-        if (!reportingStarted)
-            Console.WriteLine("Jellyfin est momentanément indisponible ; la synchronisation réessaiera pendant la liste.");
+        await UpdatePlaybackAsync(initial);
 
         while (!process.HasExited)
         {
@@ -520,50 +562,7 @@ static async Task RunVlcPlaylistWithSyncAsync(
             try { status = await controller.GetStatusAsync(); }
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException) { continue; }
 
-            if (status.CurrentPlaylistId >= 0 && lastPlaylistId >= 0 && status.CurrentPlaylistId != lastPlaylistId)
-            {
-                await TryReportPlaybackStoppedAsync(
-                    jellyfin,
-                    playlist[currentIndex].Item.Id,
-                    playlist[currentIndex].MediaSourceId,
-                    playSessionId,
-                    lastPositionTicks,
-                    false);
-                BridgeLog.Info($"Transition VLC item={playlist[currentIndex].Item.Id} positionTicks={lastPositionTicks}");
-
-                currentIndex++;
-                if (currentIndex >= playlist.Count) break;
-                lastPlaylistId = status.CurrentPlaylistId;
-                playSessionId = Guid.NewGuid().ToString("N");
-                lastPositionTicks = status.PositionTicks;
-                reportingStarted = await TryReportPlaybackStartedAsync(
-                    jellyfin,
-                    playlist[currentIndex].Item.Id,
-                    playlist[currentIndex].MediaSourceId,
-                    playSessionId,
-                    lastPositionTicks);
-                Console.WriteLine($"Lecture suivante : {EpisodeLabel(playlist[currentIndex].Item)}");
-                BridgeLog.Info($"Média suivant item={playlist[currentIndex].Item.Id} session={playSessionId}");
-                nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-                continue;
-            }
-
-            if (lastPlaylistId < 0 && status.CurrentPlaylistId >= 0)
-                lastPlaylistId = status.CurrentPlaylistId;
-            lastPositionTicks = status.PositionTicks;
-            if (DateTime.UtcNow >= nextProgressReport)
-            {
-                var volume = Math.Clamp((int)Math.Round(status.Volume / 2.56), 0, 100);
-                if (!reportingStarted)
-                    reportingStarted = await TryReportPlaybackStartedAsync(
-                        jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
-                        playSessionId, lastPositionTicks);
-                if (reportingStarted)
-                    await TryReportPlaybackProgressAsync(
-                        jellyfin, playlist[currentIndex].Item.Id, playlist[currentIndex].MediaSourceId,
-                        playSessionId, lastPositionTicks, status.IsPaused, volume);
-                nextProgressReport = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-            }
+            await UpdatePlaybackAsync(status);
         }
         await process.WaitForExitAsync();
         failed = process.ExitCode != 0;
@@ -572,12 +571,12 @@ static async Task RunVlcPlaylistWithSyncAsync(
     {
         failed = process.HasExited && process.ExitCode != 0;
         Console.Error.WriteLine($"Avertissement : suivi de la liste indisponible ({exception.Message}). La liste VLC continue.");
-        BridgeLog.Warning($"Suivi de liste indisponible item={playlist[currentIndex].Item.Id}: {exception.Message}");
+        BridgeLog.Warning($"Suivi de liste indisponible index={currentIndex}: {exception.Message}");
         if (!process.HasExited) await process.WaitForExitAsync();
     }
     finally
     {
-        if (reportingStarted && currentIndex < playlist.Count)
+        if (reportingStarted && currentIndex >= 0 && currentIndex < playlist.Count)
             await TryReportPlaybackStoppedAsync(
                 jellyfin,
                 playlist[currentIndex].Item.Id,
