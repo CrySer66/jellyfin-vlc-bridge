@@ -185,7 +185,7 @@ public static partial class BridgeSupportBundle
         entries.Add(name);
     }
 
-    [GeneratedRegex(@"(?im)\b(authorization\s*:\s*(?:bearer\s+)?)[^\s,;]+")]
+    [GeneratedRegex(@"(?im)\b(authorization[ \t]*:[ \t]*)[^\r\n]*")]
     private static partial Regex AuthorizationRegex();
 
     [GeneratedRegex(@"(?i)([?&](?:api_key|access_token|token)=)[^&\s]+")]

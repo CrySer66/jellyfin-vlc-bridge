@@ -52,8 +52,10 @@ public static class PlaybackQueueResolver
                 scope == PlaybackScope.All ? selected.SeasonId : null,
                 cancellationToken));
             if (scope == PlaybackScope.All) return episodes;
-            var queue = FromPreferredStart(episodes, selected.Id);
-            return queue.Count > 0 ? queue : [selected];
+            var selectedIndex = episodes.FindIndex(item =>
+                string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase));
+            // An explicit selection must never fall back to another resumable episode.
+            return selectedIndex >= 0 ? episodes.Skip(selectedIndex).ToList() : [selected];
         }
 
         if (selected.Type?.Equals("BoxSet", StringComparison.OrdinalIgnoreCase) == true)

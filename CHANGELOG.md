@@ -1,5 +1,38 @@
 # Historique des versions
 
+## 1.19.1 — 2026-09-11
+
+Cette version réunit le nouveau centre de contrôle préparé en 1.19.0 et les assistants harmonisés en 1.19.1. Elle conserve les corrections d’authentification Jellyfin 10.x/12 de la 1.18.1.
+
+- remplace le centre de contrôle PowerShell/WinForms par une application Windows native WPF, avec pages **Vue d’ensemble**, **Réglages** et **Diagnostic**, navigation latérale et opérations asynchrones ;
+- harmonise l’installation, la mise à jour et la désinstallation avec le centre de contrôle : barre latérale bleu nuit, cartes claires, boutons arrondis et rendu WPF vectoriel ;
+- partage le même dictionnaire de styles entre les trois interfaces et l’erreur de démarrage du Setup ;
+- conserve le moteur d’installation PowerShell, les installations silencieuses, la connexion existante, le retour arrière et le choix de conserver ou de supprimer les données locales ;
+- inclut les ressources WPF dans le Setup, le ZIP, l’application installée et la copie temporaire du désinstallateur ;
+- ajoute des aperçus sans action et la validation des écrans français et anglais sous Windows PowerShell 5.1 ;
+- empêche une nouvelle tentative lorsque le retour arrière a lui-même échoué, et conserve les sauvegardes d’une ancienne transaction au lieu de les supprimer au démarrage suivant ;
+- conserve l’épisode choisi lorsqu’il est absent de la liste Jellyfin, associe les rapports de progression au média réellement lu après un saut dans VLC, et préserve la dernière position utile à l’arrêt ;
+- masque les en-têtes d’authentification dans les exports d’assistance et conserve les correspondances SMB secondaires lors d’une modification des réglages.
+
+Le nouveau Setup doit être exécuté pour mettre aussi à jour le désinstallateur enregistré dans Windows. La connexion valide et les réglages existants sont conservés. Le paquet de l’extension reste en version 1.8.1 ; cette publication Windows ne soumet pas de mise à jour au Chrome Web Store. Voir le [guide des assistants](https://github.com/CrySer66/jellyfin-vlc-bridge/blob/v1.19.1/docs/MAINTENANCE-1.19.1.md) et les [vérifications du centre de contrôle](https://github.com/CrySer66/jellyfin-vlc-bridge/blob/v1.19.1/docs/DESKTOP-1.19.0.md).
+
+Les tests automatiques du paquet couvrent les scénarios silencieux et isolés. Les rendus WPF ont été inspectés ; le nouveau parcours graphique Quick Connect et le comportement sur plusieurs moniteurs ne sont pas couverts par ces tests.
+
+## 1.19.0 — 2026-09-11 — préparation locale
+
+- remplace le centre de contrôle PowerShell/WinForms par une application Windows native WPF, avec navigation latérale, cartes arrondies et pages **Vue d’ensemble**, **Réglages** et **Diagnostic** ;
+- utilise des textes et icônes vectoriels, une mise en page redimensionnable et un défilement vertical pour améliorer la netteté et la lisibilité ;
+- embarque l’interface, les traductions françaises et anglaises et l’icône dans l’exécutable ; l’assistant d’installation reste en PowerShell ;
+- garde l’interface réactive pendant les opérations et borne les processus enfants avec gestion des délais, annulations et erreurs ;
+- conserve l’épisode explicitement choisi lorsqu’il est absent de la liste renvoyée par Jellyfin, au lieu de lancer un autre épisode ;
+- associe la progression au média réellement lu dans VLC après un saut ou un retour dans la liste, et conserve la dernière position utile lorsque VLC signale un arrêt à zéro ;
+- masque l’intégralité de l’en-tête `Authorization: MediaBrowser` dans les exports d’assistance, même sans jeton enregistré disponible pour le filtrage ;
+- rejette clairement une correspondance SMB nulle dans la configuration ;
+- conserve les correspondances SMB secondaires lors de l’enregistrement des réglages du centre de contrôle ;
+- ajoute des tests du suivi de lecture et des services du centre de contrôle, ainsi que des modes d’aperçu et de rendu sans action sur la connexion installée.
+
+Cette version est préparée localement et n’est pas encore publiée sur GitHub. L’extension reste en version 1.8.1. Les contrôles réalisés et leurs limites sont décrits dans le [guide du centre de contrôle 1.19.0](docs/DESKTOP-1.19.0.md).
+
 ## 1.18.1 — 2026-09-10
 
 - corrige les erreurs d’authentification après une mise à jour vers Jellyfin 12 en utilisant `Authorization: MediaBrowser` pour l’API, Quick Connect et le relais HTTP vers VLC ;

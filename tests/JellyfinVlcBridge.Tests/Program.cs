@@ -1,5 +1,8 @@
 using JellyfinVlcBridge.Core;
 
+if (args.FirstOrDefault() == "--no-one-instance")
+    return await CliPlaylistIntegrationTests.RunFakeVlcAsync(args);
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("Mapping Windows vers SMB", () => Completed(() => Equal(@"\\serveur\Films\Alien\Alien.mkv",
@@ -38,6 +41,14 @@ var tests = new (string Name, Func<Task> Run)[]
         }
     })),
     ("Clé de secret stable", () => Completed(() => Equal("JellyfinVlcBridge:192.168.1.25:8096", SecretKeys.ForServer("http://192.168.1.25:8096")))),
+    ("Une correspondance SMB nulle est rejetée comme configuration invalide", () => Completed(() =>
+        Throws<InvalidDataException>(() => new BridgeConfig
+        {
+            ServerUrl = "http://jellyfin",
+            UserId = "user",
+            PlaybackMode = "smb",
+            PathMappings = [null!]
+        }.Validate()))),
     ("Choix de langue explicite", () => Completed(() =>
     {
         Equal("fr", UiLanguage.GetEffectiveLanguage("fr"));
@@ -71,6 +82,8 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("4K · HEVC · MKV", MediaSourceSelector.Label(source, 0));
     })),
     ("Conversion temps VLC", () => Completed(() => Equal(42L * TimeSpan.TicksPerSecond, new VlcStatus("playing", 42, 100, 256).PositionTicks))),
+    ("La progression suit l’identité VLC malgré les sauts et retours", VlcPlaylistTests.RunAsync),
+    ("Le suivi CLI associe les rapports au média réellement lu dans VLC", CliPlaylistIntegrationTests.RunAsync),
     ("Le relais HTTP local se ferme proprement", async () =>
     {
         var handler = new ProxyHandler();
@@ -347,6 +360,30 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal("movie-3", queue[1].Id);
         Equal(true, handler.ValidQuery);
     }),
+    ("Un épisode absent de la liste reste celui qui a été choisi", async () =>
+    {
+        using var http = new HttpClient(new SeriesQueueHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var selected = new ItemInfo(
+            "episode-absent", "Épisode choisi", @"D:\Series\Special.mkv", null, null,
+            Type: "Episode", SeriesId: "series");
+        foreach (var scope in new[] { PlaybackScope.Automatic, PlaybackScope.Following })
+        {
+            var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", selected, scope);
+            Equal(1, queue.Count);
+            Equal("episode-absent", queue[0].Id);
+        }
+    }),
+    ("Un épisode choisi démarre la suite même s'il a déjà été vu", async () =>
+    {
+        using var http = new HttpClient(new SeriesQueueHandler());
+        var client = new JellyfinClient(http, "http://jellyfin", "secret", "device");
+        var selected = new ItemInfo(
+            "episode-1", "Un", @"D:\Series\S01E01.mkv", null, new UserItemData(0, true),
+            Type: "Episode", SeriesId: "series");
+        var queue = await PlaybackQueueResolver.ResolveAsync(client, "user", selected, PlaybackScope.Following);
+        Equal("episode-1,episode-2,episode-3", string.Join(',', queue.Select(item => item.Id)));
+    }),
     ("Une collection complète reprend au premier film", async () =>
     {
         using var http = new HttpClient(new CollectionQueueHandler());
@@ -380,6 +417,15 @@ var tests = new (string Name, Func<Task> Run)[]
         Equal(false, sanitized.Contains(@"D:\Films privés", StringComparison.OrdinalIgnoreCase));
         Equal(false, sanitized.Contains(@"\\PC-PRIVE\Films", StringComparison.OrdinalIgnoreCase));
         Equal(true, sanitized.Contains("<REDACTED>", StringComparison.Ordinal));
+    })),
+    ("Le paquet d'assistance retire tout l'en-tête MediaBrowser sans secret enregistré", () => Completed(() =>
+    {
+        const string source = "Authorization: MediaBrowser Client=\"Bridge\", DeviceId=\"ancien-appareil\", Token=\"ancien-jeton%20secret\"\r\nSuite du diagnostic";
+        var sanitized = BridgeSupportBundle.Sanitize(source, null, null);
+        Equal(false, sanitized.Contains("ancien-jeton", StringComparison.Ordinal));
+        Equal(false, sanitized.Contains("ancien-appareil", StringComparison.Ordinal));
+        Equal(true, sanitized.Contains("Authorization: <REDACTED>", StringComparison.Ordinal));
+        Equal(true, sanitized.Contains("Suite du diagnostic", StringComparison.Ordinal));
     })),
     ("Rapports Jellyfin", async () =>
     {

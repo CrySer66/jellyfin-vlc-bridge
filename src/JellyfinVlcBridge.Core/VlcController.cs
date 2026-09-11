@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace JellyfinVlcBridge.Core;
@@ -35,6 +36,15 @@ public sealed class VlcController : IDisposable
     public async Task<VlcStatus> GetStatusAsync(CancellationToken cancellationToken = default) =>
         await _http.GetFromJsonAsync<VlcStatus>("requests/status.json", cancellationToken)
         ?? throw new InvalidDataException("État VLC vide.");
+
+    public async Task<VlcPlaylistSnapshot> GetPlaylistAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _http.GetAsync("requests/playlist.json", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        return VlcPlaylistSnapshot.Parse(document.RootElement);
+    }
 
     public void Dispose() => _http.Dispose();
 }

@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.18.1'
+    [string]$Version = '1.19.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,10 +20,13 @@ $localizationPath = Join-Path $packageDirectory 'Localization.ps1'
 if (-not (Test-Path -LiteralPath $localizationPath)) {
     throw 'Le module de traduction est absent du paquet Windows.'
 }
-$themePath = Join-Path $packageDirectory 'UiTheme.ps1'
-if (-not (Test-Path -LiteralPath $themePath)) {
-    throw 'Le thème graphique Windows est absent du paquet.'
+$maintenanceAssets = @('WpfTheme.ps1', 'DesktopTheme.xaml', 'InstallWindow.xaml', 'UninstallWindow.xaml')
+foreach ($asset in $maintenanceAssets) {
+    if (-not (Test-Path -LiteralPath (Join-Path $packageDirectory $asset) -PathType Leaf)) {
+        throw "Une ressource graphique Windows est absente du paquet : $asset"
+    }
 }
+$themePath = Join-Path $packageDirectory 'WpfTheme.ps1'
 $packagedScripts = Get-ChildItem -LiteralPath $packageDirectory -Filter '*.ps1' -File
 foreach ($packagedScript in $packagedScripts) {
     $scriptBytes = [IO.File]::ReadAllBytes($packagedScript.FullName)
@@ -47,15 +50,86 @@ $themeScript = Get-Content -LiteralPath $themePath -Raw -Encoding UTF8
 if ($themeScript -notmatch 'SetCurrentProcessExplicitAppUserModelID' -or
     $themeScript -notmatch 'CrySer66\.JellyfinVlcBridge' -or
     $themeScript -notmatch 'DwmSetWindowAttribute' -or
-    $themeScript -notmatch 'Enable-JvbModernWindow') {
+    $themeScript -notmatch 'SetProcessDpiAwarenessContext' -or
+    $themeScript -notmatch 'Initialize-JvbWpfTheme') {
     throw 'Le thème ne configure pas complètement l identité Windows moderne.'
 }
 Write-Host 'OK  Identité et icône dédiées pour la barre des tâches'
-if ($themeScript -notmatch 'New-JvbRoundedPath' -or
-    $themeScript -notmatch 'BorderSize\s*=\s*0') {
-    throw 'Les boutons et cartes n utilisent pas le nouveau rendu arrondi sans bordure parasite.'
+$desktopTheme = Get-Content -LiteralPath (Join-Path $packageDirectory 'DesktopTheme.xaml') -Raw -Encoding UTF8
+if ($themeScript -notmatch 'Windows\.Markup\.XamlReader' -or
+    $themeScript -notmatch 'DesktopTheme\.xaml' -or
+    $desktopTheme -notmatch 'CornerRadius' -or
+    $desktopTheme -notmatch 'x:Key="PrimaryButton"' -or
+    $desktopTheme -notmatch 'x:Key="Card"') {
+    throw 'Les assistants n utilisent pas les ressources WPF partagees du centre de controle.'
 }
-Write-Host 'OK  Coins arrondis propres pour les cartes et boutons'
+Write-Host 'OK  Identite WPF partagee, cartes et boutons arrondis'
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$packageArchive = [IO.Compression.ZipFile]::OpenRead($zip)
+try {
+    foreach ($asset in $maintenanceAssets) {
+        $entry = $packageArchive.GetEntry($asset)
+        if ($null -eq $entry -or $entry.Length -le 0) {
+            throw "Une ressource WPF est absente ou vide dans le ZIP Windows : $asset"
+        }
+    }
+} finally { $packageArchive.Dispose() }
+
+# Each process loads the actual packaged XAML without displaying a window or
+# wiring maintenance actions. Redirect its data path to the workspace as well.
+function Test-PackagedMaintenanceInterface([string]$scriptName, [string]$language) {
+    $validationRoot = Join-Path $runtimeTestRoot ($scriptName + '-' + $language)
+    New-Item -ItemType Directory -Path $validationRoot -Force | Out-Null
+    $validationData = Join-Path $validationRoot 'LocalAppData'
+    $validationInfo = New-Object Diagnostics.ProcessStartInfo
+    $validationInfo.FileName = 'powershell.exe'
+    $validationInfo.Arguments =
+        "-NoProfile -STA -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $packageDirectory $scriptName)`" -ValidateOnly -Language $language"
+    $validationInfo.WorkingDirectory = $validationRoot
+    $validationInfo.UseShellExecute = $false
+    $validationInfo.CreateNoWindow = $true
+    $validationInfo.RedirectStandardOutput = $true
+    $validationInfo.RedirectStandardError = $true
+    $validationInfo.EnvironmentVariables['LOCALAPPDATA'] = $validationData
+    $validationInfo.EnvironmentVariables['TEMP'] = $validationRoot
+    $validationInfo.EnvironmentVariables['TMP'] = $validationRoot
+    $validationInfo.EnvironmentVariables.Remove('JELLYFIN_VLC_BRIDGE_ISOLATED_TEST')
+    $validationProcess = [Diagnostics.Process]::Start($validationInfo)
+    if ($null -eq $validationProcess) { throw "Impossible de valider l interface $scriptName." }
+    try {
+        $outputTask = $validationProcess.StandardOutput.ReadToEndAsync()
+        $errorTask = $validationProcess.StandardError.ReadToEndAsync()
+        if (-not $validationProcess.WaitForExit(30000)) {
+            try { $validationProcess.Kill() } catch { }
+            [void]$validationProcess.WaitForExit(5000)
+            throw "La validation WPF de $scriptName a depasse 30 secondes."
+        }
+        $output = $outputTask.GetAwaiter().GetResult().Trim()
+        $errorOutput = $errorTask.GetAwaiter().GetResult().Trim()
+        if ($validationProcess.ExitCode -ne 0 -or -not [string]::IsNullOrWhiteSpace($errorOutput)) {
+            throw "Interface WPF invalide : $scriptName ($language). Sortie='$output' Erreur='$errorOutput'"
+        }
+        if ((Test-Path -LiteralPath (Join-Path $validationData 'JellyfinVlcBridge')) -or
+            (Test-Path -LiteralPath (Join-Path $validationRoot 'JellyfinVlcBridge-uninstall.log')) -or
+            @(Get-ChildItem -LiteralPath $validationRoot -Directory -Filter 'JellyfinVlcBridgeUninstall-*').Count -gt 0) {
+            throw "La validation WPF de $scriptName a declenche une operation de maintenance."
+        }
+    } finally { $validationProcess.Dispose() }
+}
+
+foreach ($maintenanceScript in @('Installer-GUI.ps1', 'Desinstaller-GUI.ps1')) {
+    $scriptPath = Join-Path $packageDirectory $maintenanceScript
+    $scriptHash = (Get-FileHash -LiteralPath $scriptPath -Algorithm SHA256).Hash
+    foreach ($language in @('fr', 'en')) {
+        Test-PackagedMaintenanceInterface $maintenanceScript $language
+    }
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $scriptPath -Algorithm SHA256).Hash -ne $scriptHash) {
+        throw "La validation WPF a modifie ou supprime $maintenanceScript."
+    }
+}
+Write-Host 'OK  Assistants WPF du paquet valides sans fenetre ni maintenance, en francais et en anglais'
 
 function Read-Exactly([IO.Stream]$stream, [byte[]]$buffer) {
     $offset = 0
@@ -114,36 +188,11 @@ if ($status.version -ne $Version) { throw "Version de diagnostic inattendue : $(
 Write-Host 'OK  Diagnostic JSON redirige pour le centre de controle'
 
 $controlScript = Get-Content -LiteralPath (Join-Path $packageDirectory 'Centre-Controle.ps1') -Raw
-if ($controlScript -notmatch 'RedirectStandardOutput\s*=\s*\$true' -or
-    $controlScript -notmatch 'StandardOutput\.ReadToEnd\(\)' -or
-    $controlScript -notmatch 'Set-JvbLanguagePreference' -or
-    $controlScript -notmatch 'UiTheme\.ps1' -or
-    $controlScript -notmatch 'New-JvbCard') {
-    throw 'Le centre de controle ne capture pas explicitement le diagnostic de l application graphique.'
+if ($controlScript -notmatch 'jellyfin-vlc-bridge-control.exe' -or $controlScript -match 'Windows.Forms') {
+    throw 'Le raccourci historique doit lancer le centre natif sans dessiner une interface PowerShell.'
 }
-Write-Host 'OK  Centre de controle compatible avec l application sans console'
-if ($controlScript -notmatch 'NotifyIcon' -or
-    $controlScript -notmatch 'StartInTray' -or
-    $controlScript -notmatch 'Hide-ControlCenter' -or
-    $controlScript -notmatch 'TrayExit' -or
-    $controlScript -notmatch 'ShowEventName' -or
-    $controlScript -notmatch 'Center-ControlCenterOnActiveScreen' -or
-    $controlScript -notmatch 'SetDesktopLocation\(\$left,\s*\$top\)' -or
-    $controlScript -notmatch 'Application\]::Run\(\$form\)' -or
-    $controlScript -notmatch '\$_\.Cancel\s*=\s*\$true' -or
-    $controlScript -notmatch '(?s)Add_FormClosing.*?\$form\.Opacity\s*=\s*0.*?\$form\.ShowInTaskbar\s*=\s*\$false.*?\$_\.Cancel' -or
-    $controlScript -notmatch '(?s)Add_FormClosing.*?BeginInvoke.*?Hide-ControlCenter' -or
-    $controlScript -match '\$form\.Add_Resize\(' -or
-    $controlScript -match '\[void\]\$form\.ShowDialog\(\)') {
-    throw 'Le centre de controle ne gere pas completement la zone de notification.'
-}
-$bootstrapSource = Get-Content -LiteralPath (
-    Join-Path $projectDirectory 'installer\ControlCenterBootstrap.cs') -Raw
-if ($bootstrapSource -notmatch 'MutexName' -or
-    $bootstrapSource -notmatch 'EventWaitHandle' -or
-    $bootstrapSource -notmatch '"--tray"' -or
-    $bootstrapSource -notmatch 'ShowEventName') {
-    throw 'Le lanceur du centre de controle ne gere pas l instance unique ou sa restauration.'
+if (-not (Test-Path -LiteralPath ($controlExecutable + '.config'))) {
+    throw 'La configuration .NET du centre natif est absente.'
 }
 $controlValidationInfo = New-Object Diagnostics.ProcessStartInfo
 $controlValidationInfo.FileName = $controlExecutable
@@ -153,18 +202,17 @@ $controlValidationInfo.UseShellExecute = $false
 $controlValidationInfo.CreateNoWindow = $true
 $controlValidation = [Diagnostics.Process]::Start($controlValidationInfo)
 if (-not $controlValidation) { throw 'Impossible de lancer la validation du centre de controle.' }
-$controlValidation.WaitForExit()
-if ($controlValidation.ExitCode -ne 0) {
-    throw "Le centre de controle a echoue en validation : $($controlValidation.ExitCode)"
-}
-$controlValidation.Dispose()
-Write-Host 'OK  Zone de notification et instance unique du centre de controle'
-if ($controlScript -notmatch 'Show-ChangeServerDialog' -or
-    $controlScript -notmatch 'setup --server' -or
-    $controlScript -notmatch 'RequestQuickConnect' -or
-    $controlScript -notmatch '\$changeServerButton') {
-    throw 'Le changement de serveur Quick Connect est absent du centre de controle.'
-}
+try {
+    if (-not $controlValidation.WaitForExit(30000)) {
+        $controlValidation.Kill()
+        throw 'La validation du centre natif a dépassé 30 secondes.'
+    }
+    if ($controlValidation.ExitCode -ne 0) { throw "Centre natif invalide : $($controlValidation.ExitCode)" }
+} finally { $controlValidation.Dispose() }
+Write-Host 'OK  Interface WPF native, ressources FR/EN et vues chargées sans PowerShell'
+& (Join-Path $PSScriptRoot 'Test-DesktopControl.ps1')
+& (Join-Path $PSScriptRoot 'Test-InstallerRecovery.ps1')
+
 $programSource = Get-Content -LiteralPath (
     Join-Path $projectDirectory 'src\JellyfinVlcBridge.Cli\Program.cs') -Raw
 if ($programSource -notmatch 'VlcPath\s*=\s*existing\?\.VlcPath' -or
@@ -197,7 +245,10 @@ if ($uninstallerScript -match '&\s+\$executable\s+uninstall-cleanup' -or
     $uninstallerScript -notmatch 'JellyfinVlcBridgeUninstall-' -or
     $uninstallerScript -notmatch 'TemporaryRun' -or
     $uninstallerScript -notmatch 'Set-Location\s+-LiteralPath\s+\$env:TEMP' -or
-    $uninstallerScript -notmatch 'UiTheme\.ps1' -or
+    $uninstallerScript -notmatch 'WpfTheme\.ps1' -or
+    $uninstallerScript -notmatch 'UninstallWindow\.xaml' -or
+    $uninstallerScript -notmatch 'DesktopTheme\.xaml' -or
+    $uninstallerScript -match 'System\.Windows\.Forms' -or
     $uninstallerScript -notmatch 'Show-UninstallChoice' -or
     $uninstallerScript -notmatch '\[switch\]\$Silent' -or
     $uninstallerScript -notmatch '\[switch\]\$Purge' -or
@@ -247,7 +298,9 @@ if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$en
     $installerScript -notmatch '\$application\.IconLocation\s*=\s*\$controlCenter' -or
     $installerScript -notmatch 'CurrentVersion\\Run' -or
     $installerScript -notmatch '" --tray' -or
-    $installerScript -notmatch 'UiTheme\.ps1' -or
+    $installerScript -notmatch 'WpfTheme\.ps1' -or
+    $installerScript -notmatch 'InstallWindow\.xaml' -or
+    $installerScript -match 'System\.Windows\.Forms' -or
     $installerScript -notmatch 'QuietUninstallString' -or
     $installerScript -notmatch 'QuietUninstallString.*-Silent' -or
     $installerScript -notmatch '\$script:silentInstall' -or
@@ -260,12 +313,21 @@ if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$en
 }
 if ($installerScript -match "uninstall-cleanup --purge[\s\S]{0,800}RequestingCode" -or
     $cliSource -notmatch 'InstallNativeHost\(\);[\s\S]{0,800}credentialStore\.Write[\s\S]{0,800}updatedConfig\.Save\(\);[\s\S]{0,800}credentialStore\.Delete\(previousSecretKey\)' -or
-    $installerScript -notmatch '\$script:setupProcess\.HasExited[\s\S]{0,300}\$script:setupProcess\.ExitCode\s+-eq\s+0[\s\S]{0,300}Complete-Installation') {
+    $installerScript -notmatch '\$script:setupProcess\.HasExited[\s\S]{0,300}\$script:setupProcess\.ExitCode\s+-ne\s+0[\s\S]{0,900}throw\s+\(T\s+''QuickConnectFailed''\)[\s\S]{0,100}Complete-Installation') {
     throw 'Le changement de serveur ne conserve pas l ancienne connexion jusqu a la reussite de Quick Connect.'
 }
 Write-Host 'OK  Fonctions transactionnelles de l installateur reconnues par PowerShell'
 Write-Host 'OK  Ancienne connexion conservee jusqu au nouveau Quick Connect'
 Write-Host 'OK  Desinstallation executee hors du dossier supprime et sans faux code erreur'
+
+$resetFunction = $installerAst.EndBlock.Statements |
+    Where-Object { $_ -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $_.Name -eq 'Reset-InstallationAfterFailure' } |
+    Select-Object -First 1
+if ($null -eq $resetFunction -or
+    $resetFunction.Body.Extent.Text -notmatch 'Undo-ApplicationTransaction' -or
+    $resetFunction.Body.Extent.Text -notmatch 'Exit-MaintenanceLock') {
+    throw 'Un echec de l assistant WPF doit restaurer la transaction et liberer le verrou de maintenance.'
+}
 
 $setupBootstrapSource = Get-Content -LiteralPath (
     Join-Path $projectDirectory 'installer\SetupBootstrap.cs') -Raw
@@ -276,7 +338,9 @@ if ($setupBootstrapSource -notmatch 'Main\(string\[\]\s+args\)' -or
     $setupBootstrapSource -notmatch '\(silent\s*\?\s*" -Silent"' -or
     $setupBootstrapSource -notmatch 'WaitForExit\(120000\)' -or
     $setupBootstrapSource -notmatch 'WriteSilentLog' -or
-    $setupBootstrapSource -notmatch 'if\s*\(silent\)\s+WriteSilentLog[\s\S]*?else\s+MessageBox\.Show') {
+    $setupBootstrapSource -notmatch 'if\s*\(silent\)\s+WriteSilentLog[\s\S]*?else\s+ShowErrorDialog' -or
+    $setupBootstrapSource -notmatch 'DesktopTheme\.xaml' -or
+    $setupBootstrapSource -match 'System\.Windows\.Forms') {
     throw 'L installateur EXE ne propage pas correctement le mode silencieux.'
 }
 $invalidSilentInfo = New-Object Diagnostics.ProcessStartInfo
@@ -395,6 +459,11 @@ function Test-IsolatedSilentInstall {
         $installedApp = Join-Path $bridgeRoot 'App'
         if (-not (Test-Path -LiteralPath (Join-Path $installedApp 'jellyfin-vlc-bridge.exe'))) {
             throw 'L installation silencieuse reelle n a pas deploye le Bridge.'
+        }
+        foreach ($asset in $maintenanceAssets) {
+            if (-not (Test-Path -LiteralPath (Join-Path $installedApp $asset) -PathType Leaf)) {
+                throw "L installation silencieuse n a pas deploye la ressource WPF $asset."
+            }
         }
         if (-not (Test-Path -LiteralPath (Join-Path $bridgeRoot 'config.json'))) {
             throw 'L installation silencieuse reelle n a pas conserve la configuration.'

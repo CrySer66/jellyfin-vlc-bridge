@@ -93,7 +93,11 @@ try {
         $uninstaller,
         (Join-Path $applicationDirectory 'Centre-Controle.ps1'),
         (Join-Path $applicationDirectory 'Localization.ps1'),
-        (Join-Path $applicationDirectory 'UiTheme.ps1')
+        (Join-Path $applicationDirectory 'jellyfin-vlc-bridge-control.exe.config'),
+        (Join-Path $applicationDirectory 'WpfTheme.ps1'),
+        (Join-Path $applicationDirectory 'DesktopTheme.xaml'),
+        (Join-Path $applicationDirectory 'InstallWindow.xaml'),
+        (Join-Path $applicationDirectory 'UninstallWindow.xaml')
     )) {
         Assert-True (Test-Path -LiteralPath $requiredFile -PathType Leaf) "Fichier installe absent : $requiredFile"
     }
@@ -102,6 +106,10 @@ try {
     Assert-True ($LASTEXITCODE -eq 0) 'La commande version de l application installee a echoue.'
     Assert-True ($versionOutput -eq "Jellyfin VLC Bridge $Version") "Version installee inattendue : '$versionOutput'."
     Invoke-WaitingProcess $controlCenter @('--validate-only') 60
+    Invoke-WaitingProcess 'powershell.exe' @(
+        '-NoProfile', '-STA', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-WindowStyle', 'Hidden', '-File', ('"' + $uninstaller + '"'), '-ValidateOnly'
+    ) 30
 
     $uninstallEntry = Get-ItemProperty -LiteralPath $uninstallRegistry -ErrorAction Stop
     Assert-True ($uninstallEntry.DisplayName -eq 'Jellyfin VLC Bridge') 'Nom absent des applications installees.'

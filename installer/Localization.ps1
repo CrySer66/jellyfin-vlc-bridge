@@ -1,7 +1,20 @@
-﻿$script:JvbLanguageFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\ui-language.json'
+﻿param([switch]$Preview)
+
+$script:JvbLanguageFile = Join-Path $env:LOCALAPPDATA 'JellyfinVlcBridge\ui-language.json'
 
 $script:JvbMessages = @{
     en = @{
+        MaintenanceInstallTitle = 'Installation'
+        MaintenanceInstallLead = 'Connect your library to VLC.'
+        MaintenanceInstallDetail = 'A simple connection, original-quality playback and your progress saved in Jellyfin.'
+        MaintenanceUpdateTitle = 'Update Jellyfin VLC Bridge'
+        MaintenanceUpdateAction = 'Update'
+        MaintenanceUpdateLead = 'Your connection stays with you.'
+        MaintenancePreview = 'Preview — no changes are made to this computer.'
+        MaintenanceFinish = 'Open the control center'
+        MaintenanceCancel = 'Cancel installation'
+        MaintenanceInstalling = 'Installing the Bridge'
+        RollbackIncomplete = 'Restoring the previous version could not finish. Backup files were kept. Close the Bridge and this installer before trying again.'
         ControlCenterTitle = 'Jellyfin VLC Bridge - Control Center'
         ControlCenterSubtitle = 'Control center and diagnostics'
         TrayOpen = 'Open Control Center'
@@ -167,6 +180,17 @@ $script:JvbMessages = @{
         RemoveExtensionLast = 'Last step: manually remove Jellyfin VLC Bridge from Chrome or Edge.'
     }
     fr = @{
+        MaintenanceInstallTitle = 'Installation'
+        MaintenanceInstallLead = 'Votre bibliothèque retrouve VLC.'
+        MaintenanceInstallDetail = 'Une connexion simple, la qualité originale et votre progression enregistrée dans Jellyfin.'
+        MaintenanceUpdateTitle = 'Mettre à jour Jellyfin VLC Bridge'
+        MaintenanceUpdateAction = 'Mettre à jour'
+        MaintenanceUpdateLead = 'Votre connexion vous accompagne.'
+        MaintenancePreview = 'Aperçu — aucune modification sur cet ordinateur.'
+        MaintenanceFinish = 'Ouvrir le centre de contrôle'
+        MaintenanceCancel = "Annuler l’installation"
+        MaintenanceInstalling = 'Installation du Bridge'
+        RollbackIncomplete = "Le retour à l’ancienne version n’a pas pu se terminer. Les sauvegardes ont été conservées. Fermez le Bridge et cet assistant avant de réessayer."
         ControlCenterTitle = 'Jellyfin VLC Bridge - Centre de contrôle'
         ControlCenterSubtitle = 'Centre de contrôle et diagnostic'
         TrayOpen = 'Ouvrir le centre de contrôle'
@@ -356,7 +380,7 @@ function Set-JvbLanguagePreference([ValidateSet('auto', 'en', 'fr')][string]$Lan
     [IO.File]::WriteAllText($script:JvbLanguageFile, $json, (New-Object Text.UTF8Encoding($false)))
 }
 
-$script:JvbLanguagePreference = Get-JvbLanguagePreference
+$script:JvbLanguagePreference = if ($Preview) { 'auto' } else { Get-JvbLanguagePreference }
 $script:JvbLanguage = Get-JvbEffectiveLanguage $script:JvbLanguagePreference
 
 function T([string]$Key, [object[]]$Arguments) {

@@ -19,7 +19,7 @@ régulièrement.
 
 ## Combinaisons de versions
 
-- le Bridge 1.18.1 et l’extension 1.8.1 forment la combinaison recommandée ;
+- le Bridge 1.19.1 et le paquet de l’extension 1.8.1 forment la combinaison recommandée ; la soumission au Chrome Web Store suit un parcours séparé ;
 - une extension plus ancienne peut continuer à lancer une lecture standard, sans
   le choix d’une version 1080p ou 4K ;
 - après une mise à jour de l’extension, rechargez les onglets Jellyfin déjà ouverts ;
@@ -85,7 +85,8 @@ Le paquet d’assistance retire les jetons et identifiants personnels connus.
 The installer, Control Center and uninstaller are designed and tested for Windows.
 Linux and macOS are not advertised as supported until they can be tested regularly.
 
-Bridge 1.18.1 with extension 1.8.1 is the recommended combination. An older
+Bridge 1.19.1 with extension package 1.8.1 is the recommended combination;
+Chrome Web Store submission is a separate process. An older
 extension can still request standard playback but does not provide media-version
 selection. Reload existing Jellyfin tabs after an extension update.
 

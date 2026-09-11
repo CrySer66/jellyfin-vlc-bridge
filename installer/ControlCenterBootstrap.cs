@@ -1,123 +1,96 @@
 using System;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Threading;
-using System.Windows.Forms;
+using System.Windows;
+using System.Windows.Threading;
 
 [assembly: AssemblyTitle("Jellyfin VLC Bridge Control Center")]
-[assembly: AssemblyDescription("Lance le centre de contrôle sans fenêtre de console")]
+[assembly: AssemblyDescription("Centre de contrôle Windows natif")]
 [assembly: AssemblyCompany("Jellyfin VLC Bridge Project")]
 [assembly: AssemblyProduct("Jellyfin VLC Bridge")]
-[assembly: AssemblyVersion("1.18.1.0")]
-[assembly: AssemblyFileVersion("1.18.1.0")]
+[assembly: AssemblyVersion("1.19.1.0")]
+[assembly: AssemblyFileVersion("1.19.1.0")]
+[assembly: TargetFramework(".NETFramework,Version=v4.8")]
 
 internal static class ControlCenterBootstrap
 {
     private const string MutexName = @"Local\CrySer66.JellyfinVlcBridge.ControlCenter";
     private const string ShowEventName = @"Local\CrySer66.JellyfinVlcBridge.ControlCenter.Show";
 
-    private static bool IsFrench
-    {
-        get { return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr"; }
-    }
-
-    private static string Localized(string english, string french)
-    {
-        return IsFrench ? french : english;
-    }
-
     [STAThread]
     private static int Main(string[] args)
     {
-        bool ownsMutex = false;
-        using (var mutex = new Mutex(true, MutexName, out ownsMutex))
-        {
-            if (!ownsMutex)
-            {
-                try
-                {
-                    using (var showEvent = EventWaitHandle.OpenExisting(ShowEventName))
-                        showEvent.Set();
-                }
-                catch (WaitHandleCannotBeOpenedException)
-                {
-                    MessageBox.Show(
-                        Localized(
-                            "Jellyfin VLC Bridge is already running in the notification area.",
-                            "Jellyfin VLC Bridge fonctionne déjà dans la zone de notification."),
-                        "Jellyfin VLC Bridge",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }
-                return 0;
-            }
-
-            try
-            {
-                using (var showEvent = new EventWaitHandle(
-                    false,
-                    EventResetMode.AutoReset,
-                    ShowEventName))
-                {
-                    return RunControlCenter(args);
-                }
-            }
-            finally
-            {
-                mutex.ReleaseMutex();
-            }
-        }
-    }
-
-    private static int RunControlCenter(string[] args)
-    {
         try
         {
-            string directory = AppDomain.CurrentDomain.BaseDirectory;
-            string script = Path.Combine(directory, "Centre-Controle.ps1");
-            if (!File.Exists(script))
-                throw new FileNotFoundException(
-                    Localized(
-                        "The Control Center installation is incomplete.",
-                        "L’installation du centre de contrôle est incomplète."),
-                    script);
-
-            bool validateOnly = Array.IndexOf(args, "--validate-only") >= 0;
-            bool startInTray = Array.IndexOf(args, "--tray") >= 0;
-            string scriptArguments =
-                "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + script + "\"" +
-                (validateOnly ? " -ValidateOnly" : "") +
-                (startInTray ? " -StartInTray" : "") +
-                " -ShowEventName \"" + ShowEventName + "\"";
-
-            var startInfo = new ProcessStartInfo("powershell.exe", scriptArguments)
+            bool preview = Array.IndexOf(args, "--preview") >= 0;
+            bool validate = Array.IndexOf(args, "--validate-only") >= 0;
+            string renderPath = Option(args, "--render-preview");
+            // Preview and validation never take over or signal the installed instance.
+            if (preview || validate || renderPath != null)
+                return Run(args, true, validate, renderPath, null);
+            bool ownsMutex;
+            using (var mutex = new Mutex(true, MutexName, out ownsMutex))
             {
-                WorkingDirectory = directory,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (Process process = Process.Start(startInfo))
-            {
-                if (process == null)
-                    throw new InvalidOperationException(
-                        Localized(
-                            "The Control Center could not start.",
-                            "Le centre de contrôle n’a pas pu démarrer."));
-                process.WaitForExit();
-                return process.ExitCode;
+                if (!ownsMutex)
+                {
+                    for (int attempt = 0; attempt < 20; attempt++)
+                    {
+                        try
+                        {
+                            using (var signal = EventWaitHandle.OpenExisting(ShowEventName)) signal.Set();
+                            return 0;
+                        }
+                        catch (WaitHandleCannotBeOpenedException) { Thread.Sleep(100); }
+                    }
+                    return 1;
+                }
+                try
+                {
+                    using (var signal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName))
+                        return Run(args, false, false, null, signal);
+                }
+                finally { mutex.ReleaseMutex(); }
             }
         }
         catch (Exception exception)
         {
-            MessageBox.Show(
-                exception.Message,
-                "Jellyfin VLC Bridge",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+            if (Array.IndexOf(args, "--validate-only") < 0 && Option(args, "--render-preview") == null)
+                MessageBox.Show(exception.Message, "Jellyfin VLC Bridge", MessageBoxButton.OK, MessageBoxImage.Error);
+            // Headless validation must fail promptly rather than block on an error dialog.
+            try { Console.Error.WriteLine(exception.ToString()); } catch { }
             return 1;
         }
+    }
+
+    private static int Run(string[] args, bool preview, bool validate, string renderPath, EventWaitHandle signal)
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        using (var desktop = new ControlCenterWindow(preview, Option(args, "--language")))
+        {
+            app.MainWindow = desktop.Window;
+            if (validate) { desktop.Validate(); return 0; }
+            if (renderPath != null)
+            {
+                desktop.RenderPreview(renderPath, Option(args, "--page"), Option(args, "--scale"));
+                return 0;
+            }
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            if (signal != null)
+            {
+                timer.Tick += delegate { if (signal.WaitOne(0)) desktop.Show(); };
+                timer.Start();
+            }
+            app.SessionEnding += delegate { desktop.AllowExit = true; };
+            desktop.Start(Array.IndexOf(args, "--tray") >= 0);
+            try { return app.Run(); }
+            finally { timer.Stop(); }
+        }
+    }
+
+    private static string Option(string[] args, string name)
+    {
+        int index = Array.IndexOf(args, name);
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 }

@@ -4,20 +4,90 @@ using System.IO;
 using System.IO.Compression;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Threading;
-using System.Windows.Forms;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Markup;
 
 [assembly: AssemblyTitle("Jellyfin VLC Bridge Setup")]
 [assembly: AssemblyDescription("Installateur de Jellyfin VLC Bridge")]
 [assembly: AssemblyCompany("Jellyfin VLC Bridge Project")]
 [assembly: AssemblyProduct("Jellyfin VLC Bridge")]
-[assembly: AssemblyVersion("1.18.1.0")]
-[assembly: AssemblyFileVersion("1.18.1.0")]
+[assembly: AssemblyVersion("1.19.1.0")]
+[assembly: AssemblyFileVersion("1.19.1.0")]
+[assembly: TargetFramework(".NETFramework,Version=v4.8")]
 
 internal static class SetupBootstrap
 {
     private static bool IsFrench { get { return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr"; } }
     private static string Localized(string english, string french) { return IsFrench ? french : english; }
+
+    private static Window CreateErrorWindow(string message)
+    {
+        AppContext.SetSwitch("Switch.System.Windows.DoNotScaleForDpiChanges", false);
+        var application = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DesktopTheme.xaml"))
+        {
+            if (stream == null) throw new InvalidDataException("The embedded desktop theme is missing.");
+            using (var reader = new StreamReader(stream))
+                application.Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Parse(reader.ReadToEnd()));
+        }
+        // The same dictionary is embedded in the native center and distributed
+        // with both maintenance scripts. Even extraction failures keep its identity.
+        const string xaml = @"
+<Window xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+        xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
+        Width='620' SizeToContent='Height' MinHeight='350' MaxHeight='760'
+        ResizeMode='NoResize' WindowStartupLocation='CenterScreen'>
+  <Grid>
+    <Grid.RowDefinitions><RowDefinition Height='Auto'/><RowDefinition Height='Auto'/></Grid.RowDefinitions>
+    <Border Background='{StaticResource Sidebar}' Padding='28,22'>
+      <StackPanel Orientation='Horizontal'>
+        <Image Source='{StaticResource ApplicationIcon}' Width='40' Height='40' Margin='0,0,14,0'/>
+        <StackPanel VerticalAlignment='Center'>
+          <TextBlock Text='Jellyfin VLC Bridge' Foreground='White' FontSize='20' FontWeight='SemiBold'/>
+          <TextBlock x:Name='SetupLabel' Foreground='#B9C9DA' FontSize='13' Margin='0,3,0,0'/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <StackPanel Grid.Row='1' Margin='28'>
+      <TextBlock x:Name='FailureHeading' Style='{StaticResource SectionTitle}' Margin='0,0,0,10'/>
+      <TextBlock x:Name='FailureHint' Style='{StaticResource Caption}' Margin='0,0,0,20'/>
+      <Border Style='{StaticResource Card}' Padding='18' Background='#FFF8F8' BorderBrush='#F0DADD'>
+        <ScrollViewer MaxHeight='290' VerticalScrollBarVisibility='Auto' HorizontalScrollBarVisibility='Disabled'>
+          <TextBlock x:Name='FailureMessage' Foreground='#9E313B' LineHeight='21'/>
+        </ScrollViewer>
+      </Border>
+      <Button x:Name='CloseButton' Style='{StaticResource PrimaryButton}' HorizontalAlignment='Right'
+              MinWidth='110' Margin='0,22,0,0' IsDefault='True' IsCancel='True'/>
+    </StackPanel>
+  </Grid>
+</Window>";
+        var window = (Window)XamlReader.Parse(xaml);
+        window.Title = "Jellyfin VLC Bridge — " + Localized("Installation", "Installation");
+        ((TextBlock)window.FindName("SetupLabel")).Text = Localized("Installation", "Installation");
+        ((TextBlock)window.FindName("FailureHeading")).Text = Localized("Installation interrupted", "Installation interrompue");
+        ((TextBlock)window.FindName("FailureHint")).Text = Localized(
+            "The installer could not complete this step. Check the details below before trying again.",
+            "L’installateur n’a pas pu terminer cette étape. Vérifiez les détails ci-dessous avant de réessayer.");
+        ((TextBlock)window.FindName("FailureMessage")).Text = message;
+        var close = (Button)window.FindName("CloseButton");
+        close.Content = Localized("Close", "Fermer");
+        close.Click += delegate { window.Close(); };
+        return window;
+    }
+
+    private static void ShowErrorDialog(string message)
+    {
+        try { CreateErrorWindow(message).ShowDialog(); }
+        catch (Exception displayException)
+        {
+            // If the Windows presentation subsystem is unavailable, leave a
+            // useful diagnostic instead of failing recursively in another UI.
+            WriteSilentLog(message + Environment.NewLine + displayException);
+        }
+    }
 
     private static void WriteSilentLog(string message)
     {
@@ -81,7 +151,7 @@ internal static class SetupBootstrap
                 throw new InvalidDataException(
                     Localized("The internal installation package is incomplete.", "Le paquet d’installation interne est incomplet."));
             string scriptArguments =
-                "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + installer + "\"" +
+                "-NoProfile -STA -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + installer + "\"" +
                 (silent ? " -Silent" : "");
             ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe", scriptArguments);
             startInfo.WorkingDirectory = temporaryDirectory;
@@ -116,8 +186,7 @@ internal static class SetupBootstrap
         catch (Exception exception)
         {
             if (silent) WriteSilentLog(exception.ToString());
-            else
-                MessageBox.Show(exception.Message, "Jellyfin VLC Bridge Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            else ShowErrorDialog(exception.Message);
             return 1;
         }
         finally
