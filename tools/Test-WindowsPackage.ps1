@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.19.1'
+    [string]$Version = '1.20.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -312,7 +312,7 @@ if ($installerScript -notmatch '\$uninstallShortcut\.WorkingDirectory\s*=\s*\$en
     throw 'Le raccourci de desinstallation conserve encore le dossier application comme repertoire de travail.'
 }
 if ($installerScript -match "uninstall-cleanup --purge[\s\S]{0,800}RequestingCode" -or
-    $cliSource -notmatch 'InstallNativeHost\(\);[\s\S]{0,800}credentialStore\.Write[\s\S]{0,800}updatedConfig\.Save\(\);[\s\S]{0,800}credentialStore\.Delete\(previousSecretKey\)' -or
+    $cliSource -notmatch 'InstallNativeHost\(\);[\s\S]{0,800}ConnectionSettingsStore\.Save\(updatedConfig, authentication\.AccessToken, credentialStore\);[\s\S]{0,800}credentialStore\.Delete\(previousSecretKey\)' -or
     $installerScript -notmatch '\$script:setupProcess\.HasExited[\s\S]{0,300}\$script:setupProcess\.ExitCode\s+-ne\s+0[\s\S]{0,900}throw\s+\(T\s+''QuickConnectFailed''\)[\s\S]{0,100}Complete-Installation') {
     throw 'Le changement de serveur ne conserve pas l ancienne connexion jusqu a la reussite de Quick Connect.'
 }

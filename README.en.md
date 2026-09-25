@@ -4,112 +4,53 @@
 
 <h1 align="center">Jellyfin VLC Bridge</h1>
 
-<p align="center">
-  Play Jellyfin movies, shows and collections in VLC with resume support and synchronized progress.
-</p>
+<p align="center">Your Jellyfin movies and shows in VLC, with one click.</p>
 
 <p align="center">
-  <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/CrySer66/jellyfin-vlc-bridge?display_name=tag&sort=semver"></a>
-  <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml"><img alt="Windows checks" src="https://github.com/CrySer66/jellyfin-vlc-bridge/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/CrySer66/jellyfin-vlc-bridge"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest"><strong>Download for Windows</strong></a>
+  <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest"><strong>1. Download the Windows application</strong></a>
   ·
-  <a href="https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp"><strong>Install the Chrome extension</strong></a>
-  ·
-  <a href="INSTALLATION.en.md">Installation guide</a>
-  ·
-  <a href="README.md">Français</a>
+  <a href="https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp"><strong>2. Add the Chrome extension</strong></a>
 </p>
 
-Jellyfin VLC Bridge adds a **Play with VLC** action to Jellyfin Web. It opens the original media in VLC on the Windows PC without modifying the Jellyfin server or sending data to the developer.
+<p align="center"><a href="README.md">Français</a></p>
 
-| Application | Platform | Extension |
-|---|---|---|
-| **1.19.1** | **Windows 10/11 x64** | **1.8.1** (package ready) |
+Jellyfin VLC Bridge adds a **Play with VLC** button to your browser. Choose a movie or show in Jellyfin, then watch it in VLC on your PC. Your progress is saved in Jellyfin.
 
-**New in 1.19.1:** the Control Center, installer and uninstaller now share a WPF interface with rounded cards and vector icons. This version also includes the VLC progress, SMB settings and support export fixes prepared in 1.19.0. Run the new Setup to update all three interfaces while preserving your connection. See the [maintenance interface and verification guide](docs/MAINTENANCE-1.19.1.md) (French).
+**You need:** 64-bit Windows 10 or 11, [VLC](https://www.videolan.org/vlc/), Google Chrome and a Jellyfin server you can access.
 
 <p align="center">
-  <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="A media item moving from Jellyfin to VLC through the local Bridge">
+  <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Choose media in Jellyfin and watch it in VLC on your PC">
 </p>
 
-## Installation
+## Get started
 
-1. **Prepare VLC** — install [VLC Media Player](https://www.videolan.org/vlc/).
-2. **Install the Bridge** — download `JellyfinVlcBridge-<version>-Setup.exe` from the [latest GitHub release](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest), run it, then approve its code in **Jellyfin → Settings → Quick Connect**.
-3. **Add the button** — install the [official Chrome extension](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp), reload Jellyfin, open a media item and select **Play with VLC**.
+1. **Install the Windows application.** On the download page above, open the file ending in **`-Setup.exe`** and follow the setup wizard.
+2. **Connect Jellyfin.** Enter your server address. The wizard displays a code to approve in **Jellyfin → Settings → Quick Connect**.
+3. **Add the Chrome extension.** Use the second link above, reload Jellyfin, open a movie or episode and select **Play with VLC**.
 
-**Quick check:** open a movie or episode page in Jellyfin. The **Play with VLC** button should appear in the action bar.
+You need both the application and the extension. Installing the Bridge does not require administrator rights. Updates keep your connection and settings.
 
-**Jellyfin 12:** Bridge 1.18.1 updates authentication while keeping the same mechanism for Jellyfin 10.x. Extension 1.8.1 displays preparation errors in the playback dialog. See the [upgrade steps](INSTALLATION.en.md#after-upgrading-to-jellyfin-12) and [compatibility verification limits](docs/COMPATIBILITY.md#jellyfin-10x-and-12).
+## When you watch
 
-The playback fix works with the already installed extension 1.8.0. The 1.8.1 package is ready for a separate Chrome Web Store submission; its presence on GitHub does not mean it is already available in the store.
+- Resume where you left off, or start from the beginning.
+- Keep your progress and watched episodes in Jellyfin.
+- Play the next episodes in a season or movies in a collection.
+- Choose a media version, such as 1080p or 4K, when available.
 
-Installation is per Windows user and does not require administrator rights. The [detailed guide](INSTALLATION.en.md) also covers HTTP Direct Play, SMB, updates and uninstallation.
+The application and extension support English and French. Select audio and subtitle tracks in VLC.
 
-**WinGet (optional):** version 1.18.0 was [accepted on August 31, 2026](https://github.com/microsoft/winget-pkgs/pull/413912). Catalog availability was not yet confirmed during our check that day. The [WinGet guide](INSTALLATION.en.md#install-with-winget-optional) explains how to check availability, then install and update the Bridge. The GitHub download remains available.
+## Need help?
 
-## Features
+Open **Jellyfin VLC Bridge** from the Start menu: the application checks your connection and explains what to do if playback does not start.
 
-- movies, episodes, seasons, shows and collections;
-- Jellyfin media-version selection, such as 1080p or 4K, before launching VLC;
-- resume from the saved position or restart from the beginning;
-- playback, pause, stop and progress synchronization with Jellyfin;
-- automatic continuation through prepared episodes or movies;
-- recommended HTTP Direct Play or an existing SMB share;
-- Quick Connect authentication without copying an administrator API key;
-- Jellyfin token protection through Windows Credential Manager;
-- graphical diagnostics and repair in the Control Center;
-- quick access to the Control Center from a notification-area icon;
-- guided updates from GitHub Releases;
-- silent background launch without a command window or Jellyfin file changes.
+Read the [installation and troubleshooting guide](INSTALLATION.en.md). If Windows displays SmartScreen, see the [download verification guide](docs/VERIFY_DOWNLOADS.md): the application does not yet have a Windows code signature.
 
-## Privacy and security
+To report a problem, use the [support form](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose).
 
-The project contains no advertising, telemetry or analytics. The extension sends only the media identifier and playback choices to the companion application on the same PC. The local relay listens exclusively on `127.0.0.1`.
+## Learn more
 
-Diagnostics and support packages generated by the application exclude the Jellyfin token and personal identifiers. See the [privacy policy](PRIVACY.md), [security policy](SECURITY.md), [code-signing policy](CODE_SIGNING.md) and [download verification guide](docs/VERIFY_DOWNLOADS.md).
+- [Jellyfin compatibility](docs/COMPATIBILITY.md) · [Release history](CHANGELOG.md)
+- [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+- [Development](docs/DEVELOPMENT.md) · [Contributing](CONTRIBUTING.md) · [Distribution](docs/DISTRIBUTION.md)
 
-## Download with confidence
-
-The Windows executables currently have **no Authenticode signature**. The first application to SignPath Foundation’s open-source program was not accepted because the project does not yet have enough visibility and reputation. Windows SmartScreen may therefore display a warning even for an intact official file.
-
-Always download the Bridge from this repository’s [Releases page](https://github.com/CrySer66/jellyfin-vlc-bridge/releases). Starting with version 1.18.0, releases provide:
-
-- a SHA-256 digest in `SHA256SUMS.txt`;
-- a GitHub attestation for the installer and ZIP, confirming that they came from this repository’s public workflow.
-
-The Control Center also compares GitHub’s advertised SHA-256 digest before it opens a downloaded update installer.
-
-Read the [download verification guide](docs/VERIFY_DOWNLOADS.md) before deciding how to respond to a Windows warning. A provenance attestation is not a Windows signature and does not suppress SmartScreen.
-
-## Languages
-
-The Windows application and Chrome extension support French and English. Chrome automatically follows the browser language. The Control Center follows Windows and also offers a manual language choice.
-
-## Documentation and contributing
-
-- [Detailed installation](INSTALLATION.en.md)
-- [Building and development](docs/DEVELOPMENT.md)
-- [Compatibility and supported environments](docs/COMPATIBILITY.md)
-- [Verify a download](docs/VERIFY_DOWNLOADS.md)
-- [Distribution roadmap](docs/DISTRIBUTION.md)
-- [Contributing](CONTRIBUTING.md)
-- [Release history](CHANGELOG.md)
-- [Report a problem](https://github.com/CrySer66/jellyfin-vlc-bridge/issues/new/choose)
-
-The application, extension, installer and test sources are public. Compiled executables are published separately in [GitHub Releases](https://github.com/CrySer66/jellyfin-vlc-bridge/releases).
-
-## Current limitations
-
-- the finished installer targets Windows 10/11 x64;
-- VLC must be installed separately;
-- audio and subtitle tracks are selected in VLC;
-- a major Jellyfin Web change may require an extension update.
-
-## License
-
-Jellyfin VLC Bridge is an independent project and is not affiliated with Jellyfin, VideoLAN, Google or Microsoft. It is distributed under the [MIT license](LICENSE).
+No advertising or telemetry. This independent project is not affiliated with Jellyfin, VideoLAN, Google or Microsoft, and is distributed under the [MIT license](LICENSE).

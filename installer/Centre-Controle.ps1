@@ -4,7 +4,7 @@
     [string]$ShowEventName = ''
 )
 $ErrorActionPreference = 'Stop'
-$script:bridgeVersion = '1.19.1'
+$script:bridgeVersion = '1.20.0'
 # Compatibility entry point for old shortcuts. The interface now lives entirely
 # in the native WPF executable; PowerShell no longer draws or owns its windows.
 $desktop = Join-Path $PSScriptRoot 'jellyfin-vlc-bridge-control.exe'

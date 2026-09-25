@@ -7,7 +7,9 @@
     opening: 'Opening…',
     vlcStarted: 'VLC started',
     reloadJellyfin: 'Reload Jellyfin',
-    applicationNotInstalled: 'Application not installed',
+    applicationNotInstalled: 'Application not found',
+    checkConnection: 'Check the connection',
+    checkConnectionTitle: 'Retry the connection to Jellyfin VLC Bridge',
     playWithVlc: 'Play with VLC',
     checkingBridgeTitle: 'Checking Jellyfin VLC Bridge',
     openingMediaTitle: 'Opening the media in VLC',
@@ -68,10 +70,10 @@
     popupDownload: 'Download the Windows application',
     popupGithub: 'View the project on GitHub',
     popupSupport: 'Help and report a problem',
-    popupReadyTitle: 'Application ready',
-    popupReadyDetail: 'The Bridge is installed and can launch VLC from Jellyfin.',
-    popupMissingTitle: 'Application not installed',
-    popupMissingDetail: 'Install the Windows Bridge to enable playback with VLC.'
+    popupReadyTitle: 'Application connected',
+    popupReadyDetail: 'Open a movie or episode in Jellyfin, then choose “Play with VLC”.',
+    popupMissingTitle: 'Application not found',
+    popupMissingDetail: 'Install the Windows Bridge. If it is already installed, open its Control Center and repair the browser connection, then retry.'
   });
 
   function replacePlaceholders(message, substitutions) {

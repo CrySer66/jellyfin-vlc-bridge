@@ -7,6 +7,8 @@
   const status = document.getElementById('status');
   const title = document.getElementById('status-title');
   const detail = document.getElementById('status-detail');
+  const retry = document.getElementById('retry');
+  const download = document.getElementById('download');
 
   document.documentElement.lang = i18n.locale().split('-')[0] || 'en';
   document.getElementById('version').textContent =
@@ -19,23 +21,46 @@
   document.getElementById('support').textContent = t('popupSupport');
   title.textContent = t('popupCheckingTitle');
   detail.textContent = t('popupCheckingDetail');
+  retry.textContent = t('retry');
+  download.hidden = true;
 
   for (const link of document.querySelectorAll('a')) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
   }
 
-  chrome.runtime.sendMessage({ type: 'status' }, result => {
-    const runtimeError = chrome.runtime.lastError;
-    const availability = runtimeError ? 'missing' : bridge.availabilityFromResult(result);
+  function renderStatus(availability) {
     status.className = `status status--${availability}`;
+    retry.disabled = false;
+    retry.hidden = availability === 'ready';
+    download.hidden = availability !== 'missing';
 
     if (availability === 'ready') {
       title.textContent = t('popupReadyTitle');
       detail.textContent = t('popupReadyDetail');
-    } else {
+    } else if (availability === 'missing') {
       title.textContent = t('popupMissingTitle');
       detail.textContent = t('popupMissingDetail');
+    } else {
+      title.textContent = t('checkConnection');
+      detail.textContent = t('bridgeCommunicationFailed');
     }
-  });
+  }
+
+  function checkStatus() {
+    retry.disabled = true;
+    download.hidden = true;
+    status.className = 'status status--checking';
+    title.textContent = t('popupCheckingTitle');
+    detail.textContent = t('popupCheckingDetail');
+    try {
+      chrome.runtime.sendMessage({ type: 'status' }, result => {
+        renderStatus(chrome.runtime.lastError ? 'unavailable' : bridge.availabilityFromResult(result));
+      });
+    } catch {
+      renderStatus('unavailable');
+    }
+  }
+  retry.addEventListener('click', checkStatus);
+  checkStatus();
 })();

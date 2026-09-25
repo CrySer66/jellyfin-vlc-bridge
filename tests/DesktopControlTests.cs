@@ -103,6 +103,36 @@ internal static class DesktopControlTests
         Console.WriteLine("OK  Disposing the window service cancels children and prevents new commands");
 
         TestSettings(root);
+        TestSuggestedAction();
+    }
+
+    private static void TestSuggestedAction()
+    {
+        Equal("refresh", DesktopBridge.SuggestedAction(null));
+        var status = new Dictionary<string, object>();
+        Equal("connect", DesktopBridge.SuggestedAction(status));
+        status["configured"] = true;
+        status["secretReady"] = false;
+        Equal("connect", DesktopBridge.SuggestedAction(status));
+        status["secretReady"] = true;
+        status["findings"] = new[] { new Dictionary<string, object> { { "code", "jellyfin.authentication-required" } } };
+        Equal("connect", DesktopBridge.SuggestedAction(status));
+        status.Remove("findings");
+        Equal("vlc", DesktopBridge.SuggestedAction(status));
+        status["findings"] = new[] { new Dictionary<string, object> { { "code", "vlc.configured-path-missing" } } };
+        Equal("settings", DesktopBridge.SuggestedAction(status));
+        status["vlcReady"] = true;
+        Equal("refresh", DesktopBridge.SuggestedAction(status));
+        status["jellyfinConnected"] = true;
+        Equal("repair", DesktopBridge.SuggestedAction(status));
+        status["protocolReady"] = true;
+        Equal("repair", DesktopBridge.SuggestedAction(status));
+        status["nativeMessagingReady"] = true;
+        status["extensionActive"] = false;
+        Equal("open", DesktopBridge.SuggestedAction(status));
+        status["extensionActive"] = true;
+        Equal("open", DesktopBridge.SuggestedAction(status));
+        Console.WriteLine("OK  Home suggests the next setup step without mistaking a missing heartbeat for a missing extension");
     }
 
     private static ProcessStartInfo HangingProcess(string pidPath)

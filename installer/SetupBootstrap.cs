@@ -14,8 +14,8 @@ using System.Windows.Markup;
 [assembly: AssemblyDescription("Installateur de Jellyfin VLC Bridge")]
 [assembly: AssemblyCompany("Jellyfin VLC Bridge Project")]
 [assembly: AssemblyProduct("Jellyfin VLC Bridge")]
-[assembly: AssemblyVersion("1.19.1.0")]
-[assembly: AssemblyFileVersion("1.19.1.0")]
+[assembly: AssemblyVersion("1.20.0.0")]
+[assembly: AssemblyFileVersion("1.20.0.0")]
 [assembly: TargetFramework(".NETFramework,Version=v4.8")]
 
 internal static class SetupBootstrap

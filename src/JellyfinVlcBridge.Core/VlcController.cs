@@ -56,7 +56,8 @@ public sealed record VlcStatus(
     [property: JsonPropertyName("volume")] int Volume,
     [property: JsonPropertyName("currentplid")] int CurrentPlaylistId = -1)
 {
-    public bool IsPaused => State.Equals("paused", StringComparison.OrdinalIgnoreCase);
+    public bool IsPaused => string.Equals(State, "paused", StringComparison.OrdinalIgnoreCase);
+    public bool IsActive => IsPaused || string.Equals(State, "playing", StringComparison.OrdinalIgnoreCase);
     public long PositionTicks => Math.Max(0, Time) * TimeSpan.TicksPerSecond;
     public long DurationTicks => Math.Max(0, Length) * TimeSpan.TicksPerSecond;
 }

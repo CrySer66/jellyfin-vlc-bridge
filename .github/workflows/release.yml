@@ -132,10 +132,15 @@ jobs:
         shell: pwsh
         run: ./tools/Test-PowerShellSyntax.ps1
 
+      - name: Vérifier le parcours de publication hors réseau
+        shell: pwsh
+        run: ./tools/Test-PublicationFlow.ps1
+
       - name: Compiler
         shell: pwsh
         run: |
           dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build JellyfinVlcBridge.slnx --configuration Release --no-restore
 
       - name: Construire l’installateur et le ZIP
@@ -150,11 +155,13 @@ jobs:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: ./tools/Test-WindowsLifecycle.ps1 -Version $env:RELEASE_VERSION
 
-      - name: Exécuter les tests
+      - name: Exécuter les tests du Bridge
         shell: pwsh
-        run: |
-          dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
-          node tests/extension-tests.js
+        run: dotnet run --project tests/JellyfinVlcBridge.Tests --configuration Release --no-build
+
+      - name: Exécuter les tests de l’extension
+        shell: pwsh
+        run: node tests/extension-tests.js
 
       - name: Vérifier les paquets Windows
         shell: pwsh

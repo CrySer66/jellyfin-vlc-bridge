@@ -59,33 +59,9 @@ public static class BridgeDiagnostics
 
         if (secretReady)
         {
-            try
-            {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                var user = await new JellyfinClient(http, config.ServerUrl, token!, config.DeviceId)
-                    .GetCurrentUserAsync(cancellationToken);
-                jellyfinConnected = true;
-                jellyfinUser = user.Name;
-                jellyfinCode = "jellyfin.ready";
-                jellyfinMessage = UiLanguage.Text(
-                    $"Connected as {user.Name}.",
-                    $"Connecté en tant que {user.Name}.");
-            }
-            catch (TaskCanceledException exception)
-            {
-                jellyfinCode = "jellyfin.timeout";
-                jellyfinMessage = UiLanguage.Text("Server response timed out: ", "Délai de réponse du serveur dépassé : ") + exception.Message;
-            }
-            catch (HttpRequestException exception)
-            {
-                jellyfinCode = "jellyfin.unreachable";
-                jellyfinMessage = UiLanguage.Text("Server unreachable: ", "Serveur injoignable : ") + exception.Message;
-            }
-            catch (Exception exception)
-            {
-                jellyfinCode = "jellyfin.connection-refused";
-                jellyfinMessage = UiLanguage.Text("Connection refused: ", "Connexion refusée : ") + exception.Message;
-            }
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            (jellyfinConnected, jellyfinUser, jellyfinCode, jellyfinMessage) = await CheckJellyfinConnectionAsync(
+                new JellyfinClient(http, config.ServerUrl, token!, config.DeviceId), cancellationToken);
         }
 
         var protocolReady = false;
@@ -111,6 +87,13 @@ public static class BridgeDiagnostics
                 "La connexion Jellyfin enregistrée est absente.",
                 "Run the installer and authorize a new Quick Connect code.",
                 "Relancez l’installateur et autorisez un nouveau code Quick Connect."));
+        else if (jellyfinCode == "jellyfin.authentication-required")
+            findings.Add(Finding(
+                "jellyfin", jellyfinCode, "error",
+                "Jellyfin no longer accepts the saved connection.",
+                "Jellyfin n’accepte plus la connexion enregistrée.",
+                "Connect to Jellyfin again and authorize a new Quick Connect code.",
+                "Reconnectez-vous à Jellyfin et autorisez un nouveau code Quick Connect."));
         else if (!jellyfinConnected)
             findings.Add(Finding(
                 "jellyfin", jellyfinCode, "error",
@@ -154,6 +137,38 @@ public static class BridgeDiagnostics
             jellyfinConnected, jellyfinUser, jellyfinMessage, vlcReady, vlcPath, vlcVersion,
             protocolReady, nativeMessagingReady, extensionActive, heartbeat?.Version,
             heartbeat?.LastSeenUtc, config.PlaybackMode, BridgeLog.FilePath, ready, findings);
+    }
+
+    internal static async Task<(bool Connected, string? UserName, string Code, string Message)> CheckJellyfinConnectionAsync(
+        JellyfinClient client, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = await client.GetCurrentUserAsync(cancellationToken);
+            return (true, user.Name, "jellyfin.ready", UiLanguage.Text(
+                $"Connected as {user.Name}.", $"Connecté en tant que {user.Name}."));
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return (false, null, "jellyfin.authentication-required", UiLanguage.Text(
+                "Jellyfin no longer accepts the saved connection. Connect again using Quick Connect.",
+                "Jellyfin n’accepte plus la connexion enregistrée. Reconnectez-vous avec Quick Connect."));
+        }
+        catch (TaskCanceledException exception)
+        {
+            return (false, null, "jellyfin.timeout", UiLanguage.Text(
+                "Server response timed out: ", "Délai de réponse du serveur dépassé : ") + exception.Message);
+        }
+        catch (HttpRequestException exception)
+        {
+            return (false, null, "jellyfin.unreachable", UiLanguage.Text(
+                "Server unreachable: ", "Serveur injoignable : ") + exception.Message);
+        }
+        catch (Exception exception)
+        {
+            return (false, null, "jellyfin.connection-refused", UiLanguage.Text(
+                "Connection refused: ", "Connexion refusée : ") + exception.Message);
+        }
     }
 
     private static bool IsValidNativeManifest(string? path)

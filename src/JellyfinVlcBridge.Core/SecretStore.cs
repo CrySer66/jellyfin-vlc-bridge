@@ -11,11 +11,11 @@ public interface ISecretStore
     void Delete(string key);
 }
 
-public sealed class EnvironmentOrWindowsCredentialStore : ISecretStore
+public sealed class EnvironmentOrWindowsCredentialStore(bool useEnvironment = true) : ISecretStore
 {
     public string? Read(string key)
     {
-        var fromEnvironment = Environment.GetEnvironmentVariable("JELLYFIN_VLC_TOKEN");
+        var fromEnvironment = useEnvironment ? Environment.GetEnvironmentVariable("JELLYFIN_VLC_TOKEN") : null;
         if (!string.IsNullOrWhiteSpace(fromEnvironment)) return fromEnvironment;
         if (!OperatingSystem.IsWindows()) return null;
 

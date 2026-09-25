@@ -29,6 +29,7 @@ internal sealed class ControlCenterWindow : IDisposable
     private Forms.ContextMenuStrip trayMenu;
     private bool busy, binding, dirty, updateAvailable, disposed;
     private string language, preference, currentPage = "Overview", settingsServer = "";
+    private string suggestedAction = "refresh";
     private readonly string version = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
     private static readonly Brush Green = Brush("#16856D"), Orange = Brush("#A65F13"), Red = Brush("#BC3D53");
     private static readonly string[] ActionNames = {
@@ -125,15 +126,7 @@ internal sealed class ControlCenterWindow : IDisposable
         Click("DiagnosticsNav", delegate { Navigate("Diagnostics"); });
         Click("GoSettingsButton", delegate { Navigate("Settings"); });
         AsyncClick("RefreshButton", Refresh);
-        AsyncClick("OpenJellyfinButton", delegate {
-            if (preview) return PreviewAction();
-            string address = DesktopBridge.Text(health, "serverUrl");
-            Uri uri;
-            if (!Uri.TryCreate(address, UriKind.Absolute, out uri) || (uri.Scheme != "http" && uri.Scheme != "https") ||
-                !string.IsNullOrEmpty(uri.UserInfo)) throw new InvalidOperationException(T("InvalidJellyfinAddress"));
-            Open(uri.AbsoluteUri.TrimEnd('/') + "/web/");
-            return Task.FromResult(0);
-        });
+        AsyncClick("OpenJellyfinButton", NextStep);
         AsyncClick("RepairButton", async delegate {
             if (preview) { await PreviewAction(); return; }
             await bridge.Run(new[] { "repair" }, 45);
@@ -217,6 +210,31 @@ internal sealed class ControlCenterWindow : IDisposable
     private void Error(Exception exception) { Text("Footer", exception.Message); Get<TextBlock>("Footer").Foreground = Red; }
     private Task PreviewAction() { Text("Footer", T("DesktopPreviewNotice")); return Task.FromResult(0); }
     private Task Command(string name) { return preview ? PreviewAction() : bridge.Run(new[] { name }, 30); }
+    private async Task NextStep()
+    {
+        if (preview) { await PreviewAction(); return; }
+        if (suggestedAction == "connect") { await ChangeServer(); return; }
+        if (suggestedAction == "vlc") { Open("https://www.videolan.org/vlc/"); return; }
+        if (suggestedAction == "settings")
+        {
+            Navigate("Settings");
+            Get<Expander>("AdvancedSettings").IsExpanded = true;
+            Get<TextBox>("VlcBox").Focus();
+            return;
+        }
+        if (suggestedAction == "refresh") { await Refresh(); return; }
+        if (suggestedAction == "repair")
+        {
+            await bridge.Run(new[] { "repair" }, 45);
+            await Refresh();
+            return;
+        }
+        string address = DesktopBridge.Text(health, "serverUrl");
+        Uri uri;
+        if (!Uri.TryCreate(address, UriKind.Absolute, out uri) || (uri.Scheme != "http" && uri.Scheme != "https") ||
+            !string.IsNullOrEmpty(uri.UserInfo)) throw new InvalidOperationException(T("InvalidJellyfinAddress"));
+        Open(uri.AbsoluteUri.TrimEnd('/') + "/web/");
+    }
     private static void Open(string path) { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
 
     private void Navigate(string page)
@@ -251,8 +269,10 @@ internal sealed class ControlCenterWindow : IDisposable
         }
         catch
         {
+            suggestedAction = "refresh";
+            Get<Button>("OpenJellyfinButton").Content = T("DesktopActionRefresh");
             Text("Summary", T("CheckFailed"));
-            Text("SummaryDetail", T("DesktopCheckHint"));
+            Text("SummaryDetail", T("DesktopHintRefresh"));
             Get<System.Windows.Shapes.Ellipse>("SummaryDot").Fill = Red;
             throw;
         }
@@ -261,8 +281,16 @@ internal sealed class ControlCenterWindow : IDisposable
     {
         health = result;
         bool ready = DesktopBridge.Flag(health, "ready");
+        Get<Button>("ChangeServerButton").Content = T(DesktopBridge.Flag(health, "configured") ? "ChangeServer" : "DesktopActionConnect");
         Text("Summary", T(ready ? "AllReady" : "CheckNeeded"));
-        Text("SummaryDetail", T(ready ? "DesktopReadyHint" : "DesktopCheckHint"));
+        suggestedAction = DesktopBridge.SuggestedAction(health);
+        string actionName = char.ToUpperInvariant(suggestedAction[0]) + suggestedAction.Substring(1);
+        Get<Button>("OpenJellyfinButton").Content = T("DesktopAction" + actionName);
+        Text("SummaryDetail", T("DesktopHint" + actionName));
+        if (suggestedAction == "connect" && DesktopBridge.Flag(health, "configured"))
+            Text("SummaryDetail", T("DesktopHintReconnect"));
+        if (suggestedAction == "open" && !DesktopBridge.Flag(health, "extensionActive"))
+            Text("SummaryDetail", T("DesktopHintExtension"));
         Get<System.Windows.Shapes.Ellipse>("SummaryDot").Fill = ready ? Brush("#66E3BD") : Brush("#F1C16D");
         SetCard("Jellyfin", DesktopBridge.Flag(health, "jellyfinConnected"), T("Connected"), T("Check"),
             FindingDetail("jellyfin", DesktopBridge.Text(health, "jellyfinMessage")));
@@ -299,6 +327,7 @@ internal sealed class ControlCenterWindow : IDisposable
         string code = DesktopBridge.Text(finding, "code");
         var keys = new Dictionary<string, string> {
             { "configuration.invalid", "FindingConfigurationInvalid" }, { "jellyfin.connection-missing", "FindingConnectionMissing" },
+            { "jellyfin.authentication-required", "FindingAuthenticationRequired" },
             { "jellyfin.timeout", "FindingJellyfinTimeout" }, { "jellyfin.connection-refused", "FindingJellyfinRefused" },
             { "jellyfin.unreachable", "FindingJellyfinUnreachable" }, { "jellyfin.ready", "FindingJellyfinReady" },
             { "vlc.not-found", "FindingVlcMissing" }, { "vlc.configured-path-missing", "FindingVlcMissing" }, { "vlc.ready", "FindingVlcReady" },
@@ -320,6 +349,8 @@ internal sealed class ControlCenterWindow : IDisposable
             Get<ComboBox>("ModeBox").SelectedIndex = DesktopBridge.Text(config, "playbackMode") == "smb" ? 1 : 0;
             // Leave automatic detection empty; do not turn a detected path into an override.
             Get<TextBox>("VlcBox").Text = DesktopBridge.Text(config, "vlcPath");
+            if (Get<ComboBox>("ModeBox").SelectedIndex == 1 || Get<TextBox>("VlcBox").Text.Length > 0)
+                Get<Expander>("AdvancedSettings").IsExpanded = true;
             var mappingEntry = config.FirstOrDefault(entry => entry.Key.Equals("pathMappings", StringComparison.OrdinalIgnoreCase));
             var mappings = mappingEntry.Value as System.Collections.IEnumerable;
             var first = mappings == null ? null : mappings.Cast<object>().FirstOrDefault() as Dictionary<string, object>;
@@ -383,21 +414,23 @@ internal sealed class ControlCenterWindow : IDisposable
     }
     private void ShowChangeServer()
     {
+        bool firstConnection = !DesktopBridge.Flag(health, "configured");
+        string connectionTitle = T(firstConnection ? "DesktopActionConnect" : "ChangeServer");
         var dialog = new Window {
-            Owner = Window, Title = T("ChangeServer"), Width = 610, Height = 520, MinWidth = 500, MinHeight = 450,
+            Owner = Window, Title = connectionTitle, Width = 610, Height = 520, MinWidth = 500, MinHeight = 450,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#F5F7FB"), FontFamily = Window.FontFamily,
             FontSize = 14, ShowInTaskbar = false, UseLayoutRounding = true, Resources = Window.Resources
         };
         var stack = new StackPanel { Margin = new Thickness(30) };
         dialog.Content = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        stack.Children.Add(new TextBlock { Text = T("ChangeServer"), FontSize = 24, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-        stack.Children.Add(new TextBlock { Text = T("ChangeServerControlDescription"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 24), Foreground = Brush("#667085") });
+        stack.Children.Add(new TextBlock { Text = connectionTitle, FontSize = 24, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        stack.Children.Add(new TextBlock { Text = T(firstConnection ? "DesktopFirstConnection" : "ChangeServerControlDescription"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 24), Foreground = Brush("#667085") });
         stack.Children.Add(new TextBlock { Text = T("NewServerAddress"), Margin = new Thickness(0, 0, 0, 8) });
         var address = new TextBox { Text = DesktopBridge.Text(health, "serverUrl"), MinHeight = 42 };
         stack.Children.Add(address);
         var code = new TextBlock { Text = "", FontSize = 36, FontWeight = FontWeights.SemiBold, Foreground = Green, Margin = new Thickness(0, 22, 0, 12), TextAlignment = TextAlignment.Center };
         stack.Children.Add(code);
-        var status = new TextBlock { Text = T("ChangeServerReady"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 20) };
+        var status = new TextBlock { Text = firstConnection ? "" : T("ChangeServerReady"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 20) };
         stack.Children.Add(status);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = T("Cancel"), MinWidth = 100, Margin = new Thickness(0, 0, 12, 0), IsCancel = true };
@@ -509,7 +542,7 @@ internal sealed class ControlCenterWindow : IDisposable
     private Dictionary<string, object> PreviewHealth()
     {
         return new Dictionary<string, object> {
-            { "version", version }, { "ready", true }, { "configured", true }, { "jellyfinConnected", true },
+            { "version", version }, { "ready", true }, { "configured", true }, { "secretReady", true }, { "jellyfinConnected", true },
             { "jellyfinMessage", T("FindingJellyfinReady") }, { "vlcReady", true }, { "vlcVersion", "3.0.23" },
             { "protocolReady", true }, { "nativeMessagingReady", true }, { "extensionActive", true },
             { "extensionVersion", "1.8.1" }, { "serverUrl", "http://jellyfin.local:8096" }, { "playbackMode", "http" }
@@ -527,6 +560,34 @@ internal sealed class ControlCenterWindow : IDisposable
         Text("Footer", T("DesktopPreviewNotice"));
     }
 
+    public void SelectPreviewScenario(string scenario)
+    {
+        if (!preview) throw new InvalidOperationException("Sample data is only available in preview mode.");
+        var sample = PreviewHealth();
+        if (scenario == "connect") { sample["configured"] = false; sample["jellyfinConnected"] = false; sample["serverUrl"] = ""; }
+        else if (scenario == "credential") { sample["secretReady"] = false; sample["jellyfinConnected"] = false; }
+        else if (scenario == "revoked")
+        {
+            sample["jellyfinConnected"] = false;
+            sample["findings"] = new[] { new Dictionary<string, object> { { "component", "jellyfin" }, { "code", "jellyfin.authentication-required" } } };
+        }
+        else if (scenario == "vlc") sample["vlcReady"] = false;
+        else if (scenario == "vlc-settings")
+        {
+            sample["vlcReady"] = false;
+            sample["findings"] = new[] { new Dictionary<string, object> { { "component", "vlc" }, { "code", "vlc.configured-path-missing" } } };
+        }
+        else if (scenario == "offline") sample["jellyfinConnected"] = false;
+        else if (scenario == "repair") sample["nativeMessagingReady"] = false;
+        else if (scenario == "extension") sample["extensionActive"] = false;
+        else if (!string.IsNullOrEmpty(scenario) && scenario != "ready") throw new ArgumentException("Unknown preview scenario.");
+        sample["ready"] = string.IsNullOrEmpty(scenario) || scenario == "ready";
+        if (!DesktopBridge.Flag(sample, "jellyfinConnected"))
+            sample["jellyfinMessage"] = T(!DesktopBridge.Flag(sample, "configured") || !DesktopBridge.Flag(sample, "secretReady") ? "FindingConnectionMissing" : "FindingJellyfinUnreachable");
+        if (!DesktopBridge.Flag(sample, "vlcReady")) sample["vlcVersion"] = "";
+        ApplyHealth(sample);
+    }
+
     public void Validate()
     {
         foreach (System.Text.RegularExpressions.Match resource in System.Text.RegularExpressions.Regex.Matches(
@@ -536,14 +597,23 @@ internal sealed class ControlCenterWindow : IDisposable
         foreach (string name in ActionNames) Get<Button>(name);
         foreach (string page in new[] { "Overview", "Settings", "Diagnostics" }) { Navigate(page); Window.Measure(new Size(1100, 780)); Window.Arrange(new Rect(0, 0, 1100, 780)); Window.UpdateLayout(); }
         foreach (string choice in new[] { "en", "fr" }) { preference = choice; ApplyLanguage(); }
+        foreach (string scenario in new[] { "connect", "credential", "revoked", "vlc", "vlc-settings", "offline", "repair", "extension", "ready" })
+        {
+            SelectPreviewScenario(scenario);
+            if (Convert.ToString(Get<Button>("OpenJellyfinButton").Content).StartsWith("DesktopAction", StringComparison.Ordinal))
+                throw new InvalidDataException("Missing next-step translation.");
+        }
+        Get<Expander>("AdvancedSettings").IsExpanded = true;
+        Navigate("Settings"); Window.UpdateLayout();
+        Get<Expander>("AdvancedSettings").IsExpanded = false;
         if (Get<ComboBox>("LanguageBox").Items.Count != 3 || Get<ComboBox>("ModeBox").Items.Count != 2)
             throw new InvalidDataException("Invalid desktop settings choices.");
         if (Window.MinHeight > 650 || Window.MinWidth > 850) throw new InvalidDataException("Desktop minimum size is too large.");
     }
     public void RenderPreview(string path, string page, string scaleText)
     {
-        Navigate(page == "settings" ? "Settings" : page == "diagnostics" ? "Diagnostics" : "Overview");
-        if (page == "settings") { binding = true; Get<ComboBox>("ModeBox").SelectedIndex = 1; binding = false; }
+        Navigate(page == "settings" || page == "settings-advanced" ? "Settings" : page == "diagnostics" ? "Diagnostics" : "Overview");
+        if (page == "settings-advanced") { binding = true; Get<ComboBox>("ModeBox").SelectedIndex = 1; Get<Expander>("AdvancedSettings").IsExpanded = true; binding = false; }
         double scale;
         if (!double.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out scale) || scale < 1 || scale > 3) scale = 1;
         var content = (FrameworkElement)Window.Content;

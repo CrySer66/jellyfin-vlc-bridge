@@ -9,8 +9,8 @@ using System.Windows.Threading;
 [assembly: AssemblyDescription("Centre de contrôle Windows natif")]
 [assembly: AssemblyCompany("Jellyfin VLC Bridge Project")]
 [assembly: AssemblyProduct("Jellyfin VLC Bridge")]
-[assembly: AssemblyVersion("1.19.1.0")]
-[assembly: AssemblyFileVersion("1.19.1.0")]
+[assembly: AssemblyVersion("1.20.0.0")]
+[assembly: AssemblyFileVersion("1.20.0.0")]
 [assembly: TargetFramework(".NETFramework,Version=v4.8")]
 
 internal static class ControlCenterBootstrap
@@ -69,6 +69,7 @@ internal static class ControlCenterBootstrap
         using (var desktop = new ControlCenterWindow(preview, Option(args, "--language")))
         {
             app.MainWindow = desktop.Window;
+            if (preview) desktop.SelectPreviewScenario(Option(args, "--scenario"));
             if (validate) { desktop.Validate(); return 0; }
             if (renderPath != null)
             {

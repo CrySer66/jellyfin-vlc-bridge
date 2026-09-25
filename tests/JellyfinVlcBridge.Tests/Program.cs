@@ -1,10 +1,19 @@
 using JellyfinVlcBridge.Core;
 
 if (args.FirstOrDefault() == "--no-one-instance")
+{
+    if (!args.Any(arg => arg.StartsWith("--http-port=", StringComparison.Ordinal)))
+        return await CliPlaybackRegressionTests.RunUntrackedFakeAsync(args);
+    if (CliPlaybackRegressionTests.IsSingleTest(args)) return await CliPlaybackRegressionTests.RunSingleFakeAsync(args);
     return await CliPlaylistIntegrationTests.RunFakeVlcAsync(args);
+}
 
 var tests = new (string Name, Func<Task> Run)[]
 {
+    ("Une configuration échouée préserve la connexion précédente", ConnectionSettingsTests.RunAsync),
+    ("Une connexion Jellyfin révoquée propose une nouvelle authentification", BridgeDiagnosticsTests.RunAsync),
+    ("La synchronisation désactivée est respectée pour film et playlist", CliPlaybackRegressionTests.WithoutSyncAsync),
+    ("Un état VLC arrêté ne remet pas la reprise d’un film à zéro", CliPlaybackRegressionTests.SingleStoppedPositionAsync),
     ("Mapping Windows vers SMB", () => Completed(() => Equal(@"\\serveur\Films\Alien\Alien.mkv",
         PathMapper.Map(@"D:\Films\Alien\Alien.mkv", [new(@"D:\Films", @"\\serveur\Films")])))),
     ("Mapping le plus spécifique", () => Completed(() => Equal(@"\\nas\4K\Film.mkv",

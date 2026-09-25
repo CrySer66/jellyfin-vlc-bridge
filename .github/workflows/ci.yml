@@ -43,6 +43,10 @@ jobs:
         shell: pwsh
         run: ./tools/Test-PowerShellSyntax.ps1
 
+      - name: Vérifier le parcours de publication hors réseau
+        shell: pwsh
+        run: ./tools/Test-PublicationFlow.ps1
+
       - name: Restaurer les dépendances
         shell: pwsh
         run: dotnet restore JellyfinVlcBridge.slnx --configfile NuGet.Config
@@ -67,7 +71,9 @@ jobs:
         shell: pwsh
         run: |
           node --check browser-extension/background.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check browser-extension/content.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tests/extension-tests.js
 
       - name: Construire et vérifier le paquet Chrome Web Store
