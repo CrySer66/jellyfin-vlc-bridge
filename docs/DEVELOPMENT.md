@@ -5,7 +5,7 @@ Ce document concerne les personnes qui souhaitent examiner, compiler ou contribu
 ## Environnement
 
 - Windows 10/11 x64 pour construire l'installateur ;
-- SDK .NET 8 ou plus récent ;
+- SDK .NET 10 correspondant à `global.json` et runtime .NET 8 pour exécuter les tests ;
 - .NET Framework 4.8 pour le centre de contrôle WPF sur Windows 10/11 ;
 - PowerShell 5.1 ou plus récent ;
 - VLC pour les tests de lecture réels.
@@ -21,6 +21,17 @@ dotnet run --project tests\JellyfinVlcBridge.Tests --configuration Debug --no-re
 ```
 
 Les tests sont hors ligne et ne nécessitent aucun jeton Jellyfin.
+
+Le parcours de publication se teste également sans compte GitHub et sans réseau :
+
+```powershell
+.\tools\Test-PublicationFlow.ps1
+```
+
+Ce test simule les réponses GitHub et Git : compte absent, tests en cours ou en
+échec, code modifié avant fusion, récupération de la fusion et reprise après
+interruption. Il vérifie aussi la version et les sources du commit à reprendre.
+Il ne crée ni commit, ni tag, ni Pull Request.
 
 À chaque envoi sur `main` et pour chaque Pull Request, GitHub Actions vérifie automatiquement les versions, la syntaxe PowerShell et JavaScript, la compilation et les tests Windows.
 
@@ -81,7 +92,7 @@ limites des vérifications.
 ## Construire la version Windows
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1 -Version 1.19.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease.ps1
 ```
 
 Le script :
@@ -96,16 +107,16 @@ Le script :
 Fichiers produits :
 
 ```text
-outputs\JellyfinVlcBridge-1.19.1-Setup.exe
-outputs\JellyfinVlcBridge-1.19.1-win-x64.zip
+outputs\JellyfinVlcBridge-<version>-Setup.exe
+outputs\JellyfinVlcBridge-<version>-win-x64.zip
 ```
 
 Pour préparer localement les métadonnées qui accompagneront la Release :
 
 ```powershell
-.\tools\New-ReleaseChecksums.ps1 -Version 1.19.1
-.\tools\New-ReleaseNotes.ps1 -Version 1.19.1
-.\tools\Test-ReleaseMetadata.ps1 -Version 1.19.1
+.\tools\New-ReleaseChecksums.ps1
+.\tools\New-ReleaseNotes.ps1
+.\tools\Test-ReleaseMetadata.ps1
 ```
 
 Ces commandes préparent des fichiers locaux. La publication des téléchargements
@@ -120,8 +131,8 @@ elle ne remplace pas une signature Authenticode Windows.
 La version du manifeste de l'extension peut évoluer indépendamment de celle du Bridge.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1 -Version 1.8.1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ExtensionPackage.ps1 -Version 1.8.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-ExtensionPackage.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ExtensionPackage.ps1
 ```
 
 Le ZIP Chrome Web Store ne contient pas le champ de développement `key`. L'élément existant dans le tableau de bord conserve l'identifiant officiel :
@@ -167,14 +178,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publier-Mise-A-Jour-
 
 Le numéro est lu automatiquement dans `Directory.Build.props`. Le script :
 
-1. vérifie les versions, PowerShell et JavaScript ;
-2. compile et exécute les tests du Bridge et de l'extension ;
-3. construit localement le Setup et le ZIP ;
-4. vérifie que GitHub CLI et Git utilisent le même compte ;
+1. vérifie la connexion GitHub en lecture seule, avant toute compilation ;
+2. vérifie les versions, PowerShell, JavaScript et les tests du projet ;
+3. construit localement le Setup et le ZIP, puis vérifie leurs métadonnées ;
+4. configure Git pour utiliser le compte GitHub CLI ;
 5. crée une copie Git neuve et une branche de publication ;
-6. ouvre une Pull Request et attend les tests GitHub ;
-7. fusionne seulement si tous les tests ont réussi ;
-8. crée le tag puis attend que le Setup et le ZIP soient disponibles.
+6. reprend la Pull Request ouverte pour cette version, ou en crée une, et attend les tests GitHub ;
+7. fusionne uniquement le commit dont les tests ont réussi ;
+8. récupère le commit fusionné depuis `main`, crée le tag et attend les téléchargements.
 
 Pour contrôler le projet et la connexion GitHub sans envoyer le moindre fichier :
 
@@ -185,11 +196,27 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publier-Mise-A-Jour-
 Si Internet ou GitHub s'interrompt après la création du tag, relancer exactement la
 même commande reprend la vérification de la Release sans renvoyer le code.
 
+Si la fusion a réussi mais que le tag n’a pas été envoyé, relancez également
+la même commande, avec les mêmes sources et le même numéro de version. Le
+script retrouve l’unique Pull Request fusionnée pour cette version, vérifie
+que son commit appartient toujours à `main`, puis compare sa version et tout
+son contenu aux sources validées localement. Il reprend le tag sur ce commit
+précis, même si `main` a avancé depuis. Une version, des sources ou une fusion
+ambiguës interrompent la reprise sans créer de tag.
+
 Une modification volontaire de `.github/workflows` exige l'autorisation GitHub
 supplémentaire `workflow`. Le script s'arrête avant tout envoi si elle manque et
 affiche la commande unique à exécuter.
 
-La construction locale est la méthode de publication recommandée : elle permet de tester exactement les deux fichiers qui seront proposés aux utilisateurs. Les vérifications GitHub Actions restent un contrôle complémentaire du code source.
+Si la Pull Request change après la validation de ses tests, GitHub refuse la
+fusion demandée par le script. Relancez le parcours pour vérifier le nouvel
+état. La copie publique accepte uniquement les dossiers du projet prévus pour
+la publication et refuse les configurations personnelles, journaux, liens et
+secrets connus détectés dans les fichiers.
+
+La construction locale vérifie le contenu avant publication. GitHub Actions
+reconstruit ensuite les fichiers publics et atteste ces téléchargements ; les
+binaires locaux ne sont pas envoyés tels quels à la Release.
 
 L'extension Chrome possède son propre cycle de version et reste publiée séparément dans le Chrome Web Store après examen par Google. Les textes, captures d’écran et autres éléments promotionnels sont gérés dans le tableau de bord du magasin et ne font pas partie des sources nécessaires à la compilation.
 

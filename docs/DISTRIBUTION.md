@@ -8,6 +8,20 @@ Jellyfin VLC Bridge reste volontairement une application **Windows 10/11 x64**.
 Des versions Linux ou macOS ne sont pas prévues tant qu'elles ne peuvent pas
 être testées sérieusement.
 
+## Disponibilité vérifiée le 25 septembre 2026
+
+| Canal | État constaté |
+|---|---|
+| [Application Windows sur GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest) | La page « dernière version » indique la version effectivement publiée et ses téléchargements. |
+| [Extension sur le Chrome Web Store](https://chromewebstore.google.com/detail/jellyfin-vlc-bridge/hkjbodgdbjhignhlbecchiigcfigpidp) | Version 1.8.1 publiée ; la fiche indique une mise à jour le 11 septembre 2026. |
+| Versions dans les sources | Application 1.20.0 et extension 1.9.0. Un numéro dans les sources ou un paquet compilé ne confirme pas sa publication. |
+
+L’application Windows et l’extension ont deux publications distinctes. Un
+nouveau paquet local ou une Release GitHub ne met pas à jour le Chrome Web
+Store : l’extension 1.9.0 doit être soumise sur sa fiche existante, puis validée
+par Google. Les liens « dernière version » du README conduisent aux publications
+disponibles, indépendamment de la version en cours de préparation.
+
 ## Étapes prévues
 
 1. **GitHub Releases** — publier l'installateur et le ZIP avec
@@ -42,6 +56,20 @@ third-party store.
 
 Jellyfin VLC Bridge intentionally remains a **Windows 10/11 x64** application.
 Linux and macOS builds are not planned while they cannot be tested properly.
+
+## Availability checked on September 25, 2026
+
+| Channel | Observed status |
+|---|---|
+| [Windows application on GitHub](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest) | The latest-release page identifies the published version and its downloads. |
+| [Chrome Web Store extension](https://chromewebstore.google.com/detail/jellyfin-vlc-bridge/hkjbodgdbjhignhlbecchiigcfigpidp) | Version 1.8.1 published; the listing gives September 11, 2026 as its update date. |
+| Versions in the source tree | Application 1.20.0 and extension 1.9.0. A source version or compiled package does not confirm publication. |
+
+The Windows application and extension have separate release processes. A local
+package or GitHub Release does not update the Chrome Web Store: extension 1.9.0
+must be submitted to its existing listing and reviewed by Google. The README
+download links lead to available releases regardless of the version being
+prepared.
 
 ## Planned steps
 

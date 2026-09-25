@@ -108,10 +108,9 @@ static async Task<int> QuickSetupAsync(string[] args)
         InstallProtocol();
         InstallNativeHost();
     }
-    var credentialStore = new EnvironmentOrWindowsCredentialStore();
+    var credentialStore = new EnvironmentOrWindowsCredentialStore(useEnvironment: false);
     var newSecretKey = SecretKeys.ForServer(server);
-    credentialStore.Write(newSecretKey, authentication.AccessToken);
-    updatedConfig.Save();
+    ConnectionSettingsStore.Save(updatedConfig, authentication.AccessToken, credentialStore);
     if (existing is not null)
     {
         var previousSecretKey = SecretKeys.ForServer(existing.ServerUrl);
@@ -154,13 +153,13 @@ static async Task<int> SetupApiAsync()
     var user = users.FirstOrDefault(x => x.Name.Equals(userName, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException($"Utilisateur « {userName} » introuvable. Utilisateurs visibles : {string.Join(", ", users.Select(x => x.Name))}");
 
-    new BridgeConfig
+    var updatedConfig = new BridgeConfig
     {
         ServerUrl = server,
         UserId = user.Id,
         PlaybackMode = "http"
-    }.Save();
-    new EnvironmentOrWindowsCredentialStore().Write(SecretKeys.ForServer(server), token);
+    };
+    ConnectionSettingsStore.Save(updatedConfig, token, new EnvironmentOrWindowsCredentialStore(useEnvironment: false));
     Console.WriteLine($"Serveur validé et utilisateur « {user.Name} » reconnu.");
     if (OperatingSystem.IsWindows())
     {
@@ -187,12 +186,13 @@ static int Configure(string[] args)
         DeviceId = Guid.NewGuid().ToString("N"),
         PathMappings = mappings
     };
-    config.Save();
+    config.Validate();
 
     Console.Write("Jeton API Jellyfin (saisie masquée, Entrée pour utiliser JELLYFIN_VLC_TOKEN) : ");
     var token = ReadSecret();
     if (!string.IsNullOrWhiteSpace(token))
-        new EnvironmentOrWindowsCredentialStore().Write(SecretKeys.ForServer(server), token);
+        ConnectionSettingsStore.Save(config, token, new EnvironmentOrWindowsCredentialStore(useEnvironment: false));
+    else config.Save();
     Console.WriteLine($"Configuration enregistrée dans {BridgeConfig.DefaultPath}");
     return 0;
 }
@@ -351,7 +351,10 @@ static async Task PlayQueueAsync(
         }
 
         Console.WriteLine("Liste de lecture VLC préparée ; les médias s'enchaîneront dans la même fenêtre.");
-        await RunVlcPlaylistWithSyncAsync(vlc, playlist, jellyfin, onStarted);
+        if (config.ProgressSyncEnabled)
+            await RunVlcPlaylistWithSyncAsync(vlc, playlist, jellyfin, onStarted);
+        else
+            await RunVlcWithoutSyncAsync(vlc, playlist.Select(item => new VlcLaunchItem(item.Media, item.ResumeAt)).ToList(), onStarted);
     }
     finally
     {
@@ -376,6 +379,16 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     var mediaSourceId = mediaSource?.Id;
     var resumeTicks = restart ? 0 : item.UserData?.PlaybackPositionTicks ?? 0;
     var resumeAt = resumeTicks > 0 ? TimeSpan.FromTicks(resumeTicks) : (TimeSpan?)null;
+
+    async Task<PlaybackRunResult> LaunchAsync(string media)
+    {
+        if (dryRun) return new PlaybackRunResult(true, resumeTicks, 0);
+        if (config.ProgressSyncEnabled)
+            return await RunVlcWithSyncAsync(vlc, media, resumeAt, jellyfin, itemId, mediaSourceId, onStarted);
+        await RunVlcWithoutSyncAsync(vlc, [new VlcLaunchItem(media, resumeAt)], onStarted);
+        return new PlaybackRunResult(false, resumeTicks, 0);
+    }
+
     if (config.PlaybackMode == "smb")
     {
         var sourcePath = mediaSource?.Path ??
@@ -383,9 +396,7 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
             ?? throw new InvalidDataException("Jellyfin n'a retourné aucun chemin pour ce média.");
         var media = PathMapper.Map(sourcePath, config.PathMappings);
         Console.WriteLine($"VLC ouvrira le partage : {media}");
-        return dryRun
-            ? new PlaybackRunResult(true, resumeTicks, 0)
-            : await RunVlcWithSyncAsync(vlc, media, resumeAt, jellyfin, itemId, mediaSourceId, onStarted);
+        return await LaunchAsync(media);
     }
 
     var mediaSourceQuery = string.IsNullOrWhiteSpace(mediaSourceId) ? "" : $"&MediaSourceId={Uri.EscapeDataString(mediaSourceId)}";
@@ -393,8 +404,15 @@ static async Task<PlaybackRunResult> PlayResolvedItemAsync(
     await using var proxy = new AuthenticatedStreamProxy(http, upstream, token);
     var localUrl = proxy.Start();
     Console.WriteLine("VLC ouvrira un relais local authentifié (le jeton ne figure pas dans l'URL ni la ligne de commande). ");
-    if (dryRun) return new PlaybackRunResult(true, resumeTicks, 0);
-    return await RunVlcWithSyncAsync(vlc, localUrl, resumeAt, jellyfin, itemId, mediaSourceId, onStarted);
+    return await LaunchAsync(localUrl);
+}
+
+static async Task RunVlcWithoutSyncAsync(string vlc, IReadOnlyList<VlcLaunchItem> media, Func<Task>? onStarted)
+{
+    using var process = VlcLauncher.StartPlaylist(vlc, media);
+    if (onStarted is not null) await onStarted();
+    BridgeLog.Info($"Lecture VLC sans synchronisation count={media.Count}");
+    await process.WaitForExitAsync();
 }
 
 static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
@@ -419,7 +437,7 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
 
     try
     {
-        var initial = await controller.WaitUntilReadyAsync(TimeSpan.FromSeconds(20));
+        var initial = await WaitForActiveMediaAsync(controller, process, TimeSpan.FromSeconds(20), requirePlaylistId: false);
         lastPositionTicks = Math.Max(lastPositionTicks, initial.PositionTicks);
         durationTicks = Math.Max(durationTicks, initial.DurationTicks);
         reportingStarted = await TryReportPlaybackStartedAsync(
@@ -437,6 +455,9 @@ static async Task<PlaybackRunResult> RunVlcWithSyncAsync(
             try
             {
                 var status = await controller.GetStatusAsync();
+                // VLC clears its time while stopping or loading. This is not a
+                // seek to the beginning and must not erase the resume point.
+                if (!status.IsActive) continue;
                 lastPositionTicks = status.PositionTicks;
                 durationTicks = Math.Max(durationTicks, status.DurationTicks);
                 var volume = Math.Clamp((int)Math.Round(status.Volume / 2.56), 0, 100);
@@ -504,7 +525,7 @@ static async Task RunVlcPlaylistWithSyncAsync(
     {
         // Between two entries VLC briefly reports stopped/time=0. Keep the last
         // known position instead of clearing the resume point of the old item.
-        if (status.CurrentPlaylistId < 0 || status.State is "stopped" or "ended" or "error") return;
+        if (status.CurrentPlaylistId < 0 || !status.IsActive) return;
         if (status.CurrentPlaylistId != lastPlaylistId || currentIndex < 0)
         {
             if (reportingStarted && currentIndex >= 0)
@@ -650,7 +671,8 @@ static async Task TryReportPlaybackStoppedAsync(
 static async Task<VlcStatus> WaitForActiveMediaAsync(
     VlcController controller,
     System.Diagnostics.Process process,
-    TimeSpan timeout)
+    TimeSpan timeout,
+    bool requirePlaylistId = true)
 {
     var deadline = DateTime.UtcNow + timeout;
     Exception? lastError = null;
@@ -659,8 +681,7 @@ static async Task<VlcStatus> WaitForActiveMediaAsync(
         try
         {
             var status = await controller.GetStatusAsync();
-            if (status.CurrentPlaylistId >= 0 &&
-                status.State is not ("stopped" or "ended" or "error")) return status;
+            if ((!requirePlaylistId || status.CurrentPlaylistId >= 0) && status.IsActive) return status;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {

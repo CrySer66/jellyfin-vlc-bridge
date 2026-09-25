@@ -54,6 +54,32 @@ internal sealed class DesktopBridge : IDisposable
         return Boolean.TryParse(Text(values, key), out result) && result;
     }
 
+    internal static string SuggestedAction(IDictionary<string, object> status)
+    {
+        if (status == null) return "refresh";
+        if (!Flag(status, "configured")) return "connect";
+        if (Value(status, "secretReady") != null && !Flag(status, "secretReady")) return "connect";
+        bool invalidVlcPath = false;
+        var findings = Value(status, "findings") as IEnumerable;
+        if (findings != null)
+            foreach (object finding in findings)
+            {
+                string code = Text(finding as IDictionary<string, object>, "code");
+                if (code == "jellyfin.authentication-required") return "connect";
+                if (code == "vlc.configured-path-missing") invalidVlcPath = true;
+            }
+        if (!Flag(status, "vlcReady"))
+        {
+            if (invalidVlcPath) return "settings";
+            return "vlc";
+        }
+        if (!Flag(status, "jellyfinConnected")) return "refresh";
+        if (!Flag(status, "protocolReady") || !Flag(status, "nativeMessagingReady")) return "repair";
+        // A missing heartbeat can simply mean Jellyfin is closed. Opening it
+        // confirms the extension without incorrectly prescribing a reinstall.
+        return "open";
+    }
+
     internal Task<string> Run(string[] arguments, int timeoutSeconds, CancellationToken cancellation = default(CancellationToken))
     {
         if (arguments == null) throw new ArgumentNullException("arguments");

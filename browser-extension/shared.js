@@ -11,7 +11,17 @@
   });
 
   function availabilityFromResult(result) {
-    return result?.ok ? 'ready' : 'missing';
+    if (result?.ok === true) return 'ready';
+    return result?.errorCode === 'native_missing' ? 'missing' : 'unavailable';
+  }
+
+  function nativeErrorCode(error) {
+    // Only a known registration/host lookup failure proves the Bridge cannot
+    // be found. Unknown or localized errors must not claim it is uninstalled.
+    const message = typeof error === 'string' ? error : error?.message || '';
+    return /specified native messaging host not found|native messaging host .+ is not registered/i.test(message)
+      ? 'native_missing'
+      : 'native_transport';
   }
 
   function supportsInspection(version) {
@@ -33,6 +43,8 @@
       case 'authentication_required': return t('jellyfinAuthenticationRequired');
       case 'access_denied': return t('jellyfinAccessDenied');
       case 'item_not_found': return t('jellyfinItemNotFound');
+      case 'native_missing': return t('installBridgeToast');
+      case 'native_timeout':
       case 'native_transport': return t('bridgeCommunicationFailed');
       default: return t('playbackRequestFailed');
     }
@@ -45,6 +57,7 @@
       success: { label: t('vlcStarted'), title: t('playbackStartedTitle'), disabled: false },
       reload: { label: t('reloadJellyfin'), title: t('reloadRequiredTitle'), disabled: false },
       missing: { label: t('applicationNotInstalled'), title: t('downloadApplicationTitle'), disabled: false },
+      unavailable: { label: t('checkConnection'), title: t('checkConnectionTitle'), disabled: false },
       ready: { label: t('playWithVlc'), title: t('playOriginalTitle'), disabled: false }
     };
 
@@ -115,8 +128,9 @@
     return choices.some(choice => choice.value === saved) ? saved : choices[0].value;
   }
 
-  function preferredStartMode(preferences, hasResume) {
+  function preferredStartMode(preferences, hasResume, selectedStartMode) {
     if (!hasResume) return 'restart';
+    if (selectedStartMode === 'resume' || selectedStartMode === 'restart') return selectedStartMode;
     const normalized = normalizePreferences(preferences);
     return normalized.rememberChoices ? normalized.startMode : 'resume';
   }
@@ -124,6 +138,7 @@
   const api = Object.freeze({
     links,
     availabilityFromResult,
+    nativeErrorCode,
     supportsInspection,
     canPlayWithoutPreview,
     requestErrorMessage,

@@ -4,6 +4,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   background: #13181e;
@@ -56,6 +57,8 @@ main { display: grid; gap: 10px; padding: 16px; }
   border: 1px solid #40515f;
   border-radius: 8px;
   color: #fff;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 650;
   padding: 10px 12px;
@@ -66,5 +69,5 @@ main { display: grid; gap: 10px; padding: 16px; }
 .button:hover, .button:focus-visible { background: #334350; outline: 2px solid #8bd7f2; outline-offset: 1px; }
 .button--primary { background: #0782b1; border-color: #20a6d6; }
 .button--primary:hover, .button--primary:focus-visible { background: #0996ca; }
-.status--ready + .button--primary { display: none; }
+.button:disabled { cursor: wait; opacity: .65; }
 .support { color: #8bd7f2; font-size: 12px; margin-top: 2px; text-align: center; }

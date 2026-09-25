@@ -24,6 +24,7 @@
   let lastAvailabilityCheck = 0;
   let bridgeAvailability = 'checking';
   let bridgeVersion = null;
+  let availabilityRequest = 0;
   let closeActiveDialog = null;
 
   function applyAvailability() {
@@ -47,18 +48,20 @@
     const now = Date.now();
     if (!force && now - lastAvailabilityCheck < 12000) return;
     lastAvailabilityCheck = now;
+    const request = ++availabilityRequest;
     try {
       chrome.runtime.sendMessage({ type: 'status' }, result => {
         let runtimeError;
         try { runtimeError = chrome.runtime.lastError; } catch { runtimeError = true; }
+        if (request !== availabilityRequest) return;
         if (!runtimeError && result?.ok) bridgeVersion = result.response?.bridgeVersion || null;
         bridgeAvailability = isInvalidExtensionContext(runtimeError)
           ? 'reload'
-          : runtimeError ? 'missing' : BRIDGE.availabilityFromResult(result);
+          : runtimeError ? 'unavailable' : BRIDGE.availabilityFromResult(result);
         applyAvailability();
       });
     } catch {
-      bridgeAvailability = globalThis.chrome?.runtime?.id ? 'missing' : 'reload';
+      bridgeAvailability = globalThis.chrome?.runtime?.id ? 'unavailable' : 'reload';
       applyAvailability();
     }
   }
@@ -257,7 +260,7 @@
       return;
     }
     if (bridgeAvailability !== 'ready') {
-      openApplicationDownload(button);
+      handleUnavailableBridge(button);
       return;
     }
 
@@ -278,6 +281,7 @@
     let selectedScope = 'auto';
     let selectedItemType = 'video';
     let selectedMediaSourceId = '';
+    let selectedStartMode = null;
     let preferences = BRIDGE.normalizePreferences();
     let preferencesSupported = false;
     let rememberInitialized = false;
@@ -310,7 +314,7 @@
 
       const resume = dialog.overlay.querySelector('input[value="resume"]');
       const restart = dialog.overlay.querySelector('input[value="restart"]');
-      const preferredStart = BRIDGE.preferredStartMode(preferences, data.hasResume);
+      const preferredStart = BRIDGE.preferredStartMode(preferences, data.hasResume, selectedStartMode);
       resume.disabled = !data.hasResume;
       resume.checked = preferredStart === 'resume';
       restart.checked = preferredStart === 'restart';
@@ -409,6 +413,10 @@
       if (event.target instanceof HTMLInputElement && event.target.name === 'jvb-scope')
         refresh(event.target.value);
     });
+    startSection.addEventListener('change', event => {
+      if (event.target instanceof HTMLInputElement && event.target.name === 'jvb-start')
+        selectedStartMode = event.target.value;
+    });
     retry.addEventListener('click', () => inspectionInitialized ? refresh(selectedScope) : initialize());
     launch.addEventListener('click', () => {
       if (launch.disabled) return;
@@ -477,10 +485,22 @@
     }
   }
 
+  function handleUnavailableBridge(button) {
+    if (bridgeAvailability === 'reload') {
+      showReloadNotice(button);
+    } else if (bridgeAvailability === 'missing') {
+      openApplicationDownload(button);
+    } else {
+      setButtonState(button, 'unavailable');
+      showToast(t('bridgeCommunicationFailed'), 'warning');
+      checkBridgeAvailability(true);
+    }
+  }
+
   function playItem(itemId, button, options = {}) {
     if (button.dataset.state === 'loading') return;
     if (bridgeAvailability !== 'ready') {
-      openApplicationDownload(button);
+      handleUnavailableBridge(button);
       return;
     }
     setButtonState(button, 'loading');
@@ -521,7 +541,7 @@
 
         setButtonState(button, 'success');
         showToast(t('playbackStartedToast'));
-        window.setTimeout(() => setButtonState(button, 'ready'), 1800);
+        window.setTimeout(() => setButtonState(button, bridgeAvailability), 1800);
       });
     } catch (error) {
       console.warn('Jellyfin VLC Bridge : rechargez la page après une mise à jour de l’extension.', error);

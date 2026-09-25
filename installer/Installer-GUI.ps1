@@ -31,7 +31,7 @@ if ($script:isolatedTestMode -and -not (Test-Path -LiteralPath $script:isolatedT
 }
 $script:skipWindowsRegistration = $script:isolatedTestMode
 
-$script:bridgeVersion = '1.19.1'
+$script:bridgeVersion = '1.20.0'
 $script:chromeWebStoreId = 'hkjbodgdbjhignhlbecchiigcfigpidp'
 $script:chromeWebStoreUrl = 'https://chromewebstore.google.com/detail/' + $script:chromeWebStoreId
 $script:packageDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path

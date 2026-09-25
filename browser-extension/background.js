@@ -7,21 +7,39 @@ const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const LINKS = globalThis.JellyfinVlcBridge.links;
 
 function sendNative(payload, callback) {
-  chrome.runtime.sendNativeMessage(
-    NATIVE_HOST,
-    { ...payload, extensionVersion: EXTENSION_VERSION },
-    response => {
-      const error = chrome.runtime.lastError?.message;
-      callback?.(error
-        ? { ok: false, error, errorCode: 'native_transport' }
-        : {
-          ok: Boolean(response?.accepted),
-          response,
-          error: response?.error,
-          errorCode: response?.errorCode
-        });
-    }
-  );
+  let finished = false;
+  let timer;
+  const finish = result => {
+    if (finished) return;
+    finished = true;
+    if (timer) clearTimeout(timer);
+    callback?.(result);
+  };
+  // A ping should be quick even when the native process fails to reply.
+  // Playback requests are deliberately not timed out: a late launch must not
+  // invite a second click and create duplicate VLC playback.
+  if (payload.type === 'ping') {
+    timer = setTimeout(() => finish({ ok: false, errorCode: 'native_timeout' }), 10000);
+  }
+  try {
+    chrome.runtime.sendNativeMessage(
+      NATIVE_HOST,
+      { ...payload, extensionVersion: EXTENSION_VERSION },
+      response => {
+        const error = chrome.runtime.lastError?.message;
+        finish(error
+          ? { ok: false, error, errorCode: globalThis.JellyfinVlcBridge.nativeErrorCode(error) }
+          : {
+            ok: response?.accepted === true,
+            response,
+            error: response?.error,
+            errorCode: response?.errorCode
+          });
+      }
+    );
+  } catch (error) {
+    finish({ ok: false, error: error.message, errorCode: globalThis.JellyfinVlcBridge.nativeErrorCode(error) });
+  }
 }
 
 function sendHeartbeat(callback) {

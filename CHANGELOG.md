@@ -1,5 +1,30 @@
 # Historique des versions
 
+## 1.20.0 — 2026-09-25
+
+- affiche sur l’accueil la prochaine action utile : connecter Jellyfin, télécharger VLC, réessayer une vérification ou réparer la liaison au navigateur ;
+- regroupe les chemins VLC, le mode de lecture et les dossiers réseau dans des options avancées, en conservant les réglages existants ;
+- restaure le jeton précédent si l’enregistrement d’une nouvelle connexion échoue ;
+- propose Quick Connect lorsqu’une connexion enregistrée est refusée par Jellyfin (HTTP 401), et les réglages lorsqu’un ancien emplacement VLC est devenu invalide ;
+- respecte la désactivation de la synchronisation de progression et conserve la dernière position utile d’un film lorsque VLC s’arrête à zéro ;
+- raccourcit la page GitHub et met l’installation, la première lecture et le dépannage rapide au premier plan ;
+- vérifie la connexion GitHub avant une compilation de publication, lie la fusion au commit effectivement testé et récupère le commit fusionné avant de créer le tag ;
+- reprend une publication interrompue après la fusion lorsque la version et les sources correspondent exactement au commit fusionné ;
+- sépare les tests du Bridge et de l’extension dans la publication GitHub afin qu’un succès JavaScript ne masque pas un échec .NET ;
+- ajoute des tests des étapes proposées à l’accueil, des échecs de connexion et du parcours de publication hors réseau.
+
+Les téléchargements Windows sont distribués sur [GitHub Releases](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest). L’extension Chrome 1.9.0 suit une soumission distincte ; la version 1.8.1 reste celle observée sur le Store le 25 septembre 2026. Voir le [détail des changements et des vérifications](https://github.com/CrySer66/jellyfin-vlc-bridge/blob/v1.20.0/docs/SIMPLIFICATION-1.20.0.md).
+
+## Extension Chrome 1.9.0 — 2026-09-25 — préparation locale
+
+- propose une prochaine étape claire lorsque l’application répond, sans prétendre que le serveur Jellyfin a lui aussi été vérifié ;
+- distingue une application introuvable d’un problème temporaire de connexion et propose **Réessayer**, sans ouvrir inutilement le téléchargement ;
+- borne les vérifications de connexion et ignore les réponses périmées, sans interrompre une préparation de lecture plus longue ;
+- conserve le choix **Reprendre** ou **Recommencer** lors d’un changement d’étendue de lecture ;
+- conserve les permissions existantes de l’extension.
+
+Le ZIP est destiné à une soumission séparée au Chrome Web Store.
+
 ## 1.19.1 — 2026-09-11
 
 Cette version réunit le nouveau centre de contrôle préparé en 1.19.0 et les assistants harmonisés en 1.19.1. Elle conserve les corrections d’authentification Jellyfin 10.x/12 de la 1.18.1.

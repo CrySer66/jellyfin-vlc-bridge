@@ -46,10 +46,11 @@ function Assert-Program([string]$name, [string]$displayName) {
 }
 
 function Invoke-LocalValidation {
-    Write-Host '[1/6] Verification complete du projet...' -ForegroundColor Yellow
+    Write-Host '[2/6] Verification complete du projet...' -ForegroundColor Yellow
     & (Join-Path $PSScriptRoot 'Test-VersionConsistency.ps1') -ExpectedVersion $Version
 
     & (Join-Path $PSScriptRoot 'Test-PowerShellSyntax.ps1')
+    & (Join-Path $PSScriptRoot 'Test-PublicationFlow.ps1')
 
     Invoke-Checked {
         dotnet restore (Join-Path $projectDirectory 'JellyfinVlcBridge.slnx') --configfile (Join-Path $projectDirectory 'NuGet.Config')
@@ -95,8 +96,8 @@ function Invoke-LocalValidation {
 }
 
 function Assert-GitHubConnection([switch]$ReadOnly) {
-    Write-Host '[2/6] Verification de la connexion GitHub...' -ForegroundColor Yellow
-    $accountName = & gh api user --jq '.login' 2>$null
+    Write-Host '[1/6] Verification de la connexion GitHub...' -ForegroundColor Yellow
+    $accountName = & gh api user --hostname github.com --jq '.login' 2>$null
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($accountName | Out-String))) {
         throw @'
 GitHub CLI n est pas connecte dans cette session Windows.
@@ -115,7 +116,7 @@ Puis relancez ce script.
 
     if (-not $ReadOnly) {
         # Git et GitHub CLI utilisent ainsi la meme connexion Windows.
-        Invoke-Checked { gh auth setup-git } 'GitHub CLI n a pas pu configurer la connexion de Git.'
+        Invoke-Checked { gh auth setup-git --hostname github.com } 'GitHub CLI n a pas pu configurer la connexion de Git.'
     }
 }
 
@@ -169,7 +170,7 @@ function Wait-ForRelease {
 }
 
 function Get-PullRequestState([int]$number) {
-    $json = & gh pr view $number --repo $Repository --json state,mergeable,mergeStateStatus,statusCheckRollup,mergeCommit,url
+    $json = & gh pr view $number --repo $Repository --json state,headRefOid,mergeable,mergeStateStatus,statusCheckRollup,mergeCommit,url
     if ($LASTEXITCODE -ne 0) {
         throw "Impossible de lire l etat de la Pull Request #$number."
     }
@@ -183,6 +184,12 @@ function Wait-ForPullRequestChecks([int]$number) {
 
     while ([DateTimeOffset]::Now -lt $deadline) {
         $pr = Get-PullRequestState $number
+        if ($pr.state -ne 'OPEN') {
+            throw "La Pull Request #$number n est plus ouverte. Aucun tag ni Release n a ete cree."
+        }
+        if ([string]$pr.headRefOid -notmatch '^[0-9a-f]{40}$') {
+            throw "Le commit de la Pull Request #$number est introuvable."
+        }
         $checks = @($pr.statusCheckRollup)
         $failures = @($checks | Where-Object {
             $_.conclusion -in @('FAILURE', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE')
@@ -198,7 +205,7 @@ function Wait-ForPullRequestChecks([int]$number) {
         })
         if ($checks.Count -gt 0 -and $unfinished.Count -eq 0) {
             Write-Host 'Tous les tests GitHub ont reussi.' -ForegroundColor Green
-            return
+            return [string]$pr.headRefOid
         }
 
         if (([DateTimeOffset]::Now - $lastMessage).TotalSeconds -ge 30) {
@@ -222,6 +229,76 @@ function Update-PullRequestBranchIfNeeded([int]$number) {
     Invoke-Checked {
         gh pr update-branch $number --repo $Repository
     } "La branche de la Pull Request #$number ne peut pas etre mise a jour automatiquement."
+}
+
+function Merge-ValidatedPullRequest([int]$number, [string]$validatedHead) {
+    if ($validatedHead -notmatch '^[0-9a-f]{40}$') {
+        throw 'Le commit valide est introuvable. La fusion est annulee.'
+    }
+    Invoke-Checked {
+        gh pr merge $number --repo $Repository --merge --delete-branch --match-head-commit $validatedHead
+    } "La Pull Request #$number n a pas pu etre fusionnee. Si son code a change, relancez les verifications." | Out-Host
+
+    $mergedPr = Get-PullRequestState $number
+    $mergeCommit = [string]$mergedPr.mergeCommit.oid
+    if ($mergedPr.state -ne 'MERGED' -or $mergeCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "La fusion de la Pull Request #$number n est pas confirmee."
+    }
+    if ([string]$mergedPr.headRefOid -ne $validatedHead) {
+        throw "Le commit fusionne ne correspond pas au code valide. Aucun tag n a ete cree."
+    }
+
+    # gh merges on GitHub; the fresh clone may not have the merge commit yet.
+    Invoke-Checked {
+        git fetch origin 'refs/heads/main:refs/remotes/origin/main'
+    } 'Impossible de recuperer la fusion depuis GitHub. Aucun tag n a ete cree.' | Out-Host
+    Invoke-Checked {
+        git merge-base --is-ancestor $mergeCommit 'refs/remotes/origin/main'
+    } 'Le commit fusionne est absent de main. Aucun tag n a ete cree.' | Out-Host
+    return $mergeCommit
+}
+
+function Get-MergedReleaseCommit([string]$branchName) {
+    $json = & gh pr list --repo $Repository --base main --head $branchName --state merged --limit 2 --json number,url
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de rechercher une publication deja fusionnee.' }
+    $mergedResult = ($json | Out-String) | ConvertFrom-Json
+    $mergedPullRequests = @($mergedResult)
+    if ($mergedPullRequests.Count -eq 0) { return $null }
+    if ($mergedPullRequests.Count -ne 1) {
+        throw "Plusieurs Pull Requests fusionnees utilisent $branchName. Aucun tag ne sera cree automatiquement."
+    }
+
+    $pr = Get-PullRequestState ([int]$mergedPullRequests[0].number)
+    $mergeCommit = [string]$pr.mergeCommit.oid
+    if ($pr.state -ne 'MERGED' -or $mergeCommit -notmatch '^[0-9a-f]{40}$') {
+        throw 'La fusion a reprendre ne peut pas etre confirmee. Aucun tag ne sera cree.'
+    }
+    Invoke-Checked {
+        git fetch origin 'refs/heads/main:refs/remotes/origin/main'
+    } 'Impossible de recuperer la fusion a reprendre.' | Out-Host
+    Invoke-Checked {
+        git merge-base --is-ancestor $mergeCommit 'refs/remotes/origin/main'
+    } 'La fusion a reprendre est absente de main. Aucun tag ne sera cree.' | Out-Host
+
+    $propsText = & git show "${mergeCommit}:Directory.Build.props"
+    if ($LASTEXITCODE -ne 0) { throw 'La version du commit fusionne est introuvable.' }
+    [xml]$props = ($propsText | Out-String)
+    if ([string]$props.Project.PropertyGroup.Version -ne $Version) {
+        throw "La version du commit fusionne ne correspond pas a $Version. Aucun tag ne sera cree."
+    }
+
+    # Compare the complete validated source snapshot, never tag today's main blindly.
+    $validatedTree = & git write-tree
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de verifier les sources preparees.' }
+    $mergedTree = & git rev-parse "$mergeCommit^{tree}"
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de verifier les sources fusionnees.' }
+    $validatedTree = ($validatedTree | Out-String).Trim()
+    $mergedTree = ($mergedTree | Out-String).Trim()
+    if ($validatedTree -notmatch '^[0-9a-f]{40}$' -or $validatedTree -ne $mergedTree) {
+        throw "Les sources locales different du commit deja fusionne pour $Version. Reprenez ses sources exactes ou preparez une nouvelle version. Aucun tag ne sera cree."
+    }
+    Write-Host "Publication deja fusionnee reprise : $($mergedPullRequests[0].url) ($mergeCommit)" -ForegroundColor Green
+    return $mergeCommit
 }
 
 function Copy-PublicSources([string]$destinationRoot) {
@@ -329,9 +406,10 @@ try {
     Assert-Program 'node' 'Node.js'
     Assert-Program 'gh' 'GitHub CLI'
 
+    # Detect an expired or missing account before the lengthy builds, without changing Git.
+    Assert-GitHubConnection -ReadOnly
     Invoke-LocalValidation
     if ($ValidateOnly) {
-        Assert-GitHubConnection -ReadOnly
         Write-Host ''
         Write-Host 'Verification terminee : le projet et la connexion GitHub sont prets.' -ForegroundColor Green
         $publicationSucceeded = $true
@@ -404,12 +482,13 @@ try {
         & git diff --cached --quiet
         $hasSourceChanges = $LASTEXITCODE -eq 1
         if ($LASTEXITCODE -notin @(0, 1)) { throw 'Impossible de comparer les sources.' }
-        if (-not $hasSourceChanges -and -not $remoteBranchExists) {
+        $resumeMergeCommit = Get-MergedReleaseCommit $branchName
+        if (-not $hasSourceChanges -and -not $remoteBranchExists -and -not $resumeMergeCommit) {
             throw 'Aucune modification source n est presente pour cette nouvelle version.'
         }
 
         $workflowChanges = @(& git diff --cached --name-only -- '.github/workflows')
-        if ($workflowChanges.Count -gt 0) {
+        if ($workflowChanges.Count -gt 0 -and -not $resumeMergeCommit) {
             if (-not $AllowWorkflowChanges) {
                 throw @"
 Un fichier de fonctionnement GitHub a change :
@@ -422,19 +501,21 @@ Si ce changement est volontaire, executez une seule fois :
 Puis relancez avec l option -AllowWorkflowChanges.
 "@
             }
-            $authHeaders = (& gh api --include user 2>&1 | Out-String)
+            $authHeaders = (& gh api --hostname github.com --include user 2>&1 | Out-String)
             if ($LASTEXITCODE -ne 0 -or $authHeaders -notmatch "(?im)^x-oauth-scopes:.*\bworkflow\b") {
                 throw 'L autorisation GitHub workflow manque encore. Executez : gh auth refresh --hostname github.com --scopes workflow'
             }
         }
 
         Write-Host ''
-        if ($hasSourceChanges) { & git diff --cached --stat }
+        if ($resumeMergeCommit) { Write-Host "Reprise du commit deja fusionne : $resumeMergeCommit. Aucun code ne sera renvoye." -ForegroundColor Green }
+        elseif ($hasSourceChanges) { & git diff --cached --stat }
         else { Write-Host 'La branche distante contient deja exactement les sources validees.' -ForegroundColor Green }
         Write-Host ''
         Write-Host "Depot   : https://github.com/$Repository" -ForegroundColor White
         Write-Host "Version : $Version" -ForegroundColor White
-        Write-Host 'Parcours : branche temporaire > tests GitHub > fusion > tag > Release'
+        if ($resumeMergeCommit) { Write-Host 'Parcours : fusion existante verifiee > tag > Release' }
+        else { Write-Host 'Parcours : branche temporaire > tests GitHub > fusion > tag > Release' }
         Write-Host ''
         $confirmation = Read-Host "Publier ou reprendre la version $Version ? O/N"
         if ($confirmation -notmatch '^[OoYy]$') {
@@ -443,17 +524,19 @@ Puis relancez avec l option -AllowWorkflowChanges.
             Complete-Script 0
         }
 
-        if ($hasSourceChanges) {
-            Invoke-Checked { git commit -m "Preparer la version $Version" } 'Impossible de creer le commit.'
-            if ($remoteBranchExists) {
-                Invoke-Checked { git push origin $branchName } 'La branche de publication existante n a pas pu etre mise a jour.'
-            } else {
-                Invoke-Checked { git push --set-upstream origin $branchName } 'La branche de publication n a pas pu etre envoyee.'
+        $mergeCommit = $resumeMergeCommit
+        if (-not $resumeMergeCommit) {
+            if ($hasSourceChanges) {
+                Invoke-Checked { git commit -m "Preparer la version $Version" } 'Impossible de creer le commit.'
+                if ($remoteBranchExists) {
+                    Invoke-Checked { git push origin $branchName } 'La branche de publication existante n a pas pu etre mise a jour.'
+                } else {
+                    Invoke-Checked { git push --set-upstream origin $branchName } 'La branche de publication n a pas pu etre envoyee.'
+                }
             }
-        }
 
-        $prBodyPath = Join-Path $stagingDirectory '.release-pr-body.md'
-        @"
+            $prBodyPath = Join-Path $stagingDirectory '.release-pr-body.md'
+            @"
 ## Version $Version
 
 - verification locale complete ;
@@ -465,36 +548,30 @@ Puis relancez avec l option -AllowWorkflowChanges.
 La fusion et le tag sont effectues uniquement apres la reussite des controles GitHub.
 "@ | Set-Content -LiteralPath $prBodyPath -Encoding UTF8
 
-        $openPrJson = & gh pr list --repo $Repository --base main --head $branchName --state open --limit 2 --json number,url
-        if ($LASTEXITCODE -ne 0) { throw 'Impossible de rechercher une Pull Request existante.' }
-        $openPullRequests = @(($openPrJson | Out-String) | ConvertFrom-Json)
-        if ($openPullRequests.Count -gt 1) { throw "Plusieurs Pull Requests utilisent la branche $branchName." }
-        if ($openPullRequests.Count -eq 1) {
-            $prNumber = [int]$openPullRequests[0].number
-            $prUrl = [string]$openPullRequests[0].url
-            Write-Host "Pull Request existante reprise : $prUrl" -ForegroundColor Yellow
-        } else {
-            $prUrl = & gh pr create --repo $Repository --base main --head $branchName --title "Preparer la version $Version" --body-file $prBodyPath
-            if ($LASTEXITCODE -ne 0 -or ($prUrl | Out-String) -notmatch '/pull/(\d+)') {
-                throw "La Pull Request n a pas pu etre creee. La branche $branchName reste disponible sur GitHub."
+            $openPrJson = & gh pr list --repo $Repository --base main --head $branchName --state open --limit 2 --json number,url
+            if ($LASTEXITCODE -ne 0) { throw 'Impossible de rechercher une Pull Request existante.' }
+            $openPrResult = ($openPrJson | Out-String) | ConvertFrom-Json
+            $openPullRequests = @($openPrResult)
+            if ($openPullRequests.Count -gt 1) { throw "Plusieurs Pull Requests utilisent la branche $branchName." }
+            if ($openPullRequests.Count -eq 1) {
+                $prNumber = [int]$openPullRequests[0].number
+                $prUrl = [string]$openPullRequests[0].url
+                Write-Host "Pull Request existante reprise : $prUrl" -ForegroundColor Yellow
+            } else {
+                $prUrl = & gh pr create --repo $Repository --base main --head $branchName --title "Preparer la version $Version" --body-file $prBodyPath
+                if ($LASTEXITCODE -ne 0 -or ($prUrl | Out-String) -notmatch '/pull/(\d+)') {
+                    throw "La Pull Request n a pas pu etre creee. La branche $branchName reste disponible sur GitHub."
+                }
+                $prNumber = [int]$Matches[1]
+                Write-Host "Pull Request creee : $($prUrl | Out-String)" -ForegroundColor Green
             }
-            $prNumber = [int]$Matches[1]
-            Write-Host "Pull Request creee : $($prUrl | Out-String)" -ForegroundColor Green
+
+            Update-PullRequestBranchIfNeeded $prNumber
+            $validatedHead = Wait-ForPullRequestChecks $prNumber
+
+            Write-Host '[5/6] Fusion et creation de la version...' -ForegroundColor Yellow
+            $mergeCommit = Merge-ValidatedPullRequest $prNumber $validatedHead
         }
-
-        Update-PullRequestBranchIfNeeded $prNumber
-        Wait-ForPullRequestChecks $prNumber
-
-        Write-Host '[5/6] Fusion et creation de la version...' -ForegroundColor Yellow
-        Invoke-Checked {
-            gh pr merge $prNumber --repo $Repository --merge --delete-branch
-        } "La Pull Request #$prNumber n a pas pu etre fusionnee."
-
-        $mergedPr = Get-PullRequestState $prNumber
-        if ($mergedPr.state -ne 'MERGED' -or [string]::IsNullOrWhiteSpace([string]$mergedPr.mergeCommit.oid)) {
-            throw "La fusion de la Pull Request #$prNumber n est pas confirmee."
-        }
-        $mergeCommit = [string]$mergedPr.mergeCommit.oid
 
         Invoke-Checked {
             git tag -a $tag $mergeCommit -m "Jellyfin VLC Bridge $Version"

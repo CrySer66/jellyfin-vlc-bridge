@@ -2,6 +2,10 @@
 
 [Documentation française](INSTALLATION.md)
 
+Follow the steps below to install the Windows application, add the Chrome
+extension and play your first video. WinGet and automated installation options
+are grouped at the end of this guide.
+
 ## Requirements
 
 - Windows 10 or Windows 11, 64-bit;
@@ -24,9 +28,131 @@ extension are the only separate components to install.
 6. Wait for the **Installation completed successfully** message.
 
 Installing a newer version over an existing installation keeps the Jellyfin
-connection and displays the saved server address. Select **Change Jellyfin
-server** only when you intentionally want to remove the old connection and start
-a new Quick Connect session.
+connection and displays the saved server address. To use a different server,
+select **Change Jellyfin server** and approve the new Quick Connect code. The
+old connection is preserved until the new connection succeeds.
+
+## Install the Chrome extension
+
+After a first installation, select **Open Chrome Web Store** in the setup
+wizard. On the extension listing, select **Add to Chrome**, then confirm.
+
+If the wizard is closed or this button is hidden after an update, open the
+official listing directly:
+
+[Jellyfin VLC Bridge on the Chrome Web Store](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp)
+
+Chrome automatically installs extension updates after Google has reviewed them.
+Selecting the extension icon shows whether the Windows Bridge is ready and
+provides links to the download, GitHub repository and support page.
+
+When the Windows application is missing, Jellyfin displays **Application not
+installed** instead of **Play with VLC**. Select that action to open the official
+download.
+
+## First playback
+
+1. Reload the Jellyfin page.
+2. Open a movie, episode, season, show or collection.
+3. Select **Play with VLC**.
+4. Choose whether to resume or restart and, for grouped content, which items to
+   include.
+5. Select **Launch in VLC**.
+
+The Bridge works silently in the background. Shows and collections are prepared
+as VLC playlists so the next item can start in the same VLC window.
+
+## Control Center
+
+Open **Jellyfin VLC Bridge** from the Windows Start menu. It immediately checks
+Jellyfin, VLC and the Chrome/Edge integration.
+
+After installation, a Jellyfin VLC Bridge icon starts quietly in the Windows
+notification area. **Minimize** keeps the window in the taskbar, while **Close**
+hides it near the clock. Double-click the icon to reopen the Control Center; its
+menu can also refresh diagnostics or
+quit the icon until the next Windows sign-in. Playback from the extension remains
+available even when the notification icon has been closed.
+
+- **Repair browser** registers the local communication with the extension again;
+- **Playback settings** selects HTTP Direct Play or SMB and the VLC executable;
+- **Copy a diagnostic without secrets** copies useful version and status
+  information without a token or user identifier;
+- **Create support package** saves a ZIP containing the diagnostic and recent
+  redacted logs, ready to attach to a GitHub Issue;
+- **Help and report a bug** opens the official guides and support forms.
+
+When a check fails, the corresponding card explains the likely cause and
+suggests the next action. Support packages automatically remove tokens, Jellyfin
+identifiers, server addresses and personal Windows paths.
+
+## Playback modes
+
+**HTTP Direct Play** is recommended. Jellyfin sends the original media to a local
+authenticated relay and VLC reads it without video transcoding.
+
+**SMB** lets VLC open an existing Windows network share directly. Use it only
+when that share already works in File Explorer, then configure the server-folder
+to client-share mapping in the Control Center.
+
+## Updates
+
+The Control Center checks the latest official Release from
+`CrySer66/jellyfin-vlc-bridge`. When an update is available, select **Install**.
+The installer replaces the application files while preserving the Quick Connect
+token, configuration and playback preferences.
+
+The Chrome extension is updated separately and automatically by the Chrome Web
+Store.
+
+### After upgrading to Jellyfin 12
+
+1. Install Bridge **1.18.1 or later** over the existing installation. The connection and settings are preserved.
+2. Check the extension version in `chrome://extensions`: **1.8.1 or later** displays preparation errors in the playback dialog. Its Chrome Web Store rollout is independent of the Bridge release.
+3. Fully reload existing Jellyfin tabs with **Ctrl+Shift+R**, then open a movie or episode and select **Play with VLC**.
+
+If the dialog still reports an authentication failure, open the Control Center and refresh diagnostics. Repeat Quick Connect only if diagnostics ask you to reconnect the server. See the [compatibility guide](docs/COMPATIBILITY.md#jellyfin-10x-and-12) for checks of older and newer versions.
+
+## Quick troubleshooting
+
+### The button does not appear
+
+- confirm that the extension is installed and enabled in `chrome://extensions`;
+- fully reload Jellyfin;
+- open a media page that has a playback action.
+
+### VLC does not start
+
+- confirm that VLC is installed;
+- open the Bridge Control Center;
+- select **Repair**, then **Refresh**.
+
+### Quick Connect does not work
+
+- verify the server address;
+- enable Quick Connect in Jellyfin administration;
+- confirm that the PC can open Jellyfin in its browser.
+
+### SmartScreen or antivirus warning
+
+The installer does not yet have a Windows code signature. Download it from the
+official page and follow the [verification guide](docs/VERIFY_DOWNLOADS.md)
+before responding to the warning.
+
+## Uninstall
+
+Open:
+
+```text
+Windows Settings → Apps → Installed apps → Jellyfin VLC Bridge
+```
+
+The uninstaller offers two choices:
+
+- **Keep the connection** for a future reinstallation;
+- **Delete everything** to remove the Jellyfin configuration and token as well.
+
+Chrome manages the extension separately. Remove it from `chrome://extensions`.
 
 ## Install with WinGet (optional)
 
@@ -63,89 +189,9 @@ winget upgrade --id CrySer66.JellyfinVlcBridge --exact --source winget --silent
 
 Your Quick Connect token and settings are preserved. WinGet versions may arrive after GitHub Releases, so **no available upgrade** is not necessarily an error. The Control Center's built-in updater remains usable; do not run both update methods at the same time.
 
-To uninstall, use **Windows Settings → Apps → Jellyfin VLC Bridge**, as described below. WinGet does not replace Chrome's extension management or an Authenticode signature, and does not guarantee that SmartScreen warnings disappear.
+To uninstall, use **Windows Settings → Apps → Jellyfin VLC Bridge**, as described under [Uninstall](#uninstall). WinGet does not replace Chrome's extension management or an Authenticode signature, and does not guarantee that SmartScreen warnings disappear.
 
 Microsoft references: [installation](https://learn.microsoft.com/windows/package-manager/winget/install), [upgrades](https://learn.microsoft.com/windows/package-manager/winget/upgrade).
-
-## Control Center
-
-Open **Jellyfin VLC Bridge** from the Windows Start menu. It immediately checks
-Jellyfin, VLC and the Chrome/Edge integration.
-
-After installation, a Jellyfin VLC Bridge icon starts quietly in the Windows
-notification area. **Minimize** keeps the window in the taskbar, while **Close**
-hides it near the clock. Double-click the icon to reopen the Control Center; its
-menu can also refresh diagnostics or
-quit the icon until the next Windows sign-in. Playback from the extension remains
-available even when the notification icon has been closed.
-
-- **Repair browser** registers the local communication with the extension again;
-- **Playback settings** selects HTTP Direct Play or SMB and the VLC executable;
-- **Copy a diagnostic without secrets** copies useful version and status
-  information without a token or user identifier;
-- **Create support package** saves a ZIP containing the diagnostic and recent
-  redacted logs, ready to attach to a GitHub Issue;
-- **Help and report a bug** opens the official guides and support forms.
-
-When a check fails, the corresponding card explains the likely cause and
-suggests the next action. Support packages automatically remove tokens, Jellyfin
-identifiers, server addresses and personal Windows paths.
-
-## Install the Chrome extension
-
-The Chrome Web Store page opens automatically when installation finishes. Select
-**Add to Chrome**, then confirm.
-
-If that page was closed, open the official listing:
-
-https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp
-
-Chrome automatically installs extension updates after Google has reviewed them.
-Selecting the extension icon shows whether the Windows Bridge is ready and
-provides links to the download, GitHub repository and support page.
-
-When the Windows application is missing, Jellyfin displays **Application not
-installed** instead of **Play with VLC**. Select that action to open the official
-download.
-
-## First playback
-
-1. Reload the Jellyfin page.
-2. Open a movie, episode, season, show or collection.
-3. Select **Play with VLC**.
-4. Choose whether to resume or restart and, for grouped content, which items to
-   include.
-5. Select **Launch in VLC**.
-
-The Bridge works silently in the background. Shows and collections are prepared
-as VLC playlists so the next item can start in the same VLC window.
-
-## Playback modes
-
-**HTTP Direct Play** is recommended. Jellyfin sends the original media to a local
-authenticated relay and VLC reads it without video transcoding.
-
-**SMB** lets VLC open an existing Windows network share directly. Use it only
-when that share already works in File Explorer, then configure the server-folder
-to client-share mapping in the Control Center.
-
-## Updates
-
-The Control Center checks the latest official Release from
-`CrySer66/jellyfin-vlc-bridge`. When an update is available, select **Install**.
-The installer replaces the application files while preserving the Quick Connect
-token, configuration and playback preferences.
-
-The Chrome extension is updated separately and automatically by the Chrome Web
-Store.
-
-### After upgrading to Jellyfin 12
-
-1. Install Bridge **1.18.1 or later** over the existing installation. The connection and settings are preserved.
-2. Check the extension version in `chrome://extensions`: **1.8.1 or later** displays preparation errors in the playback dialog. Its Chrome Web Store rollout is independent of the Bridge release.
-3. Fully reload existing Jellyfin tabs with **Ctrl+Shift+R**, then open a movie or episode and select **Play with VLC**.
-
-If the dialog still reports an authentication failure, open the Control Center and refresh diagnostics. Repeat Quick Connect only if diagnostics ask you to reconnect the server. See the [compatibility guide](docs/COMPATIBILITY.md#jellyfin-10x-and-12) for checks of older and newer versions.
 
 ## Automated installation (advanced)
 
@@ -164,21 +210,6 @@ The `/silent`, `/S`, `--quiet` and `--silent` aliases are also accepted.
 Unattended removal uses the Windows `QuietUninstallString` and keeps the
 connection by default. The uninstaller script's technical `-Silent -Purge`
 option also removes the configuration and token.
-
-## Uninstall
-
-Open:
-
-```text
-Windows Settings → Apps → Installed apps → Jellyfin VLC Bridge
-```
-
-The uninstaller offers two choices:
-
-- **Keep the connection** for a future reinstallation;
-- **Delete everything** to remove the Jellyfin configuration and token as well.
-
-Chrome manages the extension separately. Remove it from `chrome://extensions`.
 
 ## Files and Windows integration
 
@@ -201,28 +232,3 @@ The installer registers the native-messaging connection for Chrome and Edge, the
 local `jellyfin-vlc` protocol, the notification-area startup entry and the
 Windows uninstall entry for the current user. It does not add a desktop
 shortcut.
-
-## Quick troubleshooting
-
-### The button does not appear
-
-- confirm that the extension is installed and enabled in `chrome://extensions`;
-- fully reload Jellyfin;
-- open a media page that has a playback action.
-
-### VLC does not start
-
-- confirm that VLC is installed;
-- open the Bridge Control Center;
-- select **Repair**, then **Refresh**.
-
-### Quick Connect does not work
-
-- verify the server address;
-- enable Quick Connect in Jellyfin administration;
-- confirm that the PC can open Jellyfin in its browser.
-
-### SmartScreen or antivirus warning
-
-The source is public, but the installer is not yet signed with a commercial code
-signing certificate. Download it only from the official GitHub Releases page.

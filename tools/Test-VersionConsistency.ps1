@@ -25,8 +25,6 @@ $versions = [ordered]@{
     'Centre-Controle.ps1' = Read-MatchedVersion 'installer\Centre-Controle.ps1' '\$script:bridgeVersion\s*=\s*''([^'']+)'''
     'ControlCenterBootstrap.cs' = Read-MatchedVersion 'installer\ControlCenterBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
     'SetupBootstrap.cs' = Read-MatchedVersion 'installer\SetupBootstrap.cs' 'AssemblyVersion\("([^"]+)\.0"\)'
-    'README.md' = Read-MatchedVersion 'README.md' '\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*\s*\|\s*\*\*Windows'
-    'README.en.md' = Read-MatchedVersion 'README.en.md' '\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*\s*\|\s*\*\*Windows'
 }
 
 $invalid = $versions.GetEnumerator() | Where-Object { $_.Value -ne $ExpectedVersion }
@@ -42,17 +40,8 @@ if ($extensionVersion -ne $extensionBuildVersion -or $extensionVersion -ne $exte
     throw "Versions de l'extension incoherentes : manifest=$extensionVersion, build=$extensionBuildVersion, test=$extensionPackageTestVersion"
 }
 
-$extensionDocumentationVersions = [ordered]@{
-    # The table describes the packaged source version, independently of Store availability.
-    'README.md' = Read-MatchedVersion 'README.md' '\|\s*\*\*Windows[^|]*\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*'
-    'README.en.md' = Read-MatchedVersion 'README.en.md' '\|\s*\*\*Windows[^|]*\|\s*\*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*'
-}
-$invalidExtensionDocumentation = $extensionDocumentationVersions.GetEnumerator() |
-    Where-Object { $_.Value -ne $extensionVersion }
-if ($invalidExtensionDocumentation) {
-    $details = ($invalidExtensionDocumentation | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '
-    throw "Version d extension incoherente dans la documentation. Attendu $extensionVersion : $details"
-}
+# The landing pages link to the latest release and Store instead of copying
+# version numbers that become stale between the two publication processes.
 
 $changeLog = Get-Content -LiteralPath (Join-Path $projectDirectory 'CHANGELOG.md') -Raw -Encoding UTF8
 if ($changeLog -notmatch [regex]::Escape("## $ExpectedVersion ") -or

@@ -6,7 +6,9 @@
   "opening": { "message": "Ouverture…" },
   "vlcStarted": { "message": "VLC lancé" },
   "reloadJellyfin": { "message": "Recharger Jellyfin" },
-  "applicationNotInstalled": { "message": "Application non installée" },
+  "applicationNotInstalled": { "message": "Application introuvable" },
+  "checkConnection": { "message": "Vérifier la connexion" },
+  "checkConnectionTitle": { "message": "Réessayer la connexion à Jellyfin VLC Bridge" },
   "playWithVlc": { "message": "Lire avec VLC" },
   "checkingBridgeTitle": { "message": "Vérification de Jellyfin VLC Bridge" },
   "openingMediaTitle": { "message": "Ouverture du média dans VLC" },
@@ -69,8 +71,8 @@
   "popupDownload": { "message": "Télécharger l’application Windows" },
   "popupGithub": { "message": "Voir le projet sur GitHub" },
   "popupSupport": { "message": "Aide et signaler un problème" },
-  "popupReadyTitle": { "message": "Application prête" },
-  "popupReadyDetail": { "message": "Le Bridge est installé et peut lancer VLC depuis Jellyfin." },
-  "popupMissingTitle": { "message": "Application non installée" },
-  "popupMissingDetail": { "message": "Installez le Bridge Windows pour activer la lecture avec VLC." }
+  "popupReadyTitle": { "message": "Application connectée" },
+  "popupReadyDetail": { "message": "Ouvrez un film ou un épisode dans Jellyfin, puis choisissez « Lire avec VLC »." },
+  "popupMissingTitle": { "message": "Application introuvable" },
+  "popupMissingDetail": { "message": "Installez le Bridge Windows. S’il est déjà installé, ouvrez son centre de contrôle et réparez la connexion au navigateur, puis réessayez." }
 }
