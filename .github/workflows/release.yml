@@ -56,15 +56,13 @@ jobs:
             throw "Le commit à publier n’appartient pas à la branche main protégée."
           }
 
-      - name: Installer .NET 8
+      - name: Installer .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          global-json-file: global.json
 
       - name: Installer Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
 
@@ -136,6 +134,10 @@ jobs:
         shell: pwsh
         run: ./tools/Test-PublicationFlow.ps1
 
+      - name: Vérifier les protections des workflows hors réseau
+        shell: pwsh
+        run: ./tools/Test-ReleaseWorkflow.ps1
+
       - name: Compiler
         shell: pwsh
         run: |
@@ -179,12 +181,12 @@ jobs:
           ./tools/Test-ReleaseMetadata.ps1 -Version $env:RELEASE_VERSION
 
       - name: Attester la provenance de l’installateur
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-Setup.exe
 
       - name: Attester la provenance du ZIP autonome
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-win-x64.zip
 

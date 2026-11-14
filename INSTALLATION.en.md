@@ -8,7 +8,7 @@ are grouped at the end of this guide.
 
 ## Requirements
 
-- Windows 10 or Windows 11, 64-bit;
+- Windows 10 or Windows 11, x64;
 - VLC Media Player;
 - Google Chrome;
 - a Jellyfin server reachable from the PC;
@@ -43,12 +43,12 @@ official listing directly:
 [Jellyfin VLC Bridge on the Chrome Web Store](https://chromewebstore.google.com/detail/hkjbodgdbjhignhlbecchiigcfigpidp)
 
 Chrome automatically installs extension updates after Google has reviewed them.
-Selecting the extension icon shows whether the Windows Bridge is ready and
-provides links to the download, GitHub repository and support page.
+Selecting the extension icon checks its connection to the Windows application.
+**Application connected** confirms that connection; the Control Center checks
+Jellyfin and VLC separately.
 
-When the Windows application is missing, Jellyfin displays **Application not
-installed** instead of **Play with VLC**. Select that action to open the official
-download.
+If the application cannot be found, use the download offered. For a temporary
+connection problem, select **Retry**.
 
 ## First playback
 
@@ -56,7 +56,7 @@ download.
 2. Open a movie, episode, season, show or collection.
 3. Select **Play with VLC**.
 4. Choose whether to resume or restart and, for grouped content, which items to
-   include.
+   include. If several file versions are available, choose the one you want.
 5. Select **Launch in VLC**.
 
 The Bridge works silently in the background. Shows and collections are prepared
@@ -75,7 +75,7 @@ quit the icon until the next Windows sign-in. Playback from the extension remain
 available even when the notification icon has been closed.
 
 - **Repair browser** registers the local communication with the extension again;
-- **Playback settings** selects HTTP Direct Play or SMB and the VLC executable;
+- **Settings → Advanced options** selects HTTP Direct Play or SMB and the VLC executable;
 - **Copy a diagnostic without secrets** copies useful version and status
   information without a token or user identifier;
 - **Create support package** saves a ZIP containing the diagnostic and recent
@@ -109,7 +109,7 @@ Store.
 
 1. Install Bridge **1.18.1 or later** over the existing installation. The connection and settings are preserved.
 2. Check the extension version in `chrome://extensions`: **1.8.1 or later** displays preparation errors in the playback dialog. Its Chrome Web Store rollout is independent of the Bridge release.
-3. Fully reload existing Jellyfin tabs with **Ctrl+Shift+R**, then open a movie or episode and select **Play with VLC**.
+3. Fully reload existing Jellyfin tabs with **Ctrl+Shift+R**, open a movie or episode, then select **Play with VLC → Launch in VLC**.
 
 If the dialog still reports an authentication failure, open the Control Center and refresh diagnostics. Repeat Quick Connect only if diagnostics ask you to reconnect the server. See the [compatibility guide](docs/COMPATIBILITY.md#jellyfin-10x-and-12) for checks of older and newer versions.
 
@@ -123,9 +123,9 @@ If the dialog still reports an authentication failure, open the Control Center a
 
 ### VLC does not start
 
-- confirm that VLC is installed;
-- open the Bridge Control Center;
-- select **Repair**, then **Refresh**.
+- confirm that you selected **Launch in VLC** in the playback dialog;
+- open **Jellyfin VLC Bridge** from the Start menu and follow the suggested action: install VLC, connect Jellyfin or check again;
+- if the browser connection is incomplete, select **Diagnostics → Repair browser**, then reload Jellyfin.
 
 ### Quick Connect does not work
 

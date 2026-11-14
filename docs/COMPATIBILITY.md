@@ -17,13 +17,23 @@ pour Windows. Le code comporte quelques abstractions portables, mais Linux et ma
 ne sont pas annoncés comme pris en charge tant qu’ils ne peuvent pas être testés
 régulièrement.
 
+**Windows 11 x64 est recommandé.** Pour Windows 10, la prise en charge de
+.NET 10 par Microsoft dépend de l’édition et de son cycle de support. Consultez
+la [liste officielle des systèmes pris en charge](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md#windows).
+Cette liste ne remplace pas les essais du Bridge rapportés ci-dessous.
+
 ## Combinaisons de versions
 
-- le Bridge 1.19.1 et le paquet de l’extension 1.8.1 forment la combinaison recommandée ; la soumission au Chrome Web Store suit un parcours séparé ;
+- utilisez la [dernière version Windows publiée](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest) avec l’extension **1.9.0**, publiée sur le Chrome Web Store le 26 septembre 2026 ;
 - une extension plus ancienne peut continuer à lancer une lecture standard, sans
   le choix d’une version 1080p ou 4K ;
 - après une mise à jour de l’extension, rechargez les onglets Jellyfin déjà ouverts ;
 - seule la dernière version publiée du Bridge reçoit les correctifs.
+
+Le Bridge **1.21.0 utilise un moteur de lecture reposant sur**
+**.NET 10 LTS**, inclus dans l’application. Cette migration ne nécessite pas
+d’installer .NET séparément et conserve l’extension 1.9.0. La disponibilité
+publique se vérifie sur GitHub Releases ; un paquet local ne vaut pas publication.
 
 ## Jellyfin 10.x et 12
 
@@ -46,6 +56,12 @@ versions, sans changer la configuration d’authentification du serveur.
 | Tests de l’extension hors ligne | Couvrent les erreurs de préparation et le lancement simplifié avec un ancien Bridge ; ne remplacent pas une vérification dans Chrome. |
 | Essai réel Jellyfin 12.0.0, Bridge 1.18.1, extension 1.8.0 (10 septembre 2026) | Connexion existante conservée, aperçu complet, lancement depuis Chrome, vidéo décodée dans VLC, flux HTTP 206 et session Jellyfin en Direct Play à 50 secondes avec pause synchronisée. |
 | Jellyfin 10.x ; séries, reprise et versions multiples sur serveur réel | Authentification vérifiée dans les sources et comportements couverts par les tests hors ligne. Pas d’essai réel de ces combinaisons pendant cette validation. |
+| Essai réel isolé Jellyfin 12.4.0, Bridge 1.21.0 sous .NET 10.0.15, VLC 3.0.24 (14 novembre 2026) | Deux lectures d’une vidéo synthétique par la boucle de lecture réelle du Bridge, décodage vidéo confirmé ; progression enregistrée à 9 secondes, reprise à 9 secondes puis progression enregistrée à 21 secondes. |
+
+L’essai du 14 novembre utilise un serveur, un compte et un profil VLC de test
+isolés. Il ne couvre pas le parcours Chrome, Quick Connect, les séries ni les
+versions multiples sur Jellyfin 12.4. Les essais historiques restent indiqués
+séparément dans la matrice.
 
 Avec l’extension 1.8.1, une erreur de préparation reste visible dans la fenêtre
 de lecture. Le lancement simplifié est réservé aux anciens Bridge qui ne
@@ -85,10 +101,20 @@ Le paquet d’assistance retire les jetons et identifiants personnels connus.
 The installer, Control Center and uninstaller are designed and tested for Windows.
 Linux and macOS are not advertised as supported until they can be tested regularly.
 
-Bridge 1.19.1 with extension package 1.8.1 is the recommended combination;
-Chrome Web Store submission is a separate process. An older
+**Windows 11 x64 is recommended.** On Windows 10, Microsoft's .NET 10 support
+depends on the edition and its support lifecycle. See the
+[official supported OS list](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md#windows).
+That list does not replace the Bridge tests reported below.
+
+Use the [latest published Windows release](https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest)
+with extension **1.9.0**, published on the Chrome Web Store on September 26, 2026. An older
 extension can still request standard playback but does not provide media-version
 selection. Reload existing Jellyfin tabs after an extension update.
+
+Bridge **1.21.0 uses a playback engine based on .NET 10 LTS**,
+included in the application. No separate .NET installation is needed, and the
+extension remains at 1.9.0. Check GitHub Releases for public availability;
+a local package does not constitute publication.
 
 ## Jellyfin 10.x and 12
 
@@ -110,6 +136,12 @@ the server authentication settings.
 | Offline extension tests | Cover preparation errors and simplified playback with an older Bridge; do not replace a check in Chrome. |
 | Live Jellyfin 12.0.0, Bridge 1.18.1, extension 1.8.0 (10 September 2026) | Existing connection preserved; full preview; launch from Chrome; decoded video in VLC; HTTP 206 stream; Jellyfin Direct Play session at 50 seconds with synchronized pause. |
 | Jellyfin 10.x; series, resume and multiple versions on a real server | Authentication checked in upstream source and behavior covered by offline tests. These combinations were not tested live during this validation. |
+| Isolated live Jellyfin 12.4.0, Bridge 1.21.0 on .NET 10.0.15, VLC 3.0.24 (14 November 2026) | Two plays of a synthetic video through the actual Bridge playback loop, with video decoding confirmed; progress saved at 9 seconds, resumed at 9 seconds, then saved at 21 seconds. |
+
+The November 14 test uses an isolated test server, account and VLC profile.
+It does not cover the Chrome flow, Quick Connect, series or multiple media
+versions on Jellyfin 12.4. Historical checks remain listed separately in the
+matrix.
 
 Extension 1.8.1 keeps preparation errors visible in the playback dialog.
 Simplified playback is reserved for older Bridge versions that do not recognize

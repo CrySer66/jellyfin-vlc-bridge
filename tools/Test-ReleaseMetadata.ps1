@@ -3,6 +3,62 @@ param([string]$Version = '')
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $PSScriptRoot
 
+function Assert-WorkflowActionPins([string]$workflowSource) {
+    foreach ($usesMatch in [regex]::Matches($workflowSource, '(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]*(?<action>[^\s#]+)')) {
+        $action = $usesMatch.Groups['action'].Value
+        if ($action -notmatch '@[0-9a-f]{40}$') {
+            throw "Action GitHub non figee par empreinte : $action"
+        }
+    }
+}
+
+function Assert-ReleaseAttestations([string]$workflowSource) {
+    $uses = [regex]::Matches($workflowSource, '(?m)^(?<indent>[ \t]*)(?<inline>-[ \t]+)?uses:[ \t]*(?<action>[^\s#]+)[^\r\n]*')
+    $attestations = @($uses | Where-Object { $_.Groups['action'].Value -match '^actions/attest(?:@|$)' })
+    if ($attestations.Count -ne 2) {
+        throw 'La Release doit contenir exactement deux attestations distinctes.'
+    }
+    $expectedSubjects = @(
+        'outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-Setup.exe',
+        'outputs/JellyfinVlcBridge-${{ steps.version.outputs.version }}-win-x64.zip'
+    )
+    $subjects = @()
+    $attestCommit = $null
+    foreach ($attestation in $attestations) {
+        $action = $attestation.Groups['action'].Value
+        if ($action -notmatch '^actions/attest@(?<commit>[0-9a-f]{40})$') {
+            throw "Action GitHub non figee par empreinte : $action"
+        }
+        $commit = $Matches.commit
+        if ($null -ne $attestCommit -and $commit -cne $attestCommit) {
+            throw 'Les deux attestations doivent utiliser la meme empreinte actions/attest.'
+        }
+        $attestCommit = $commit
+
+        # Bind each subject to its own step; a path mentioned elsewhere is not an attestation.
+        $propertyIndent = $attestation.Groups['indent'].Length + $attestation.Groups['inline'].Length
+        $stepLines = @()
+        $remaining = $workflowSource.Substring($attestation.Index + $attestation.Length)
+        foreach ($line in ($remaining -split "`r?`n")) {
+            if (-not [string]::IsNullOrWhiteSpace($line) -and $line.TrimStart() -notlike '#*') {
+                $indent = [regex]::Match($line, '^[ \t]*').Length
+                if ($indent -lt $propertyIndent) { break }
+            }
+            $stepLines += $line
+        }
+        $subjectMatches = [regex]::Matches(($stepLines -join "`n"), '(?m)^[ \t]*subject-path:[ \t]*(?<path>[^\r\n#]*)')
+        if ($subjectMatches.Count -ne 1) {
+            throw 'Chaque attestation doit declarer exactement un subject-path.'
+        }
+        $subjects += $subjectMatches[0].Groups['path'].Value.Trim()
+    }
+    foreach ($expectedSubject in $expectedSubjects) {
+        if (@($subjects | Where-Object { $_ -ceq $expectedSubject }).Count -ne 1) {
+            throw 'Les attestations doivent couvrir une fois le Setup et une fois le ZIP.'
+        }
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($Version)) {
     [xml]$props = Get-Content -LiteralPath (Join-Path $projectDirectory 'Directory.Build.props') -Raw -Encoding UTF8
     $Version = [string]$props.Project.PropertyGroup.Version
@@ -29,9 +85,12 @@ foreach ($requiredPublisherGuard in @(
     }
 }
 
+$sdkConfig = Get-Content -LiteralPath (Join-Path $projectDirectory 'global.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($sdkConfig.sdk.version -notmatch '^10\.0\.\d+$') { throw 'Le projet doit selectionner un SDK .NET 10 dans global.json.' }
 foreach ($workflowSource in @($workflow, $ciWorkflow)) {
-    if ($workflowSource -notmatch '(?ms)dotnet-version:\s*\|\s*\r?\n\s+8\.0\.x\s*\r?\n\s+10\.0\.x') {
-        throw 'Le workflow n installe pas les SDK .NET 8 et 10 requis par le projet.'
+    if ($workflowSource -notmatch '(?m)^[ \t]+global-json-file:[ \t]*global\.json[ \t]*\r?$' -or
+        $workflowSource -match '(?m)^[ \t]+dotnet-version:') {
+        throw 'Le workflow doit installer uniquement le SDK .NET 10 selectionne dans global.json.'
     }
     if (-not $workflowSource.Contains('Test-WindowsLifecycle.ps1')) {
         throw 'Le workflow ne teste pas le cycle reel du Setup Windows.'
@@ -39,12 +98,7 @@ foreach ($workflowSource in @($workflow, $ciWorkflow)) {
 }
 
 foreach ($workflowSource in @($workflow, $ciWorkflow)) {
-    foreach ($usesMatch in [regex]::Matches($workflowSource, '(?m)^\s*uses:\s*(?<action>[^\s#]+)')) {
-        $action = $usesMatch.Groups['action'].Value
-        if ($action -notmatch '@[0-9a-f]{40}$') {
-            throw "Action GitHub non figee par empreinte : $action"
-        }
-    }
+    Assert-WorkflowActionPins $workflowSource
 }
 
 foreach ($workflowSource in @($workflow, $ciWorkflow)) {
@@ -88,10 +142,7 @@ $unexpectedPermissions = @($permissionNames | Where-Object {
 if ($unexpectedPermissions.Count -gt 0) {
     throw "Autorisations de Release trop larges : $($unexpectedPermissions -join ', ')"
 }
-$attestCommit = '508db95dd578ae2727ebd6217d5ba78e4fbda05d'
-if ([regex]::Matches($workflow, "uses:\s*actions/attest@$attestCommit").Count -ne 2) {
-    throw 'La Release doit attester separement le Setup et le ZIP avec une action figee.'
-}
+Assert-ReleaseAttestations $workflow
 foreach ($requiredText in @(
     'fetch-depth: 0',
     'EVENT_NAME: ${{ github.event_name }}',

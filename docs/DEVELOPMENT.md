@@ -5,7 +5,7 @@ Ce document concerne les personnes qui souhaitent examiner, compiler ou contribu
 ## Environnement
 
 - Windows 10/11 x64 pour construire l'installateur ;
-- SDK .NET 10 correspondant à `global.json` et runtime .NET 8 pour exécuter les tests ;
+- SDK .NET 10 correspondant à `global.json`, avec son runtime .NET 10 pour exécuter les tests ;
 - .NET Framework 4.8 pour le centre de contrôle WPF sur Windows 10/11 ;
 - PowerShell 5.1 ou plus récent ;
 - VLC pour les tests de lecture réels.
@@ -98,7 +98,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-WindowsRelease
 Le script :
 
 1. génère l'icône Windows depuis les icônes de l'extension ;
-2. restaure et publie l'application Windows autonome en un seul fichier, avec .NET 8 intégré ;
+2. restaure et publie l'application Windows autonome en un seul fichier, avec .NET 10 LTS intégré ;
 3. compile le centre de contrôle natif WPF avec ses ressources embarquées ;
 4. retire les symboles de débogage du paquet public ;
 5. construit le ZIP Windows ;

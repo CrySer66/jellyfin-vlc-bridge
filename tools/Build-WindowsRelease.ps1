@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '1.20.0'
+    [string]$Version = '1.21.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,8 +11,10 @@ $setupExe = Join-Path $outputsDirectory "JellyfinVlcBridge-$Version-Setup.exe"
 $workRoot = Join-Path $projectDirectory 'work'
 $buildDirectory = Join-Path $workRoot "release-$Version"
 $appIcon = Join-Path $projectDirectory 'assets\JellyfinVlcBridge.ico'
-$runtimeFrameworkVersion = '8.0.22'
-$globalPackagesDirectory = Join-Path $env:USERPROFILE '.nuget\packages'
+$runtimeFrameworkVersion = '10.0.15'
+$globalPackagesDirectory = if ([string]::IsNullOrWhiteSpace($env:NUGET_PACKAGES)) {
+    Join-Path $env:USERPROFILE '.nuget\packages'
+} else { $env:NUGET_PACKAGES }
 $originalAppData = $env:APPDATA
 
 function Remove-GeneratedDirectory([string]$path, [string]$expectedParent) {

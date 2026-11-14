@@ -4,7 +4,7 @@
 
 <h1 align="center">Jellyfin VLC Bridge</h1>
 
-<p align="center">Vos films et séries Jellyfin dans VLC, en un clic.</p>
+<p align="center">Vos films et séries Jellyfin dans VLC, depuis votre navigateur.</p>
 
 <p align="center">
   <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest"><strong>1. Télécharger l’application Windows</strong></a>
@@ -16,7 +16,7 @@
 
 Jellyfin VLC Bridge ajoute le bouton **Lire avec VLC** dans votre navigateur. Vous choisissez un film ou une série sur Jellyfin, puis regardez la vidéo dans VLC sur votre PC. Votre progression est enregistrée dans Jellyfin.
 
-**Il vous faut :** Windows 10 ou 11 en 64 bits, [VLC](https://www.videolan.org/vlc/), Google Chrome et un serveur Jellyfin auquel vous avez accès.
+**Il vous faut :** Windows 10 ou 11 en 64 bits (x64), [VLC](https://www.videolan.org/vlc/), Google Chrome et un serveur Jellyfin auquel vous avez accès, avec Quick Connect activé.
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Choisissez un média dans Jellyfin et regardez-le dans VLC sur votre PC">
@@ -26,7 +26,7 @@ Jellyfin VLC Bridge ajoute le bouton **Lire avec VLC** dans votre navigateur. Vo
 
 1. **Installez l’application Windows.** Sur la page de téléchargement ci-dessus, ouvrez le fichier qui se termine par **`-Setup.exe`** et suivez l’assistant.
 2. **Connectez Jellyfin.** Saisissez l’adresse de votre serveur. L’assistant affiche un code à autoriser dans **Jellyfin → Paramètres → Quick Connect**.
-3. **Ajoutez l’extension Chrome.** Utilisez le second lien ci-dessus, rechargez Jellyfin, ouvrez un film ou un épisode et cliquez sur **Lire avec VLC**.
+3. **Ajoutez l’extension Chrome et lancez une vidéo.** Utilisez le second lien ci-dessus, rechargez Jellyfin, ouvrez un film ou un épisode et cliquez sur **Lire avec VLC**. Choisissez vos options, puis **Lancer dans VLC**.
 
 L’application et l’extension sont toutes les deux nécessaires. L’installation du Bridge ne demande pas de droits administrateur. Une mise à jour conserve votre connexion et vos réglages.
 

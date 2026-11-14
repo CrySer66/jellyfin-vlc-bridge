@@ -4,7 +4,7 @@
 
 <h1 align="center">Jellyfin VLC Bridge</h1>
 
-<p align="center">Your Jellyfin movies and shows in VLC, with one click.</p>
+<p align="center">Your Jellyfin movies and shows in VLC, from your browser.</p>
 
 <p align="center">
   <a href="https://github.com/CrySer66/jellyfin-vlc-bridge/releases/latest"><strong>1. Download the Windows application</strong></a>
@@ -16,7 +16,7 @@
 
 Jellyfin VLC Bridge adds a **Play with VLC** button to your browser. Choose a movie or show in Jellyfin, then watch it in VLC on your PC. Your progress is saved in Jellyfin.
 
-**You need:** 64-bit Windows 10 or 11, [VLC](https://www.videolan.org/vlc/), Google Chrome and a Jellyfin server you can access.
+**You need:** Windows 10 or 11 x64, [VLC](https://www.videolan.org/vlc/), Google Chrome and a Jellyfin server you can access, with Quick Connect enabled.
 
 <p align="center">
   <img src="assets/preview-jellyfin-vlc-bridge.png" width="820" alt="Choose media in Jellyfin and watch it in VLC on your PC">
@@ -26,7 +26,7 @@ Jellyfin VLC Bridge adds a **Play with VLC** button to your browser. Choose a mo
 
 1. **Install the Windows application.** On the download page above, open the file ending in **`-Setup.exe`** and follow the setup wizard.
 2. **Connect Jellyfin.** Enter your server address. The wizard displays a code to approve in **Jellyfin → Settings → Quick Connect**.
-3. **Add the Chrome extension.** Use the second link above, reload Jellyfin, open a movie or episode and select **Play with VLC**.
+3. **Add the Chrome extension and play a video.** Use the second link above, reload Jellyfin, open a movie or episode and select **Play with VLC**. Choose your options, then **Launch in VLC**.
 
 You need both the application and the extension. Installing the Bridge does not require administrator rights. Updates keep your connection and settings.
 
