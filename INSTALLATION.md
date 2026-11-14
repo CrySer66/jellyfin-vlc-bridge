@@ -8,7 +8,7 @@ d’installation automatisée sont regroupées à la fin du guide.
 
 ## Prérequis
 
-- Windows 10 ou Windows 11 en 64 bits ;
+- Windows 10 ou Windows 11 en 64 bits (x64) ;
 - VLC Media Player ;
 - Google Chrome ;
 - un serveur Jellyfin accessible depuis le PC ;
@@ -39,16 +39,17 @@ Si l’assistant est fermé ou si ce bouton n’est pas affiché après une mise
 
 L'extension est disponible publiquement sur le Chrome Web Store et recevra automatiquement les mises à jour validées par Google.
 
-Cliquez sur son icône dans la barre d'outils Chrome pour vérifier si l'application Windows est prête, télécharger le Bridge ou ouvrir le projet GitHub. Si l'application n'est pas installée, Jellyfin affiche **Application non installée** à la place de **Lire avec VLC** ; cliquez sur cette action pour ouvrir le téléchargement officiel.
+Cliquez sur son icône dans la barre d'outils Chrome pour vérifier la liaison avec l'application Windows. Le statut **Application connectée** confirme cette liaison ; le centre de contrôle vérifie séparément Jellyfin et VLC. Si l'application est introuvable, utilisez le téléchargement proposé. En cas de problème temporaire de liaison, cliquez sur **Réessayer**.
 
 ## Première lecture
 
 1. Rechargez la page Jellyfin.
-2. Ouvrez un film, un épisode, une saison ou une série.
+2. Ouvrez un film, un épisode, une saison, une série ou une collection.
 3. Cliquez sur **Lire avec VLC**.
-4. Acceptez éventuellement le premier avertissement de Windows ou du pare-feu concernant VLC.
+4. Choisissez de reprendre ou de recommencer et, pour un groupe de médias, les éléments à lire. Si plusieurs versions existent, choisissez celle que vous souhaitez regarder.
+5. Cliquez sur **Lancer dans VLC**.
 
-Pour une série ou une saison, le Bridge commence au prochain épisode Jellyfin et prépare les épisodes suivants dans la même liste de lecture VLC.
+Pour une série ou une saison, vous pouvez commencer au prochain épisode Jellyfin ou repartir du début. Les éléments choisis sont préparés dans la même liste de lecture VLC.
 
 Le Bridge reste actif silencieusement pendant la lecture : aucune fenêtre CMD n'est nécessaire. Les informations de diagnostic restent accessibles depuis le Centre de contrôle.
 
@@ -65,7 +66,7 @@ de session. La lecture depuis l’extension reste disponible même si cette icô
 est quittée.
 
 - **Réparer navigateur** réenregistre la communication locale avec l'extension ;
-- **Réglages de lecture** permet de choisir HTTP Direct Play ou SMB et le chemin de VLC ;
+- **Réglages → Options avancées** permet de choisir HTTP Direct Play ou SMB et le chemin de VLC ;
 - **Copier un diagnostic sans secret** prépare les versions de l'application et de VLC ainsi que les informations utiles, sans jeton ni identifiant utilisateur ;
 - **Créer un paquet d’assistance** enregistre un ZIP contenant le diagnostic et les journaux récents expurgés, prêt à être joint à une Issue GitHub ;
 - **Aide et signaler un bug** ouvre les guides et formulaires officiels du projet.
@@ -86,7 +87,7 @@ L'extension est mise à jour automatiquement par le Chrome Web Store.
 
 1. Installez le Bridge **1.18.1 ou ultérieur** par-dessus l’installation actuelle. La connexion et les réglages sont conservés.
 2. Vérifiez la version de l’extension dans `chrome://extensions` : **1.8.1 ou ultérieure** affiche les erreurs de préparation dans la fenêtre de lecture. Sa diffusion sur le Chrome Web Store est indépendante de celle du Bridge.
-3. Rechargez complètement les onglets Jellyfin avec **Ctrl+Maj+R**, puis ouvrez un film ou un épisode et cliquez sur **Lire avec VLC**.
+3. Rechargez complètement les onglets Jellyfin avec **Ctrl+Maj+R**, ouvrez un film ou un épisode, puis choisissez **Lire avec VLC → Lancer dans VLC**.
 
 Si la fenêtre signale encore une connexion refusée, ouvrez le centre de contrôle et actualisez le diagnostic. Ne refaites Quick Connect que si le diagnostic demande de reconnecter le serveur. Les contrôles des anciennes et nouvelles versions sont détaillés dans le [guide de compatibilité](docs/COMPATIBILITY.md#jellyfin-10x-et-12).
 
@@ -100,9 +101,9 @@ Si la fenêtre signale encore une connexion refusée, ouvrez le centre de contr�
 
 ### Le bouton apparaît, mais VLC ne démarre pas
 
-- vérifiez que VLC est installé ;
-- ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer ;
-- cliquez sur **Réparer**, puis sur **Actualiser**.
+- vérifiez que vous avez confirmé avec **Lancer dans VLC** dans la fenêtre de lecture ;
+- ouvrez **Jellyfin VLC Bridge** depuis le menu Démarrer et suivez l’action proposée : installer VLC, connecter Jellyfin ou réessayer la vérification ;
+- si la liaison au navigateur est signalée comme incomplète, ouvrez **Diagnostic → Réparer navigateur**, puis rechargez Jellyfin.
 
 ### Quick Connect ne fonctionne pas
 

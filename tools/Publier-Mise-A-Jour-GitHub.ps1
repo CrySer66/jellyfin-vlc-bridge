@@ -51,6 +51,7 @@ function Invoke-LocalValidation {
 
     & (Join-Path $PSScriptRoot 'Test-PowerShellSyntax.ps1')
     & (Join-Path $PSScriptRoot 'Test-PublicationFlow.ps1')
+    & (Join-Path $PSScriptRoot 'Test-ReleaseWorkflow.ps1')
 
     Invoke-Checked {
         dotnet restore (Join-Path $projectDirectory 'JellyfinVlcBridge.slnx') --configfile (Join-Path $projectDirectory 'NuGet.Config')

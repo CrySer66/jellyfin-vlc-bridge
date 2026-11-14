@@ -1,6 +1,6 @@
 # Politique de confidentialité — Jellyfin VLC Bridge
 
-Dernière mise à jour : 24 juillet 2026
+Dernière mise à jour : 14 novembre 2026
 
 ## Résumé
 

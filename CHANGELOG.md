@@ -1,5 +1,20 @@
 # Historique des versions
 
+## 1.21.0 — 2026-11-14
+
+- migre le moteur du Bridge vers .NET 10 LTS et embarque le runtime 10.0.15 ; aucun runtime à installer séparément pour l’utilisateur ;
+- conserve les réglages, la connexion Jellyfin, les préférences de lecture et l’extension Chrome 1.9.0 existante ;
+- précise le parcours de première lecture dans les guides français et anglais, jusqu’au bouton **Lancer dans VLC** ;
+- harmonise les versions annoncées et le statut de publication de l’extension, tout en conservant les limites des essais de compatibilité historiques ;
+- actualise les outils GitHub de préparation de Node.js et d’attestation des téléchargements ;
+- autorise les futures mises à jour de l’action d’attestation tout en vérifiant ses empreintes complètes, leur cohérence et les deux fichiers attestés.
+
+L’extension Chrome reste en **1.9.0**, publiée le **26 septembre 2026**. Cette version Windows ne nécessite pas de nouvelle soumission au Chrome Web Store.
+
+## Publication Chrome Web Store — 2026-09-26
+
+L’extension **1.9.0**, préparée le 25 septembre, est publiée sur le Chrome Web Store avec les descriptions et captures françaises et anglaises. Les mentions « préparation locale » ci-dessous décrivent l’état au moment de la préparation.
+
 ## 1.20.0 — 2026-09-25
 
 - affiche sur l’accueil la prochaine action utile : connecter Jellyfin, télécharger VLC, réessayer une vérification ou réparer la liaison au navigateur ;
