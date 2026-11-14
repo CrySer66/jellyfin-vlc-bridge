@@ -59,7 +59,9 @@ versions, sans changer la configuration d’authentification du serveur.
 | Essai réel isolé Jellyfin 12.4.0, Bridge 1.21.0 sous .NET 10.0.15, VLC 3.0.24 (14 novembre 2026) | Deux lectures d’une vidéo synthétique par la boucle de lecture réelle du Bridge, décodage vidéo confirmé ; progression enregistrée à 9 secondes, reprise à 9 secondes puis progression enregistrée à 21 secondes. |
 
 L’essai du 14 novembre utilise un serveur, un compte et un profil VLC de test
-isolés. Il ne couvre pas le parcours Chrome, Quick Connect, les séries ni les
+isolés, avec une vidéo synthétique de 120 secondes, des seuils de reprise
+adaptés à sa courte durée et VLC sans affichage ni son. Il ne couvre pas le
+parcours Chrome, Quick Connect, les séries ni les
 versions multiples sur Jellyfin 12.4. Les essais historiques restent indiqués
 séparément dans la matrice.
 
@@ -139,7 +141,9 @@ the server authentication settings.
 | Isolated live Jellyfin 12.4.0, Bridge 1.21.0 on .NET 10.0.15, VLC 3.0.24 (14 November 2026) | Two plays of a synthetic video through the actual Bridge playback loop, with video decoding confirmed; progress saved at 9 seconds, resumed at 9 seconds, then saved at 21 seconds. |
 
 The November 14 test uses an isolated test server, account and VLC profile.
-It does not cover the Chrome flow, Quick Connect, series or multiple media
+A 120-second synthetic video is used with resume thresholds adjusted to its
+short duration and VLC running without video or audio output. It does not
+cover the Chrome flow, Quick Connect, series or multiple media
 versions on Jellyfin 12.4. Historical checks remain listed separately in the
 matrix.
 
